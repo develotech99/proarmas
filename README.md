@@ -1,3 +1,79 @@
+ProArmas - Sistema de Gestión
+Sistema de gestión desarrollado en Laravel para el manejo de inventario y control de armas.
+📋 Requisitos del Sistema
+
+PHP >= 8.1
+Composer
+Node.js >= 16.x
+MySQL >= 5.7
+Git
+
+🚀 Instalación
+1. Clonar el repositorio
+git clone https://github.com/develotech99/proarmas.git
+cd proarmas
+2. Instalar dependencias
+composer install
+npm install
+3. Configurar ambiente
+cp .env.example .env
+php artisan key:generate
+4. Configurar base de datos
+Edita el archivo .env con tus credenciales de base de datos:
+envDB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=nombre_base_datos
+DB_USERNAME=tu_usuario
+DB_PASSWORD=tu_contraseña
+⚠️ IMPORTANTE - No ejecutar migraciones
+NO ejecutes php artisan migrate - Este proyecto utiliza una base de datos compartida que ya contiene las tablas necesarias. Solo configura tu conexión en el archivo .env.
+5. Crear enlace para storage
+bashphp artisan storage:link
+6. Compilar assets y ejecutar
+bashnpm run dev
+php artisan serve
+La aplicación estará disponible en: http://localhost:8000
+🔧 Comandos Útiles
+Limpiar caché
+bashphp artisan cache:clear
+php artisan config:clear
+php artisan view:clear
+Para desarrollo
+bashnpm run dev        # Compilar assets para desarrollo
+npm run watch      # Compilar y observar cambios
+Para producción
+bashnpm run build
+php artisan config:cache
+🛠️ Tecnologías
+
+Laravel 10.x
+MySQL (Base de datos compartida)
+HTML5, CSS3, JavaScript
+Composer, NPM
+
+🐛 Problemas Comunes
+Error de permisos
+bashchmod -R 775 storage/
+chmod -R 775 bootstrap/cache/
+Limpiar dependencias
+bashcomposer clear-cache
+composer install --no-cache
+🤝 Contribución
+
+Fork el proyecto
+Crea tu rama (git checkout -b feature/nueva-feature)
+Commit cambios (git commit -am 'Agregar feature')
+Push (git push origin feature/nueva-feature)
+Crear Pull Request
+
+📞 Contacto
+
+GitHub: @marino57
+Repositorio: ProArmas
+
+
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
