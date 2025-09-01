@@ -29,21 +29,21 @@ DB_PASSWORD=tu_contraseña
 ⚠️ IMPORTANTE - No ejecutar migraciones
 NO ejecutes php artisan migrate - Este proyecto utiliza una base de datos compartida que ya contiene las tablas necesarias. Solo configura tu conexión en el archivo .env.
 5. Crear enlace para storage
-bashphp artisan storage:link
+php artisan storage:link
 6. Compilar assets y ejecutar
-bashnpm run dev
+npm run dev
 php artisan serve
 La aplicación estará disponible en: http://localhost:8000
 🔧 Comandos Útiles
 Limpiar caché
-bashphp artisan cache:clear
+php artisan cache:clear
 php artisan config:clear
 php artisan view:clear
 Para desarrollo
-bashnpm run dev        # Compilar assets para desarrollo
+npm run dev        # Compilar assets para desarrollo
 npm run watch      # Compilar y observar cambios
 Para producción
-bashnpm run build
+npm run build
 php artisan config:cache
 🛠️ Tecnologías
 
@@ -54,10 +54,10 @@ Composer, NPM
 
 🐛 Problemas Comunes
 Error de permisos
-bashchmod -R 775 storage/
+chmod -R 775 storage/
 chmod -R 775 bootstrap/cache/
 Limpiar dependencias
-bashcomposer clear-cache
+composer clear-cache
 composer install --no-cache
 🤝 Contribución
 
