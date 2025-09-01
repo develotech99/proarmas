@@ -3,7 +3,13 @@
 @section('title', 'Gestión de Usuarios')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="usuariosManager()">
+<!-- Meta tag para CSRF token -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" 
+     x-data="usuariosManager()" 
+     x-init="usuarios = @json($usuarios->items())">
+    
     <!-- Header -->
     <div class="md:flex md:items-center md:justify-between mb-6">
         <div class="min-w-0 flex-1">
@@ -257,162 +263,129 @@
             {{ $usuarios->links() }}
         </div>
     @endif
-<!-- Modal para Crear/Editar Usuario CON DEBUG -->
-<div x-show="showModal" 
-     x-transition:enter="ease-out duration-300"
-     x-transition:enter-start="opacity-0"
-     x-transition:enter-end="opacity-100"
-     x-transition:leave="ease-in duration-200"
-     x-transition:leave-start="opacity-100"
-     x-transition:leave-end="opacity-0"
-     class="fixed inset-0 z-50 overflow-y-auto"
-     style="display: none;">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeModal()"></div>
 
-        <div x-show="showModal"
-             x-transition:enter="ease-out duration-300"
-             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-             x-transition:leave="ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
-             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-             class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-            
-            <!-- DEBUG INFO DENTRO DEL MODAL -->
-            <!-- <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 rounded mb-4 text-xs">
-                <strong>🐛 MODAL DEBUG:</strong><br>
-                isEditing: <span x-text="isEditing"></span><br>
-                editingUserId: <span x-text="editingUserId"></span><br>
-                Action URL: <span x-text="getFormAction()"></span><br>
-                Method: <span x-text="isEditing ? 'PUT' : 'POST'"></span><br>
-                Form Valid: <span x-text="isFormValid()"></span>
-            </div> -->
-            
-            <form :action="getFormAction()" method="POST" @submit="handleFormSubmit">
-                @csrf
+    <!-- Modal para Crear/Editar Usuario -->
+    <div x-show="showModal" 
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeModal()"></div>
+
+            <div x-show="showModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
                 
-                <!-- MÉTODO PUT solo para edición -->
-                <template x-if="isEditing === true && editingUserId !== null">
-                    <input type="hidden" name="_method" value="PUT">
-                </template>
-
-                <div class="mb-4">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100" x-text="isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'"></h3>
-                </div>
-
-                <div class="grid grid-cols-1 gap-4">
-                    <!-- Nombre -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre completo</label>
-                        <input type="text" 
-                               name="name" 
-                               x-model="formData.name"
-                               required
-                               @input="validateForm()"
-                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                        <small class="text-xs text-gray-500">Valor actual: <span x-text="formData.name"></span></small>
+                <form @submit="handleFormSubmit($event)">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100" x-text="isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'"></h3>
                     </div>
 
-                    <!-- Email -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Correo electrónico</label>
-                        <input type="email" 
-                               name="email" 
-                               x-model="formData.email"
-                               required
-                               @input="validateForm()"
-                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                        <small class="text-xs text-gray-500">Valor actual: <span x-text="formData.email"></span></small>
+                    <div class="grid grid-cols-1 gap-4">
+                        <!-- Nombre -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre completo</label>
+                            <input type="text" 
+                                   x-model="formData.name"
+                                   required
+                                   @input="validateForm()"
+                                   class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Correo electrónico</label>
+                            <input type="email" 
+                                   x-model="formData.email"
+                                   required
+                                   @input="validateForm()"
+                                   class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                        </div>
+
+                        <!-- Rol -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Rol</label>
+                            <select x-model="formData.rol_id"
+                                    @change="validateForm()"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                                <option value="">Seleccionar rol</option>
+                                @if(isset($roles))
+                                    @foreach($roles as $rol)
+                                        <option value="{{ $rol->id }}">{{ ucfirst($rol->nombre) }} - {{ $rol->descripcion }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
+
+                        <!-- Contraseña (solo para crear) -->
+                        <div x-show="!isEditing">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña</label>
+                            <input type="password" 
+                                   x-model="formData.password"
+                                   :required="!isEditing"
+                                   @input="validateForm()"
+                                   class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                        </div>
+
+                        <!-- Confirmar Contraseña (solo para crear) -->
+                        <div x-show="!isEditing">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar contraseña</label>
+                            <input type="password" 
+                                   x-model="formData.password_confirmation"
+                                   @input="validateForm()"
+                                   class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                        </div>
+
+                        <!-- Campos de contraseña para edición (opcionales) -->
+                        <div x-show="isEditing">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nueva contraseña (opcional)</label>
+                            <input type="password" 
+                                   x-model="formData.password"
+                                   class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+                                   placeholder="Dejar vacío para mantener la actual">
+                        </div>
+
+                        <div x-show="isEditing">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar nueva contraseña</label>
+                            <input type="password" 
+                                   x-model="formData.password_confirmation"
+                                   class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                        </div>
                     </div>
 
-                    <!-- Rol -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Rol</label>
-                        <select name="rol_id" 
-                                x-model="formData.rol_id"
-                                @change="validateForm()"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                            <option value="">Seleccionar rol</option>
-                            @if(isset($roles))
-                                @foreach($roles as $rol)
-                                    <option value="{{ $rol->id }}">{{ ucfirst($rol->nombre) }} - {{ $rol->descripcion }}</option>
-                                @endforeach
-                            @endif
-                        </select>
-                        <small class="text-xs text-gray-500">Valor actual: <span x-text="formData.rol_id"></span></small>
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" 
+                                @click="closeModal()" 
+                                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            Cancelar
+                        </button>
+                        <button type="submit" 
+                                :disabled="isSubmitting || !isFormValid()"
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-show="!isSubmitting" x-text="isEditing ? 'Actualizar' : 'Crear'"></span>
+                            <span x-show="isSubmitting" class="flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Procesando...
+                            </span>
+                        </button>
                     </div>
-
-                    <!-- Contraseña (solo para crear) -->
-                    <div x-show="!isEditing">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña</label>
-                        <input type="password" 
-                               name="password" 
-                               x-model="formData.password"
-                               :required="!isEditing"
-                               @input="validateForm()"
-                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                        <small class="text-xs text-gray-500">Longitud: <span x-text="formData.password.length"></span></small>
-                    </div>
-
-                    <!-- Confirmar Contraseña (solo para crear) -->
-                    <div x-show="!isEditing">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar contraseña</label>
-                        <input type="password" 
-                               name="password_confirmation" 
-                               x-model="formData.password_confirmation"
-                               @input="validateForm()"
-                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                        <small class="text-xs text-gray-500">
-                            Coincide: <span x-text="formData.password === formData.password_confirmation ? 'Sí' : 'No'"></span>
-                        </small>
-                    </div>
-
-                    <!-- Campos de contraseña para edición (opcionales) -->
-                    <div x-show="isEditing">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nueva contraseña (opcional)</label>
-                        <input type="password" 
-                               name="password" 
-                               x-model="formData.password"
-                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
-                               placeholder="Dejar vacío para mantener la actual">
-                    </div>
-
-                    <div x-show="isEditing">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar nueva contraseña</label>
-                        <input type="password" 
-                               name="password_confirmation" 
-                               x-model="formData.password_confirmation"
-                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                    </div>
-                </div>
-
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" 
-                            @click="closeModal()" 
-                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        Cancelar
-                    </button>
-                    <button type="submit" 
-                            :disabled="isSubmitting || !isFormValid()"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <span x-show="!isSubmitting" x-text="isEditing ? 'Actualizar' : 'Crear'"></span>
-                        <span x-show="isSubmitting" class="flex items-center">
-                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Procesando...
-                        </span>
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
-</div>
-
-
-
 
     <!-- Modal para Ver Usuario -->
     <div x-show="showViewModal" 
@@ -446,11 +419,11 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Rol</label>
-                            <p class="mt-1 text-sm text-gray-900 dark:text-gray-100" x-text="viewingUser && viewingUser.rol ? ucfirst(viewingUser.rol.nombre) : 'Sin rol'"></p>
+                            <p class="mt-1 text-sm text-gray-900 dark:text-gray-100" x-text="viewingUser && viewingUser.rol ? viewingUser.rol.nombre.charAt(0).toUpperCase() + viewingUser.rol.nombre.slice(1) : 'Sin rol'"></p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Fecha de registro</label>
-                            <p class="mt-1 text-sm text-gray-900 dark:text-gray-100" x-text="viewingUser ? new Date(viewingUser.created_at).toLocaleDateString() : ''"></p>
+                            <p class="mt-1 text-sm text-gray-900 dark:text-gray-100" x-text="viewingUser ? new Date(viewingUser.created_at).toLocaleDateString('es-ES') : ''"></p>
                         </div>
                     </div>
                 </div>
@@ -461,13 +434,13 @@
                             class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                         Cerrar
                     </button>
-                    <!-- <button type="button" 
-                            @click="editFromView()" 
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700">
-                        Editar Usuario
-                    </button> -->
                 </div>
             </div>
         </div>
     </div>
 </div>
+@endsection
+
+@push('scripts')
+    @vite(['resources/js/modules/usuarios/index.js'])
+@endpush
