@@ -6,9 +6,13 @@
 <!-- Meta tag para CSRF token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
+<!-- Pasar datos a JavaScript -->
+<script id="usuarios-data" type="application/json">
+@json($usuarios->items())
+</script>
+
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" 
-     x-data="usuariosManager()" 
-     x-init="usuarios = @json($usuarios->items())">
+     x-data="usuariosManager()">
     
     <!-- Header -->
     <div class="md:flex md:items-center md:justify-between mb-6">
@@ -134,10 +138,11 @@
                             @change="filterUsers()"
                             class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
                         <option value="">Todos los roles</option>
-                        <option value="admin">Admin</option>
-                        <option value="chef">Chef</option>
-                        <option value="gerente">Gerente</option>
-                        <option value="sin-rol">Sin rol</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="GERENTE">Gerente</option>
+                        <option value="VENTAS">Ventas</option>
+                        <option value="CONTABILIDAD">Contabilidad</option>
+                        <option value="CLIENTE">Contabilidad</option>
                     </select>
                 </div>
                 <div class="flex items-end">
@@ -467,7 +472,21 @@ window.usuariosManager = () => ({
 
     init() {
         console.log('🚀 usuariosManager inicializado');
+        this.loadUsuarios();
         console.log('📊 Total usuarios cargados:', this.usuarios.length);
+    },
+
+    loadUsuarios() {
+        try {
+            const usuariosData = document.getElementById('usuarios-data');
+            if (usuariosData) {
+                this.usuarios = JSON.parse(usuariosData.textContent);
+                console.log('📊 Usuarios cargados desde script:', this.usuarios.length);
+            }
+        } catch (error) {
+            console.error('Error cargando usuarios:', error);
+            this.usuarios = [];
+        }
     },
 
     getFormAction() {
