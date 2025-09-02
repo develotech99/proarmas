@@ -24,13 +24,14 @@ CREATE TABLE users (
 -- ========================
 
 
---rac
+--marin
 CREATE TABLE pro_metodos_pago (
     metpago_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID método de pago',
     metpago_descripcion VARCHAR(50) NOT NULL COMMENT 'efectivo, transferencia, etc.',
     metpago_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
-);
---rac
+); 
+
+--marin
 CREATE TABLE pro_paises (
     pais_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de país',
     pais_descripcion VARCHAR(50) COMMENT 'Descripción del país',
