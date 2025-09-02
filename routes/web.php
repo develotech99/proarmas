@@ -4,6 +4,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\PaisController;
+use App\Http\Controllers\UnidadMedidaController;
+use App\Http\Controllers\CalibreController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\TipoArmaController;
@@ -38,6 +40,25 @@ Route::middleware('auth')->group(function () {
     Route::post('/paises', [PaisController::class, 'store'])->name('paises.store');
     Route::put('/paises/{id}', [PaisController::class, 'update'])->name('paises.update');
     Route::delete('/paises/{id}', [PaisController::class, 'destroy'])->name('paises.destroy');
+
+    // Rutas para Unidades de Medida Marin
+    Route::get('/unidades-medida', [UnidadMedidaController::class, 'index'])->name('unidades-medida.index');
+    Route::get('/unidades-medida/search', [UnidadMedidaController::class, 'search'])->name('unidades-medida.search');
+    Route::post('/unidades-medida', [UnidadMedidaController::class, 'store'])->name('unidades-medida.store');
+    Route::put('/unidades-medida/{id}', [UnidadMedidaController::class, 'update'])->name('unidades-medida.update');
+    Route::delete('/unidades-medida/{id}', [UnidadMedidaController::class, 'destroy'])->name('unidades-medida.destroy');
+    Route::get('/unidades-medida/activos', [UnidadMedidaController::class, 'getActivos'])->name('unidades-medida.activos');
+    Route::get('/unidades-medida/por-tipo', [UnidadMedidaController::class, 'getByTipo'])->name('unidades-medida.por-tipo');
+
+    // Rutas para Calibres Marin
+    Route::get('/calibres', [CalibreController::class, 'index'])->name('calibres.index');
+    Route::get('/calibres/search', [CalibreController::class, 'search'])->name('calibres.search');
+    Route::post('/calibres', [CalibreController::class, 'store'])->name('calibres.store');
+    Route::put('/calibres/{id}', [CalibreController::class, 'update'])->name('calibres.update');
+    Route::delete('/calibres/{id}', [CalibreController::class, 'destroy'])->name('calibres.destroy');
+    Route::get('/calibres/activos', [CalibreController::class, 'getActivos'])->name('calibres.activos');
+    Route::get('/calibres/por-unidad', [CalibreController::class, 'getByUnidad'])->name('calibres.por-unidad');
+
 
     // ruta para el manteniento de de marcas
     Route::get('/marcas', [MarcasController::class, 'index'])->name('marcas.index');
