@@ -1,6 +1,7 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
+@extends('layouts.app')
+
+@section('content')
+        <div class="mb-6 flex items-center justify-between">
             <h2 class="font-semibold text-xl text-slate-800 leading-tight">
                 Dashboard - Sistema de Inventario
             </h2>
@@ -8,7 +9,6 @@
                 Bienvenido, {{ Auth::user()->name }}
             </div>
         </div>
-    </x-slot>
 
     <div class="space-y-6">
         <!-- Stats Cards -->
@@ -171,4 +171,4 @@
             </div>
         </div>
     </div>
-</x-app-layout>
+    @endsection
