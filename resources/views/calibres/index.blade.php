@@ -274,7 +274,7 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        {{ $calibre->created_at->format('d/m/Y') }}
+                                    {{ $calibre->created_at ? $calibre->created_at->format('d/m/Y') : 'Sin fecha' }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div class="flex items-center space-x-2">
