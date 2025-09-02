@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
+use App\Http\Controllers\ProModeloController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -20,17 +21,21 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::resource('usuarios', UserController::class);
 
-    
-// ruta para el manteniento de de marcas
+
+    // ruta para el manteniento de de marcas
     Route::get('/marcas', [MarcasController::class, 'index'])->name('marcas.index');
     Route::get('/marcas/search',       [MarcasController::class, 'search'])->name('marcas.search');
     Route::post('/marcas',             [MarcasController::class, 'store'])->name('marcas.store');
     Route::put('/marcas/{id}',         [MarcasController::class, 'update'])->name('marcas.update');
     // Route::delete('/marcas/{id}',      [MarcasController::class, 'destroy'])->name('marcas.destroy');
 
+
+    //RUTAS PARA MODELOS DE ARMAS CarlosDevelotech
+    Route::get('/modelos', [ProModeloController::class, 'index'])->name('modelos.index');
 });
 
 
 
 
-require __DIR__.'/auth.php';
+
+require __DIR__ . '/auth.php';
