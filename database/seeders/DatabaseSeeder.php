@@ -22,7 +22,15 @@ class DatabaseSeeder extends Seeder
 
     $this->call(UsuarioAdminSeeder::class);
 
+    $this->call([
+        ProUnidadesMedidaSeeder::class,
+        ProCalibresSeeder::class,
+    ]);
+    
+
     }
+
+    
 
 
 
