@@ -80,7 +80,7 @@
                 </form>
             </div>
 
-            <!-- Register Link -->
+            <!-- Register Link
             @if (Route::has('register'))
                 <div class="text-center">
                     <p class="text-sm text-slate-600">
@@ -90,7 +90,7 @@
                         </a>
                     </p>
                 </div>
-            @endif
+            @endif -->
 
             <!-- Back to Home -->
             <div class="text-center">
