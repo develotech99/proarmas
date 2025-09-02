@@ -1,4 +1,9 @@
-<nav class="flex flex-col h-full bg-slate-800">
+<nav class="flex flex-col h-full bg-slate-800" x-data="{ 
+    inventario: false, 
+    ventas: false, 
+    documentacion: false, 
+    configuracion: false 
+}">
     <!-- Logo Header -->
     <div class="flex items-center justify-center h-16 bg-slate-900 border-b border-slate-700">
         <div class="flex items-center space-x-3">
@@ -28,8 +33,23 @@
 
         <!-- Inventario Section -->
         <div class="pt-4">
-            <h3 class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Inventario</h3>
-            <div class="mt-2 space-y-1">
+            <button @click="inventario = !inventario" 
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-300 focus:outline-none transition-colors">
+                <span>Inventario</span>
+                <svg class="w-4 h-4 transform transition-transform duration-200" 
+                     :class="{ 'rotate-180': inventario }" 
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div x-show="inventario" 
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform -translate-y-2"
+                 x-transition:enter-end="opacity-100 transform translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform translate-y-0"
+                 x-transition:leave-end="opacity-0 transform -translate-y-2"
+                 class="mt-2 space-y-1 ml-2">
                 <!-- Armas -->
                 <a href="" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -37,7 +57,13 @@
                     </svg>
                     <span>Armas</span>
                 </a>
-
+                <!-- Tipos de armas -->
+                <a href="tipoarma" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                    </svg>
+                    <span>Tipos de Armas</span>
+                </a>
                 <!-- Modelos -->
                 <a href="{{ route('modelos.index') }}" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +81,7 @@
                 </a>
 
                 <!-- Calibres/Clases -->
-                <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                <a href="tipoarma" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
@@ -66,8 +92,23 @@
 
         <!-- Ventas Section -->
         <div class="pt-4">
-            <h3 class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ventas</h3>
-            <div class="mt-2 space-y-1">
+            <button @click="ventas = !ventas" 
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-300 focus:outline-none transition-colors">
+                <span>Ventas</span>
+                <svg class="w-4 h-4 transform transition-transform duration-200" 
+                     :class="{ 'rotate-180': ventas }" 
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div x-show="ventas" 
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform -translate-y-2"
+                 x-transition:enter-end="opacity-100 transform translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform translate-y-0"
+                 x-transition:leave-end="opacity-0 transform -translate-y-2"
+                 class="mt-2 space-y-1 ml-2">
                 <!-- Clientes -->
                 <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,8 +137,23 @@
 
         <!-- Documentación Section -->
         <div class="pt-4">
-            <h3 class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Documentación</h3>
-            <div class="mt-2 space-y-1">
+            <button @click="documentacion = !documentacion" 
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-300 focus:outline-none transition-colors">
+                <span>Documentación</span>
+                <svg class="w-4 h-4 transform transition-transform duration-200" 
+                     :class="{ 'rotate-180': documentacion }" 
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div x-show="documentacion" 
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform -translate-y-2"
+                 x-transition:enter-end="opacity-100 transform translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform translate-y-0"
+                 x-transition:leave-end="opacity-0 transform -translate-y-2"
+                 class="mt-2 space-y-1 ml-2">
                 <!-- Licencias -->
                 <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,8 +182,23 @@
 
         <!-- Configuración Section -->
         <div class="pt-4">
-            <h3 class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Configuración</h3>
-            <div class="mt-2 space-y-1">
+            <button @click="configuracion = !configuracion" 
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-300 focus:outline-none transition-colors">
+                <span>Configuración</span>
+                <svg class="w-4 h-4 transform transition-transform duration-200" 
+                     :class="{ 'rotate-180': configuracion }" 
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div x-show="configuracion" 
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform -translate-y-2"
+                 x-transition:enter-end="opacity-100 transform translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform translate-y-0"
+                 x-transition:leave-end="opacity-0 transform -translate-y-2"
+                 class="mt-2 space-y-1 ml-2">
                 <!-- Países -->
                 <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

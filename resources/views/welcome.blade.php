@@ -52,15 +52,7 @@
                         Iniciar Sesión
                     </a>
 
-                    @if (Route::has('register'))
-                        <a href="{{ route('register') }}" 
-                           class="w-full flex justify-center items-center px-6 py-3 border border-slate-300 text-base font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors duration-200">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                            </svg>
-                            Registrar Nuevo Empleado
-                        </a>
-                    @endif
+       
                 </div>
             </div>
 

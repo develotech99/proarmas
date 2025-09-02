@@ -10,56 +10,60 @@ class TipoArmaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+     public function index()
     {
-        //
+        $tipoarma = TipoArma::all();
+        return view('tipoarma.index', compact('tipoarma')); // Pasar las marcas a la vista
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+  // Método para buscar marcas con filtros
+    public function search(Request $request)
     {
-        //
+        $query = TipoArma::query();
+
+        // Buscar por descripción
+        if ($request->filled('descripcion')) {
+            $query->where('clase_descripcion', 'LIKE', '%' . $request->descripcion . '%');
+        }
+
+        // Filtrar por situación
+        if ($request->filled('situacion')) {
+            $query->where('clase_situacion', $request->situacion);
+        }
+
+        $tipoarma = $query->get();
+        return view('tipoarma.index', compact('tipoarma'));
+        
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'clase_descripcion' => 'required|string|max:255',
+            'clase_situacion'   => 'required|in:1,0',  
+        ]);
+
+        TipoArma::create([
+            'clase_descripcion' => $request->clase_descripcion,
+            'clase_situacion'   => (int)$request->clase_situacion, // <— a int
+        ]);
+
+        return redirect()->route('tipoarma.index')->with('success', 'Tipo de Arma creada exitosamente');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(TipoArma $tipoArma)
+   public function update(Request $request, $id)
     {
-        //
-    }
+        $request->validate([
+            'clase_descripcion' => 'required|string|max:255',
+            'clase_situacion'   => 'required|in:1,0',   // <— números
+        ]);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(TipoArma $tipoArma)
-    {
-        //
-    }
+        $marca = TipoArma::findOrFail($id);
+        $marca->update([
+            'clase_descripcion' => $request->clase_descripcion,
+            'clase_situacion'   => (int)$request->clase_situacion, // <— a int
+        ]);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, TipoArma $tipoArma)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(TipoArma $tipoArma)
-    {
-        //
+        return redirect()->route('tipoarma.index')->with('success', 'Tipo de Arma actualizada exitosamente');
     }
 }
