@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\MetodoPagoController;
+use App\Http\Controllers\PaisController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\TipoArmaController;
@@ -20,8 +22,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    //ruta para usuarios MarinDevelotech
     Route::resource('usuarios', UserController::class);
+   
+    // Rutas para métodos de pago MarinDevelotech copia a CarlosDevelotech jaja
+    Route::get('/metodos-pago', [MetodoPagoController::class, 'index'])->name('metodos-pago.index');
+    Route::get('/metodos-pago/search', [MetodoPagoController::class, 'search'])->name('metodos-pago.search');
+    Route::post('/metodos-pago', [MetodoPagoController::class, 'store'])->name('metodos-pago.store');
+    Route::put('/metodos-pago/{id}', [MetodoPagoController::class, 'update'])->name('metodos-pago.update');
+    Route::delete('/metodos-pago/{id}', [MetodoPagoController::class, 'destroy'])->name('metodos-pago.destroy');
 
+    // Rutas para países  MarinDevelotech 
+    Route::get('/paises', [PaisController::class, 'index'])->name('paises.index');
+    Route::get('/paises/search', [PaisController::class, 'search'])->name('paises.search');
+    Route::post('/paises', [PaisController::class, 'store'])->name('paises.store');
+    Route::put('/paises/{id}', [PaisController::class, 'update'])->name('paises.update');
+    Route::delete('/paises/{id}', [PaisController::class, 'destroy'])->name('paises.destroy');
 
     // ruta para el manteniento de de marcas
     Route::get('/marcas', [MarcasController::class, 'index'])->name('marcas.index');

@@ -24,13 +24,14 @@ CREATE TABLE users (
 -- ========================
 
 
---rac
+--marin
 CREATE TABLE pro_metodos_pago (
     metpago_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID método de pago',
     metpago_descripcion VARCHAR(50) NOT NULL COMMENT 'efectivo, transferencia, etc.',
     metpago_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
-);
---rac
+); 
+
+--marin
 CREATE TABLE pro_paises (
     pais_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de país',
     pais_descripcion VARCHAR(50) COMMENT 'Descripción del país',
@@ -142,18 +143,27 @@ CREATE TABLE pro_clientes (
 );
 
 -- Ventas solo referencian cliente_id
+-- jovenes hice este cambio en la db   
+
 CREATE TABLE pro_ventas (
     venta_id INT AUTO_INCREMENT PRIMARY KEY,
-    cliente_id INT NOT NULL,
+    cliente_id INT NULL,
+    nombre_persona VARCHAR(200),  -- solo se llena si no hay cliente_id
     factura VARCHAR(200),
     fecha DATE NOT NULL,
     autorizacion INT NOT NULL,
     situacion INT DEFAULT 1,
     observaciones VARCHAR(200),
     FOREIGN KEY (cliente_id) REFERENCES pro_clientes(cliente_id)
-);
-
-
+);   
+--  le agregue un campo    tambien agregue esta tabla para poder guardar las fotos de las armas   
+ 
+ CREATE TABLE pro_modelo_fotos (
+    foto_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de la foto',
+    modelo_id INT NOT NULL COMMENT 'Modelo al que pertenece',
+    foto_url VARCHAR(255) NOT NULL COMMENT 'Ruta de la imagen',
+    FOREIGN KEY (modelo_id) REFERENCES pro_inventario_modelos(modelo_id)
+); 
 
 
 CREATE TABLE pro_detalle_venta (
