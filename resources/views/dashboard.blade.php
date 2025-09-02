@@ -1,14 +1,16 @@
 @extends('layouts.app')
 
 @section('content')
-        <div class="mb-6 flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-slate-800 leading-tight">
-                Dashboard - Sistema de Inventario
-            </h2>
-            <div class="text-sm text-slate-600">
-                Bienvenido, {{ Auth::user()->name }}
-            </div>
+<header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 mb-6 py-4 px-4 sm:px-6 lg:px-8 shadow-sm rounded-md">
+    <div class="flex items-center justify-between">
+        <h2 class="font-semibold text-xl text-slate-800 dark:text-slate-100 leading-tight">
+            Dashboard - Sistema de Inventario
+        </h2>
+        <div class="text-sm text-slate-600 dark:text-slate-300">
+            Bienvenido, {{ Auth::user()->name }}
         </div>
+    </div>
+</header>
 
     <div class="space-y-6">
         <!-- Stats Cards -->
