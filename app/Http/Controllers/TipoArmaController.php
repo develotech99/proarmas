@@ -31,9 +31,9 @@ class TipoArmaController extends Controller
             $query->where('clase_situacion', $request->situacion);
         }
 
-        $marcas = $query->get();
-
+        $tipoarma = $query->get();
         return view('tipoarma.index', compact('tipoarma'));
+        
     }
 
     public function store(Request $request)
