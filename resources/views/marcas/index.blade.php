@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
+@section('title', 'Gestión de Marcas')
 
+@section('content')
 
     <div class="mx-auto max-w-screen-2xl px-6 py-8">
 
@@ -239,3 +241,4 @@
             document.getElementById('descripcion').focus();
         });
     </script>
+@endsection

@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
-<body class="bg-gray-50 text-gray-800">
+@section('title', 'Gestión de Tipos de armas')
+
+@section('content')
   <div class="mx-auto max-w-screen-2xl px-6 py-8">
 
     {{-- Flash messages --}}
@@ -240,5 +242,5 @@
       document.getElementById('descripcion').focus();
     });
   </script>
-</body>
-</html>
+@endsection
+
