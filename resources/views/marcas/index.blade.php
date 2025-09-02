@@ -1,7 +1,7 @@
-
 @extends('layouts.app')
 
-<body class="bg-gray-50 text-gray-800">
+
+
     <div class="mx-auto max-w-screen-2xl px-6 py-8">
 
 
@@ -229,7 +229,7 @@
             formContainer.classList.remove('hidden');
             formTitle.textContent = 'Editar Marca';
             btnSubmit.textContent = "Editar";
-           
+
             document.getElementById('descripcion').value = descripcion;
             document.getElementById('situacion').value = situacion;
 
@@ -239,6 +239,3 @@
             document.getElementById('descripcion').focus();
         });
     </script>
-</body>
-
-</html>
