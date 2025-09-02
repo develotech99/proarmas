@@ -20,8 +20,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::resource('usuarios', UserController::class);
 
+    
 // ruta para el manteniento de de marcas
-
     Route::get('/marcas', [MarcasController::class, 'index'])->name('marcas.index');
     Route::get('/marcas/search',       [MarcasController::class, 'search'])->name('marcas.search');
     Route::post('/marcas',             [MarcasController::class, 'store'])->name('marcas.store');
