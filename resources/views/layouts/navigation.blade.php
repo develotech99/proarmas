@@ -2,7 +2,8 @@
     inventario: false, 
     ventas: false, 
     documentacion: false, 
-    configuracion: false 
+    configuracion: false,
+    usuarios: false
 }">
     <!-- Logo Header -->
     <div class="flex items-center justify-center h-16 bg-slate-900 border-b border-slate-700">
@@ -224,6 +225,41 @@
                 </a>
             </div>
         </div>
+
+        <!-- usuarios -->
+
+               <!-- Configuración Section -->
+               <div class="pt-4">
+            <button @click="usuarios = !usuarios" 
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-300 focus:outline-none transition-colors">
+                <span>Usuarios</span>
+                <svg class="w-4 h-4 transform transition-transform duration-200" 
+                     :class="{ 'rotate-180': usuarios }" 
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div x-show="usuarios" 
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform -translate-y-2"
+                 x-transition:enter-end="opacity-100 transform translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform translate-y-0"
+                 x-transition:leave-end="opacity-0 transform -translate-y-2"
+                 class="mt-2 space-y-1 ml-2">
+             <!-- Usuarios -->
+                <a href="{{ route('usuarios.index') }}"
+                class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M5.121 17.804A11.955 11.955 0 0112 15c2.5 0 4.847.735 6.879 2.004M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    <span>Usuarios: Crear, Registrar, Asignar Rol</span>
+                </a>
+
+            </div>
+        </div>
+        
     </div>
 
     <!-- User Profile Section -->
