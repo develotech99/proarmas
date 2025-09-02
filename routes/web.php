@@ -4,6 +4,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\PaisController;
+use App\Http\Controllers\UnidadMedidaController;
+use App\Http\Controllers\CalibreController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\TipoArmaController;
