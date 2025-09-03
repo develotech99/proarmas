@@ -14,14 +14,26 @@ class UserController extends Controller
     {
         $usuarios = User::with('rol')->paginate(15);
         $roles = Rol::orderBy('nombre')->get(); // ← AGREGAR ESTA LÍNEA
-        
+
         return view('usuarios.index', compact('usuarios', 'roles')); // ← PASAR $roles
+    }
+
+
+    public function indexMapa()
+    {
+
+        $usuarios = User::where('rol_id', 2)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return view('usuarios.mapa', compact('usuarios'));
     }
 
     public function create()
     {
         $roles = Rol::orderBy('nombre')->get();
-        
+
         return view('usuarios.create', compact('roles'));
     }
 
@@ -50,12 +62,12 @@ class UserController extends Controller
         ]);
 
         return redirect()->route('usuarios.index')
-                        ->with('success', 'Usuario creado exitosamente.');
+            ->with('success', 'Usuario creado exitosamente.');
     }
 
     public function show(User $usuario)
     {
-        $usuario->load(['rol', 'registrosConsumo' => function($query) {
+        $usuario->load(['rol', 'registrosConsumo' => function ($query) {
             $query->with('ingrediente')->orderBy('fecha_uso', 'desc')->limit(10);
         }]);
 
@@ -63,15 +75,15 @@ class UserController extends Controller
         $estadisticas = [
             'total_consumos' => $usuario->registrosConsumo()->count(),
             'consumos_este_mes' => $usuario->registrosConsumo()
-                                          ->whereMonth('fecha_uso', now()->month)
-                                          ->whereYear('fecha_uso', now()->year)
-                                          ->count(),
+                ->whereMonth('fecha_uso', now()->month)
+                ->whereYear('fecha_uso', now()->year)
+                ->count(),
             'ingredientes_usados' => $usuario->registrosConsumo()
-                                            ->distinct('ingrediente_id')
-                                            ->count(),
+                ->distinct('ingrediente_id')
+                ->count(),
             'ultimo_consumo' => $usuario->registrosConsumo()
-                                       ->orderBy('fecha_uso', 'desc')
-                                       ->first()?->fecha_uso,
+                ->orderBy('fecha_uso', 'desc')
+                ->first()?->fecha_uso,
         ];
 
         return view('usuarios.show', compact('usuario', 'estadisticas'));
@@ -80,7 +92,7 @@ class UserController extends Controller
     public function edit(User $usuario)
     {
         $roles = Rol::orderBy('nombre')->get();
-        
+
         return view('usuarios.edit', compact('usuario', 'roles'));
     }
 
@@ -114,7 +126,7 @@ class UserController extends Controller
         $usuario->update($data);
 
         return redirect()->route('usuarios.index')
-                        ->with('success', 'Usuario actualizado exitosamente.');
+            ->with('success', 'Usuario actualizado exitosamente.');
     }
 
     public function destroy(User $usuario)
@@ -122,13 +134,13 @@ class UserController extends Controller
         // Verificar si el usuario tiene registros de consumo
         if ($usuario->registrosConsumo()->count() > 0) {
             return redirect()->route('usuarios.index')
-                           ->with('error', 'No se puede eliminar el usuario porque tiene registros de consumo asociados.');
+                ->with('error', 'No se puede eliminar el usuario porque tiene registros de consumo asociados.');
         }
 
         $usuario->delete();
 
         return redirect()->route('usuarios.index')
-                        ->with('success', 'Usuario eliminado exitosamente.');
+            ->with('success', 'Usuario eliminado exitosamente.');
     }
 
     /**
@@ -143,7 +155,7 @@ class UserController extends Controller
         $usuario->update(['rol_id' => $request->rol_id]);
 
         return redirect()->back()
-                        ->with('success', 'Rol actualizado exitosamente.');
+            ->with('success', 'Rol actualizado exitosamente.');
     }
 
     /**
@@ -152,9 +164,9 @@ class UserController extends Controller
     public function obtenerUsuarios()
     {
         $usuarios = User::select('id', 'name', 'email')
-                       ->with('rol:id,nombre')
-                       ->orderBy('name')
-                       ->get();
+            ->with('rol:id,nombre')
+            ->orderBy('name')
+            ->get();
 
         return response()->json($usuarios);
     }
@@ -169,13 +181,12 @@ class UserController extends Controller
             'usuarios_con_rol' => User::whereNotNull('rol_id')->count(),
             'usuarios_sin_rol' => User::whereNull('rol_id')->count(),
             'distribucion_roles' => Rol::withCount('usuarios')->get(),
-            'usuarios_activos_mes' => User::whereHas('registrosConsumo', function($query) {
+            'usuarios_activos_mes' => User::whereHas('registrosConsumo', function ($query) {
                 $query->whereMonth('fecha_uso', now()->month)
-                      ->whereYear('fecha_uso', now()->year);
+                    ->whereYear('fecha_uso', now()->year);
             })->count(),
         ];
 
         return response()->json($stats);
     }
-
 }

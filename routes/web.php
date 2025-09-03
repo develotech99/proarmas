@@ -90,6 +90,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/modelos',             [ProModeloController::class, 'store'])->name('modelos.crear');
     Route::put('/modelos/actualizar',             [ProModeloController::class, 'edit'])->name('modelos.update');
     Route::delete('/modelos/eliminar', [ProModeloController::class, 'destroy'])->name('modelos.eliminar');
+
+    //PLOTEAR USERS EN EL MAPA
+    Route::get('/mapa', [UserController::class, 'indexMapa'])->name('mapa.index');
+
 });
 
 
