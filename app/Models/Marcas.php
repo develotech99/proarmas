@@ -18,4 +18,10 @@ class Marcas extends Model
         'marca_situacion'
     ];
 
+
+    public function scopeActivos($query)
+    {
+        return $query->where('marca_situacion', 1);
+    }
+    
 }

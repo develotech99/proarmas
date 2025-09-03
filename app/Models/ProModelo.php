@@ -18,4 +18,9 @@ class ProModelo extends Model
     protected $casts = [
         'modelo_situacion' => 'boolean',
     ];
+
+    public function scopeActivos($query)
+    {
+        return $query->where('modelo_situacion', 1);
+    }
 }

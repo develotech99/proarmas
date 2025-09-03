@@ -5,6 +5,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\PaisController;
 use App\Http\Controllers\UnidadMedidaController;
+use App\Http\Controllers\LicenciaImportacionController;
 use App\Http\Controllers\CalibreController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
@@ -60,6 +61,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/calibres/activos', [CalibreController::class, 'getActivos'])->name('calibres.activos');
     Route::get('/calibres/por-unidad', [CalibreController::class, 'getByUnidad'])->name('calibres.por-unidad');
 
+
+        /// Rutas para Licencias de Importación
+    Route::resource('licencias-importacion', LicenciaImportacionController::class);
+
+    // Rutas específicas para armas licenciadas
+    Route::prefix('licencias-importacion')->name('licencias-importacion.')->group(function () {
+        Route::post('armas', [LicenciaImportacionController::class, 'storeArma'])->name('armas.store');
+        Route::put('armas/{armaId}', [LicenciaImportacionController::class, 'updateArma'])->name('armas.update');
+        Route::delete('armas/{armaId}', [LicenciaImportacionController::class, 'destroyArma'])->name('armas.destroy');
+    });
 
     // ruta para el manteniento de de marcas
     Route::get('/marcas', [MarcasController::class, 'index'])->name('marcas.index');
