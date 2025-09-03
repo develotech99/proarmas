@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
+use App\Models\ProModelo;
 
 Route::get('/', function () {
     return view('welcome');
@@ -26,7 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     //ruta para usuarios MarinDevelotech
     Route::resource('usuarios', UserController::class);
-   
+
     // Rutas para métodos de pago MarinDevelotech copia a CarlosDevelotech jaja
     Route::get('/metodos-pago', [MetodoPagoController::class, 'index'])->name('metodos-pago.index');
     Route::get('/metodos-pago/search', [MetodoPagoController::class, 'search'])->name('metodos-pago.search');
@@ -75,6 +76,9 @@ Route::middleware('auth')->group(function () {
 
     //RUTAS PARA MODELOS DE ARMAS CarlosDevelotech
     Route::get('/modelos', [ProModeloController::class, 'index'])->name('modelos.index');
+    Route::post('/modelos',             [ProModeloController::class, 'store'])->name('modelos.crear');
+    Route::put('/modelos/actualizar',             [ProModeloController::class, 'edit'])->name('modelos.update');
+    Route::delete('/modelos/eliminar', [ProModeloController::class, 'destroy'])->name('modelos.eliminar');
 });
 
 
