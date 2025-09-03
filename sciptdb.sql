@@ -24,18 +24,27 @@ CREATE TABLE users (
 -- ========================
 
 
---rac
+--marin
 CREATE TABLE pro_metodos_pago (
     metpago_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID método de pago',
     metpago_descripcion VARCHAR(50) NOT NULL COMMENT 'efectivo, transferencia, etc.',
     metpago_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
-);
---rac
+); 
+
+--marin
 CREATE TABLE pro_paises (
     pais_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de país',
     pais_descripcion VARCHAR(50) COMMENT 'Descripción del país',
     pais_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
 );
+
+--marin 
+CREATE TABLE pro_paises (
+    pais_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de país',
+    pais_descripcion VARCHAR(50) COMMENT 'Descripción del país',
+    pais_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
+);
+
 --sergio
 CREATE TABLE pro_clases_pistolas (
     clase_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de clase de arma',
@@ -54,6 +63,30 @@ CREATE TABLE pro_modelo (
     modelo_descripcion VARCHAR(50) COMMENT 'c9, bm-f-9, sd15',
     modelo_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
 );
+--MARIN 
+-- =========================================
+-- 🟦 TABLA: Unidades de Medida
+-- =========================================
+CREATE TABLE pro_unidades_medida (
+    unidad_id SERIAL PRIMARY KEY,
+    unidad_nombre VARCHAR(50) NOT NULL,       -- Ej: 'milímetro', 'pulgada'
+    unidad_abreviacion VARCHAR(10) NOT NULL,  -- Ej: 'mm', 'in'
+    unidad_tipo VARCHAR(20) DEFAULT 'longitud',
+    unidad_situacion INT DEFAULT 1            -- 1 = activo, 0 = inactivo
+);
+--MARIN
+-- =========================================
+-- 🟦 TABLA: Calibres
+-- =========================================
+CREATE TABLE pro_calibres (
+    calibre_id SERIAL PRIMARY KEY,
+    calibre_nombre VARCHAR(20) NOT NULL,         -- Ej: '9', '.45'
+    calibre_unidad_id INT NOT NULL,
+    calibre_equivalente_mm DECIMAL(6,2) NULL,
+    calibre_situacion INT DEFAULT 1,
+
+    FOREIGN KEY (calibre_unidad_id) REFERENCES pro_unidades_medida(unidad_id)
+);
 
 -- ========================
 -- EMPRESAS E IMPORTACIONES
@@ -66,23 +99,40 @@ CREATE TABLE pro_empresas_de_importacion (
     empresaimp_situacion INT DEFAULT 1 COMMENT '1 = activa, 0 = inactiva',
     FOREIGN KEY (empresaimp_pais) REFERENCES pro_paises(pais_id)
 );
---hugo
+--MARIN-- =========================================
+-- 🟦 TABLA: Licencias de Importación
+-- =========================================
 CREATE TABLE pro_licencias_para_importacion (
-    lipaimp_id INT AUTO_INCREMENT COMMENT 'ID de licencia de importación',
-    lipaimp_poliza INT COMMENT 'número de póliza o factura',
-    lipaimp_descripcion VARCHAR(100) COMMENT 'Descripción identificativa de la licencia',
-    lipaimp_empresa INT NOT NULL COMMENT 'Empresa asignada a la licencia',
-    lipaimp_clase INT COMMENT 'Clase de arma',
-    lipaimp_marca INT COMMENT 'Marca de arma',
-    lipaimp_modelo INT COMMENT 'Modelo de arma',
-    lipaimp_fecha_vencimiento DATE COMMENT 'Fecha de vencimiento de la licencia',
-    lipaimp_situacion INT DEFAULT 1 COMMENT '1 = activa, 0 = inactiva',
-    PRIMARY KEY (lipaimp_id, lipaimp_poliza),
-    FOREIGN KEY (lipaimp_empresa) REFERENCES pro_empresas_de_importacion(empresaimp_id),
-    FOREIGN KEY (lipaimp_clase) REFERENCES pro_clases_pistolas(clase_id),
-    FOREIGN KEY (lipaimp_marca) REFERENCES pro_marcas(marca_id),
-    FOREIGN KEY (lipaimp_modelo) REFERENCES pro_modelo(modelo_id)
+    lipaimp_id SERIAL PRIMARY KEY,
+    lipaimp_poliza INT,
+    lipaimp_descripcion VARCHAR(100),
+    lipaimp_empresa INT NOT NULL,
+    lipaimp_fecha_vencimiento DATE,
+    lipaimp_situacion INT DEFAULT 1,
+
+    FOREIGN KEY (lipaimp_empresa) REFERENCES pro_empresas_de_importacion(empresaimp_id)
 );
+--MARIN
+-- =========================================
+-- 🟦 TABLA: Armas Licenciadas (relacionadas a la licencia)
+-- =========================================
+CREATE TABLE pro_armas_licenciadas (
+    arma_id SERIAL PRIMARY KEY,
+    arma_licencia_id INT NOT NULL,
+    arma_clase_id INT NOT NULL,
+    arma_marca_id INT NOT NULL,
+    arma_modelo_id INT NOT NULL,
+    arma_calibre_id INT NOT NULL,
+    arma_cantidad INT DEFAULT 1,
+    arma_situacion INT DEFAULT 1,
+
+    FOREIGN KEY (arma_licencia_id) REFERENCES pro_licencias_para_importacion(lipaimp_id),
+    FOREIGN KEY (arma_clase_id) REFERENCES pro_clases_pistolas(clase_id),
+    FOREIGN KEY (arma_marca_id) REFERENCES pro_marcas(marca_id),
+    FOREIGN KEY (arma_modelo_id) REFERENCES pro_modelo(modelo_id),
+    FOREIGN KEY (arma_calibre_id) REFERENCES pro_calibres(calibre_id)
+);
+
 
 
 --hugo 
@@ -142,18 +192,27 @@ CREATE TABLE pro_clientes (
 );
 
 -- Ventas solo referencian cliente_id
+-- jovenes hice este cambio en la db   
+
 CREATE TABLE pro_ventas (
     venta_id INT AUTO_INCREMENT PRIMARY KEY,
-    cliente_id INT NOT NULL,
+    cliente_id INT NULL,
+    nombre_persona VARCHAR(200),  -- solo se llena si no hay cliente_id
     factura VARCHAR(200),
     fecha DATE NOT NULL,
     autorizacion INT NOT NULL,
     situacion INT DEFAULT 1,
     observaciones VARCHAR(200),
     FOREIGN KEY (cliente_id) REFERENCES pro_clientes(cliente_id)
-);
-
-
+);   
+--  le agregue un campo    tambien agregue esta tabla para poder guardar las fotos de las armas   
+ 
+ CREATE TABLE pro_modelo_fotos (
+    foto_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de la foto',
+    modelo_id INT NOT NULL COMMENT 'Modelo al que pertenece',
+    foto_url VARCHAR(255) NOT NULL COMMENT 'Ruta de la imagen',
+    FOREIGN KEY (modelo_id) REFERENCES pro_inventario_modelos(modelo_id)
+); 
 
 
 CREATE TABLE pro_detalle_venta (
