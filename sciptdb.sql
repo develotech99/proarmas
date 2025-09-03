@@ -108,7 +108,7 @@ CREATE TABLE pro_licencias_para_importacion (
     lipaimp_descripcion VARCHAR(100),
     lipaimp_empresa INT NOT NULL,
     lipaimp_fecha_vencimiento DATE,
-    lipaimp_situacion INT DEFAULT 1,
+    lipaimp_situacion INT DEFAULT 1,    ----- 1 pendiente  2 autorizado 3 rechazado
 
     FOREIGN KEY (lipaimp_empresa) REFERENCES pro_empresas_de_importacion(empresaimp_id)
 );
@@ -132,18 +132,56 @@ CREATE TABLE pro_armas_licenciadas (
     FOREIGN KEY (arma_modelo_id) REFERENCES pro_modelo(modelo_id),
     FOREIGN KEY (arma_calibre_id) REFERENCES pro_calibres(calibre_id)
 );
-
-
-
---hugo 
-CREATE TABLE pro_digecam (
-    digecam_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID digecam',
-    digecam_licencia_import INT NOT NULL COMMENT 'Licencia asociada',
-    digecam_autorizacion VARCHAR(50) DEFAULT 'no aprobada' COMMENT 'Estado autorización',
-    digecam_situacion INT DEFAULT 1 COMMENT '1 = activa, 0 = inactiva',
-    CONSTRAINT chk_digecam_autorizacion CHECK (digecam_autorizacion IN ('aprobada','no aprobada')),
-    FOREIGN KEY (digecam_licencia_import) REFERENCES pro_licencias_para_importacion(lipaimp_id)
+-- ========================
+-- PAGOS DE LICENCIAS
+-- ========================
+CREATE TABLE pro_pagos_licencias (
+    pago_id INT AUTO_INCREMENT PRIMARY KEY,
+    pago_licencia_id INT NOT NULL,
+    pago_empresa_id INT NOT NULL,
+    pago_fecha DATE NOT NULL,
+    pago_monto DECIMAL(10,2) NOT NULL,
+    pago_metodo INT NOT NULL,
+    pago_verificado VARCHAR(50) DEFAULT 'no aprobada',
+    pago_concepto VARCHAR(250),
+    CONSTRAINT chk_pago_verificado CHECK (pago_verificado IN ('aprobada','no aprobada')),
+    FOREIGN KEY (pago_licencia_id) REFERENCES pro_licencias_para_importacion(lipaimp_id),
+    FOREIGN KEY (pago_empresa_id) REFERENCES pro_empresas_de_importacion(empresaimp_id),
+    FOREIGN KEY (pago_metodo) REFERENCES pro_metodos_pago(metpago_id)
 );
+
+CREATE TABLE pro_comprobantes_pago (
+    comprob_id INT AUTO_INCREMENT PRIMARY KEY,
+    comprob_ruta VARCHAR(50),
+    comprob_pagos_licencia INT,
+    comprob_situacion INT DEFAULT 1,
+    FOREIGN KEY (comprob_pagos_licencia) REFERENCES pro_pagos_licencias(pago_id)
+);
+
+CREATE TABLE pro_documentacion_lic_import (
+    doclicimport_id INT AUTO_INCREMENT PRIMARY KEY,
+    doclicimport_ruta VARCHAR(50) NOT NULL,
+    doclicimport_num_lic INT,
+    doclicimport_situacion INT DEFAULT 1,
+    FOREIGN KEY (doclicimport_num_lic) REFERENCES pro_licencias_para_importacion(lipaimp_id)
+);
+
+-----MARIN ----
+
+-----
+--hugo ----pendiente solo manejar situaciones en licencia  ----  ----- 1 pendiente  2 autorizado 3 rechazado
+-- CREATE TABLE pro_digecam (
+--     digecam_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID digecam',
+--     digecam_licencia_import INT NOT NULL COMMENT 'Licencia asociada',
+--     digecam_autorizacion VARCHAR(50) DEFAULT 'no aprobada' COMMENT 'Estado autorización',
+--     digecam_situacion INT DEFAULT 1 COMMENT '1 = activa, 0 = inactiva',
+--     CONSTRAINT chk_digecam_autorizacion CHECK (digecam_autorizacion IN ('aprobada','no aprobada')),
+--     FOREIGN KEY (digecam_licencia_import) REFERENCES pro_licencias_para_importacion(lipaimp_id)
+-- );
+
+
+
+
 
 -- ========================
 -- INVENTARIO 
@@ -227,7 +265,6 @@ CREATE TABLE pro_detalle_venta (
     FOREIGN KEY (arma_id) REFERENCES pro_inventario_armas(arma_id)
 );
 
-
 -- ========================
 -- PAGOS DE VENTAS
 -- ========================
@@ -251,37 +288,3 @@ CREATE TABLE pro_comprobantes_pago_ventas (
     FOREIGN KEY (comprobventas_pago_id) REFERENCES pro_pagos(pago_id)
 );
 
--- ========================
--- PAGOS DE LICENCIAS
--- ========================
-
-CREATE TABLE pro_pagos_licencias (
-    pago_id INT AUTO_INCREMENT PRIMARY KEY,
-    pago_licencia_id INT NOT NULL,
-    pago_empresa_id INT NOT NULL,
-    pago_fecha DATE NOT NULL,
-    pago_monto DECIMAL(10,2) NOT NULL,
-    pago_metodo INT NOT NULL,
-    pago_verificado VARCHAR(50) DEFAULT 'no aprobada',
-    pago_concepto VARCHAR(250),
-    CONSTRAINT chk_pago_verificado CHECK (pago_verificado IN ('aprobada','no aprobada')),
-    FOREIGN KEY (pago_licencia_id) REFERENCES pro_licencias_para_importacion(lipaimp_id),
-    FOREIGN KEY (pago_empresa_id) REFERENCES pro_empresas_de_importacion(empresaimp_id),
-    FOREIGN KEY (pago_metodo) REFERENCES pro_metodos_pago(metpago_id)
-);
-
-CREATE TABLE pro_comprobantes_pago (
-    comprob_id INT AUTO_INCREMENT PRIMARY KEY,
-    comprob_ruta VARCHAR(50),
-    comprob_pagos_licencia INT,
-    comprob_situacion INT DEFAULT 1,
-    FOREIGN KEY (comprob_pagos_licencia) REFERENCES pro_pagos_licencias(pago_id)
-);
-
-CREATE TABLE pro_documentacion_lic_import (
-    doclicimport_id INT AUTO_INCREMENT PRIMARY KEY,
-    doclicimport_ruta VARCHAR(50) NOT NULL,
-    doclicimport_num_lic INT,
-    doclicimport_situacion INT DEFAULT 1,
-    FOREIGN KEY (doclicimport_num_lic) REFERENCES pro_licencias_para_importacion(lipaimp_id)
-);

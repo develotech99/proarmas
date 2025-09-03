@@ -19,5 +19,9 @@ class TipoArma extends Model
         'clase_descripcion',
         'clase_situacion',
     ];
-
+    public function scopeActivos($query)
+    {
+        return $query->where('clase_situacion', 1);
+    }
+    
 }

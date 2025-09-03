@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\LicenciaImportacion;
 use App\Models\ArmaLicenciada;
 use App\Models\EmpresaImportacion;
-use App\Models\ClasePistola;
-use App\Models\Marca;
-use App\Models\Modelo;
+use App\Models\TipoArma;
+use App\Models\Marcas;
+use App\Models\ProModelo;
 use App\Models\Calibre;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -26,10 +26,10 @@ class LicenciaImportacionController extends Controller
                                       ->paginate(15);
 
         // Datos para los formularios
-        $empresas = EmpresaImportacion::activos()->orderBy('empresaimp_nombre')->get();
-        $clases = ClasePistola::activos()->orderBy('clase_descripcion')->get();
-        $marcas = Marca::activos()->orderBy('marca_descripcion')->get();
-        $modelos = Modelo::activos()->orderBy('modelo_descripcion')->get();
+        $empresas = EmpresaImportacion::activos()->orderBy('empresaimp_descripcion')->get();
+        $clases = TipoArma::activos()->orderBy('clase_descripcion')->get();
+        $marcas = Marcas::activos()->orderBy('marca_descripcion')->get();
+        $modelos = ProModelo::activos()->orderBy('modelo_descripcion')->get();
         $calibres = Calibre::activos()->with('unidadMedida')->orderBy('calibre_nombre')->get();
         
         return view('licencias-importacion.index', compact(
