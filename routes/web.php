@@ -1,16 +1,17 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\MetodoPagoController;
-use App\Http\Controllers\PaisController;
-use App\Http\Controllers\UnidadMedidaController;
-use App\Http\Controllers\LicenciaImportacionController;
-use App\Http\Controllers\CalibreController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PaisController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\MarcasController;
+use App\Http\Controllers\CalibreController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
+use App\Http\Controllers\MetodoPagoController;
+use App\Http\Controllers\UnidadMedidaController;
+use App\Http\Controllers\EmpresaImportacionController;
+use App\Http\Controllers\LicenciaImportacionController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -86,6 +87,16 @@ Route::middleware('auth')->group(function () {
 
     //RUTAS PARA MODELOS DE ARMAS CarlosDevelotech
     Route::get('/modelos', [ProModeloController::class, 'index'])->name('modelos.index');
+
+
+    // Rutas para Empresas de Importación - CarlosDevelotech
+    Route::get('/empresas-importacion', [EmpresaImportacionController::class, 'index'])->name('empresas-importacion.index');
+    Route::get('/empresas-importacion/search', [EmpresaImportacionController::class, 'search'])->name('empresas-importacion.search');
+    Route::post('/empresas-importacion', [EmpresaImportacionController::class, 'store'])->name('empresas-importacion.store');
+    Route::put('/empresas-importacion/{id}', [EmpresaImportacionController::class, 'update'])->name('empresas-importacion.update');
+    Route::delete('/empresas-importacion/{id}', [EmpresaImportacionController::class, 'destroy'])->name('empresas-importacion.destroy');
+    Route::get('/empresas-importacion/activas', [EmpresaImportacionController::class, 'getActivas'])->name('empresas-importacion.activas');
+    Route::get('/empresas-importacion/por-pais/{paisId}', [EmpresaImportacionController::class, 'getByPais'])->name('empresas-importacion.por-pais');
 });
 
 
