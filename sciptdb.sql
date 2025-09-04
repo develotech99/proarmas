@@ -167,7 +167,6 @@ CREATE TABLE pro_documentacion_lic_import (
 );
 
 -----MARIN ----
-
 -----
 --hugo ----pendiente solo manejar situaciones en licencia  ----  ----- 1 pendiente  2 autorizado 3 rechazado
 -- CREATE TABLE pro_digecam (
