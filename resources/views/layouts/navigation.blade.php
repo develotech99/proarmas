@@ -287,9 +287,18 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                 </svg>
             </div>
-            <div class="flex-1 min-w-0">
+            {{-- <div class="flex-1 min-w-0">
                 <div class="text-sm font-medium text-white truncate">{{ Auth::user()->name }}</div>
                 <div class="text-xs text-slate-400 truncate">{{ Auth::user()->email }}</div>
+            </div> --}}
+
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-white truncate">
+                    {{ auth()->user()?->name ?? 'Invitado' }}
+                </div>
+                <div class="text-xs text-slate-400 truncate">
+                    {{ auth()->user()?->email ?? '—' }}
+                </div>
             </div>
             
             <!-- Dropdown Menu -->
@@ -317,3 +326,12 @@
         </div>
     </div>
 </nav>
+
+<div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-white truncate">
+                    {{ auth()->user()?->name ?? 'Invitado' }}
+                </div>
+                <div class="text-xs text-slate-400 truncate">
+                    {{ auth()->user()?->email ?? '—' }}
+                </div>
+</div>
