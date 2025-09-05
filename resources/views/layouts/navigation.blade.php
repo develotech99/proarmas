@@ -298,8 +298,12 @@
                 </svg>
             </div>
             <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium text-white truncate">{{ Auth::user()->name }}</div>
-                <div class="text-xs text-slate-400 truncate">{{ Auth::user()->email }}</div>
+                <div class="text-sm font-medium text-white truncate">
+                    {{ auth()->user()?->name ?? 'Invitado' }}
+                </div>
+                <div class="text-xs text-slate-400 truncate">
+                    {{ auth()->user()?->email ?? '—' }}
+                </div>
             </div>
 
             <!-- Dropdown Menu -->

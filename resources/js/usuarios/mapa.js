@@ -27,6 +27,12 @@ const inputBusqueda = () => $('busqueda_lugar');
 const statusMapa = () => $('status_mapa');
 const zoomLevel = () => $('zoom_level');
 
+// NUEVOS selectores para fullscreen
+const btnFullscreen = () => $('btn_fullscreen');
+const iconExpand = () => $('icon_expand');
+const iconCompress = () => $('icon_compress');
+const mapCard = () => $('map_card');
+
 // --------- Estado ----------
 const DEFAULT_CENTER = [14.6349, -90.5069];
 const DEFAULT_ZOOM = 13;
@@ -361,6 +367,59 @@ function toggleClickMode() {
   }
 }
 
+// --------- Pantalla completa (Fullscreen API) ----------
+function getFullscreenTarget() {
+  // Hacemos fullscreen del CARD para que el botón siga visible
+  return mapCard() || elMap();
+}
+function isFullscreen() {
+  return document.fullscreenElement === getFullscreenTarget();
+}
+async function enterFullscreen() {
+  const target = getFullscreenTarget();
+  if (!target) return;
+  if (!document.fullscreenElement) {
+    await target.requestFullscreen();
+  }
+}
+async function exitFullscreen() {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+  }
+}
+async function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      await enterFullscreen();
+    } else {
+      await exitFullscreen();
+    }
+  } catch (err) {
+    console.error('Fullscreen error:', err);
+    setStatus('No se pudo cambiar a pantalla completa.');
+  }
+}
+function onFullscreenChange() {
+  // Recalcular Leaflet tras cambiar layout
+  setTimeout(() => {
+    if (map) map.invalidateSize();
+  }, 60);
+
+  // Cambiar iconos
+  const exp = iconExpand();
+  const comp = iconCompress();
+  const inFS = !!document.fullscreenElement;
+  if (exp && comp) {
+    exp.classList.toggle('hidden', inFS);
+    comp.classList.toggle('hidden', !inFS);
+  }
+
+  // Tooltip y estado
+  const btn = btnFullscreen();
+  if (btn) btn.title = inFS ? 'Salir de pantalla completa' : 'Pantalla completa';
+  setStatus(inFS ? 'Mapa en pantalla completa.' : 'Mapa en modo normal.');
+}
+
 // --------- Bind UI ----------
 function bindUI() {
   btnMiUbicacion()?.addEventListener('click', goToMyLocation);
@@ -374,6 +433,9 @@ function bindUI() {
     }
   });
   btnTomarPosicion()?.addEventListener('click', toggleClickMode);
+
+  // NUEVO: botón fullscreen
+  btnFullscreen()?.addEventListener('click', toggleFullscreen);
 }
 
 // --------- Bootstrap ----------
@@ -383,4 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindUI();
   // Monta HUD para que esté listo (invisible hasta que lo uses)
   mountMapHUD();
+
+  // NUEVO: escuchar cambios de fullscreen
+  document.addEventListener('fullscreenchange', onFullscreenChange);
 });

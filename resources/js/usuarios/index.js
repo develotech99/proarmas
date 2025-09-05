@@ -1,280 +1,443 @@
-window.usuariosManager = () => ({
-   
-   // Estados
-   showModal: false,
-   showViewModal: false,
-   showDebug: true,
-   isEditing: false,
-   editingUserId: null,
-   viewingUser: null,
-   searchTerm: '',
-   roleFilter: '',
-   isSubmitting: false,
-   
-   // Form data
-   formData: {
-       name: '',
-       email: '',
-       rol_id: '',
-       password: '',
-       password_confirmation: ''
-   },
-   
-   // Los datos se pasarán desde la vista
-   usuarios: [],
+import Swal from "sweetalert2";
+import DataTable from "vanilla-datatables";
+import "vanilla-datatables/src/vanilla-dataTables.css";
 
-   init() {
-       console.log('🚀 usuariosManager inicializado');
-       this.loadUsuarios();
-       console.log('📊 Total usuarios cargados:', this.usuarios.length);
-   },
 
-   loadUsuarios() {
-       try {
-           const usuariosData = document.getElementById('usuarios-data');
-           if (usuariosData) {
-               this.usuarios = JSON.parse(usuariosData.textContent);
-               console.log('📊 Usuarios cargados desde script:', this.usuarios.length);
-           }
-       } catch (error) {
-           console.error('Error cargando usuarios:', error);
-           this.usuarios = [];
-       }
-   },
+let datatableUsuarios = null;
+let isEditing = false;
+let currentUserId = null;
+const form = document.getElementById('formUsuario');
 
-   getFormAction() {
-       const baseUrl = window.location.origin;
-       const action = this.isEditing 
-           ? `${baseUrl}/usuarios/${this.editingUserId}` 
-           : `${baseUrl}/usuarios`;
-       console.log('🎯 Form action calculado:', action);
-       return action;
-   },
+const swalLoadingOpen = (title = 'Procesando...') => {
+    Swal.fire({
+        title,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+};
 
-   isFormValid() {
-       const nameValid = this.formData.name.trim().length > 0;
-       const emailValid = this.formData.email.trim().length > 0 && this.formData.email.includes('@');
-       
-       let passwordValid = true;
-       if (!this.isEditing) {
-           passwordValid = this.formData.password.length >= 8 && 
-                          this.formData.password === this.formData.password_confirmation;
-       }
+const swalLoadingClose = () => Swal.close();
 
-       const isValid = nameValid && emailValid && passwordValid;
-       console.log('✅ Validación form:', { nameValid, emailValid, passwordValid, isValid });
-       return isValid;
-   },
+const initDataTable = () => {
+    datatableUsuarios = new DataTable('#datatableUsuarios', {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: {
+            placeholder: "Buscar...",
+            perPage: "{select} registros por página",
+            noRows: "No se encontraron registros",
+            info: "Mostrando {start} a {end} de {rows} registros",
+        },
+        data: {
+            headings: ["Usuario", "Email", "Rol", "Registrado", "Acciones"],
+            data: []
+        }
+    });
+};
 
-   validateForm() {
-       this.isFormValid();
-   },
+const buscarUsuarios = async (filtros = {}) => {
+    try {
+        let url = "/api/usuarios/obtener";
 
-   openCreateModal() {
-       console.log('➕ Abriendo modal para crear usuario');
-       this.isEditing = false;
-       this.editingUserId = null;
-       this.resetFormData();
-       this.showModal = true;
-   },
+        const searchParams = new URLSearchParams();
+        if (filtros.search) searchParams.append('search', filtros.search);
+        if (filtros.rol) searchParams.append('rol', filtros.rol);
+        if (searchParams.toString()) url += '?' + searchParams.toString();
 
-   editUser(userId) {
-       console.log('✏️ Editando usuario con ID:', userId);
-       const user = this.usuarios.find(u => u.id === userId);
-       if (user) {
-           this.isEditing = true;
-           this.editingUserId = userId;
-           this.formData = {
-               name: user.name,
-               email: user.email,
-               rol_id: user.rol_id || '',
-               password: '',
-               password_confirmation: ''
-           };
-           this.showModal = true;
-       } else {
-           console.error('❌ Usuario no encontrado:', userId);
-           this.showSweetAlert('error', 'Error', 'Usuario no encontrado');
-       }
-   },
+        const config = {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        };
 
-   async handleFormSubmit(event) {
-       event.preventDefault();
-       console.log('📤 Enviando formulario...');
-       
-       this.isSubmitting = true;
-       
-       if (!this.isFormValid()) {
-           console.error('❌ Formulario inválido');
-           this.showSweetAlert('error', 'Error de validación', 'Por favor complete todos los campos correctamente');
-           this.isSubmitting = false;
-           return false;
-       }
+        const respuesta = await fetch(url, config);
+        const data = await respuesta.json();
 
-       try {
-           const formData = new FormData();
-           formData.append('name', this.formData.name);
-           formData.append('email', this.formData.email);
-           formData.append('rol_id', this.formData.rol_id);
-           
-           if (!this.isEditing || this.formData.password) {
-               formData.append('password', this.formData.password);
-               formData.append('password_confirmation', this.formData.password_confirmation);
-           }
-           
-           // Agregar CSRF token
-           const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-           if (csrfToken) {
-               formData.append('_token', csrfToken);
-           }
-           
-           if (this.isEditing) {
-               formData.append('_method', 'PUT');
-           }
+        const { codigo, mensaje, datos } = data;
 
-           const response = await fetch(this.getFormAction(), {
-               method: 'POST',
-               body: formData,
-               headers: {
-                   'X-Requested-With': 'XMLHttpRequest',
-               }
-           });
+        if (codigo == 1) {
+            if (Array.isArray(datos) && datos.length) {
+                const tableData = datos.map(usuario => {
+                    const nombreCompleto = `${usuario.primer_nombre || ''} ${usuario.segundo_nombre || ''} ${usuario.primer_apellido || ''} ${usuario.segundo_apellido || ''}`.trim();
+                    const iniciales = getIniciales(nombreCompleto);
 
-           if (response.ok) {
-               this.showSweetAlert('success', 'Éxito', this.isEditing ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
-               this.closeModal();
-               // Recargar la página o actualizar la lista
-               setTimeout(() => window.location.reload(), 1500);
-           } else {
-               const errorData = await response.json();
-               this.showSweetAlert('error', 'Error', errorData.message || 'Error al procesar la solicitud');
-           }
-           
-       } catch (error) {
-           console.error('Error:', error);
-           this.showSweetAlert('error', 'Error', 'Error de conexión');
-       } finally {
-           this.isSubmitting = false;
-       }
-   },
 
-   closeModal() {
-       console.log('🔒 Cerrando modal');
-       this.showModal = false;
-       this.isSubmitting = false;
-       this.resetFormData();
-   },
+                    const usuarioStr = JSON.stringify(usuario).replace(/'/g, '&#39;');
 
-   resetFormData() {
-       this.formData = {
-           name: '',
-           email: '',
-           rol_id: '',
-           password: '',
-           password_confirmation: ''
-       };
-   },
+                    return [
+                        `<div class="flex items-center gap-3">
+              <div class="h-8 w-8 rounded-full bg-yellow-500 flex items-center justify-center">
+                <span class="text-sm font-semibold text-white">${iniciales}</span>
+              </div>
+              <div>
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">${nombreCompleto}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">DPI: ${usuario.dpi_dni || 'N/A'}</div>
+              </div>
+            </div>`,
 
-   showSweetAlert(type, title, text) {
-       const config = {
-           title: title,
-           text: text,
-           icon: type,
-           customClass: {
-               popup: 'dark:bg-gray-800 dark:text-gray-100',
-               title: 'dark:text-gray-100',
-               content: 'dark:text-gray-300'
-           }
-       };
+                        usuario.email || 'N/D',
 
-       if (type === 'success') {
-           config.confirmButtonColor = '#10b981';
-           config.timer = 3000;
-       } else if (type === 'error') {
-           config.confirmButtonColor = '#dc2626';
-       }
+                        usuario.rol
+                            ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100">
+                   ${usuario.rol.nombre}
+                 </span>`
+                            : '<span class="text-gray-400">Sin rol</span>',
 
-       Swal.fire(config);
-   },
+                        usuario.created_at ? new Date(usuario.created_at).toLocaleDateString('es-GT') : '',
 
-   viewUser(userId) {
-       const user = this.usuarios.find(u => u.id === userId);
-       if (user) {
-           this.viewingUser = user;
-           this.showViewModal = true;
-       }
-   },
+                        `<div class="flex items-center justify-end gap-2">
+              <button class="btn-ver p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" 
+                      data-id="${usuario.id}" data-usuario='${usuarioStr}' title="Ver detalles">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+              <button class="btn-editar p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors" 
+                      data-id="${usuario.id}" data-usuario='${usuarioStr}' title="Editar">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button class="btn-eliminar p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors" 
+                      data-id="${usuario.id}" title="Eliminar">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>`
+                    ];
+                });
 
-   closeViewModal() {
-       this.showViewModal = false;
-       this.viewingUser = null;
-   },
+                // re-crear la tabla
+                if (datatableUsuarios) datatableUsuarios.destroy();
+                datatableUsuarios = new DataTable('#datatableUsuarios', {
+                    searchable: false,
+                    sortable: true,
+                    fixedHeight: true,
+                    perPage: 10,
+                    perPageSelect: [5, 10, 20, 50],
+                    labels: {
+                        placeholder: "Buscar...",
+                        perPage: "{select} registros por página",
+                        noRows: "No se encontraron registros",
+                        info: "Mostrando {start} a {end} de {rows} registros",
+                    },
+                    data: {
+                        headings: ["Usuario", "Email", "Rol", "Registrado", "Acciones"],
+                        data: tableData
+                    }
+                });
 
-   deleteUser(userId) {
-       const user = this.usuarios.find(u => u.id === userId);
-       if (!user) return;
+            } else {
+                // sin datos
+                if (datatableUsuarios) datatableUsuarios.destroy();
+                datatableUsuarios = new DataTable('#datatableUsuarios', {
+                    searchable: false,
+                    sortable: true,
+                    fixedHeight: true,
+                    perPage: 10,
+                    perPageSelect: [5, 10, 20, 50],
+                    labels: {
+                        placeholder: "Buscar...",
+                        perPage: "{select} registros por página",
+                        noRows: "No se encontraron registros",
+                        info: "Mostrando {start} a {end} de {rows} registros",
+                    },
+                    data: {
+                        headings: ["Usuario", "Email", "Rol", "Registrado", "Acciones"],
+                        data: []
+                    }
+                });
+                Swal.fire('Aviso', 'No hay datos para mostrar', 'warning');
+            }
+        } else {
+            Swal.fire('Error', mensaje || 'Ocurrió un error en la respuesta', 'error');
+        }
 
-       Swal.fire({
-           title: '¿Estás seguro?',
-           text: `¿Deseas eliminar al usuario "${user.name}"?`,
-           icon: 'warning',
-           showCancelButton: true,
-           confirmButtonColor: '#dc2626',
-           cancelButtonColor: '#6b7280',
-           confirmButtonText: 'Sí, eliminar',
-           cancelButtonText: 'Cancelar'
-       }).then((result) => {
-           if (result.isConfirmed) {
-               this.submitDeleteForm(userId);
-           }
-       });
-   },
+    } catch (error) {
+        console.error("Error cargando usuarios:", error);
+        Swal.fire('Error', 'Error de conexión o formato de respuesta inválido', 'error');
+    }
+};
 
-   submitDeleteForm(userId) {
-       const form = document.createElement('form');
-       form.method = 'POST';
-       form.action = `/usuarios/${userId}`;
-       
-       const csrfToken = document.createElement('input');
-       csrfToken.type = 'hidden';
-       csrfToken.name = '_token';
-       csrfToken.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-       
-       const methodField = document.createElement('input');
-       methodField.type = 'hidden';
-       methodField.name = '_method';
-       methodField.value = 'DELETE';
-       
-       form.appendChild(csrfToken);
-       form.appendChild(methodField);
-       document.body.appendChild(form);
-       form.submit();
-   },
 
-   showUser(userId) {
-       const user = this.usuarios.find(u => u.id === userId);
-       if (!user) return false;
+const getIniciales = (nombreCompleto) => {
+    if (!nombreCompleto) return 'US';
+    const nombres = nombreCompleto.trim().split(' ');
+    if (nombres.length >= 2) {
+        return (nombres[0][0] + nombres[nombres.length - 1][0]).toUpperCase();
+    }
+    return nombres[0][0].toUpperCase() + 'U';
+};
 
-       if (this.searchTerm && !user.name.toLowerCase().includes(this.searchTerm.toLowerCase())) {
-           return false;
-       }
 
-       if (this.roleFilter) {
-           if (this.roleFilter === 'sin-rol' && user.rol) return false;
-           if (this.roleFilter !== 'sin-rol' && (!user.rol || user.rol.nombre !== this.roleFilter)) return false;
-       }
+const abrirModal = (modalId) => {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+};
 
-       return true;
-   },
+const cerrarModal = (modalId) => {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+};
 
-   filterUsers() {
-       // El filtrado se hace en showUser()
-   },
 
-   clearFilters() {
-       this.searchTerm = '';
-       this.roleFilter = '';
-   }
+const limpiarFormulario = () => {
+    const form = document.getElementById('formUsuario');
+    if (form) {
+        form.reset();
+        document.getElementById('user_id').value = '';
+        isEditing = false;
+        currentUserId = null;
+
+        document.getElementById('modalUsuarioTitle').textContent = 'Crear usuario';
+        document.getElementById('btnSubmitUsuarioText').textContent = 'Crear';
+
+
+        const passwordField = document.getElementById('password');
+        const passwordConfirmField = document.getElementById('password_confirmation');
+        if (passwordField && passwordConfirmField) {
+            passwordField.required = true;
+            passwordConfirmField.required = true;
+        }
+    }
+};
+
+
+const cargarDatosEdicion = (usuario) => {
+    document.getElementById('user_id').value = usuario.id;
+    document.getElementById('user_dpi_dni').value = usuario.dpi_dni || '';
+    document.getElementById('email').value = usuario.email || '';
+    document.getElementById('user_primer_nombre').value = usuario.primer_nombre || '';
+    document.getElementById('user_segundo_nombre').value = usuario.segundo_nombre || '';
+    document.getElementById('user_primer_apellido').value = usuario.primer_apellido || '';
+    document.getElementById('user_segundo_apellido').value = usuario.segundo_apellido || '';
+    document.getElementById('user_rol').value = usuario.rol_id || '';
+
+    document.getElementById('password').value = '';
+    document.getElementById('password_confirmation').value = '';
+    document.getElementById('password').required = false;
+    document.getElementById('password_confirmation').required = false;
+
+    isEditing = true;
+    currentUserId = usuario.id;
+
+    document.getElementById('modalUsuarioTitle').textContent = 'Editar usuario';
+    document.getElementById('btnSubmitUsuarioText').textContent = 'Actualizar';
+};
+
+// Mostrar datos en modal de ver
+const mostrarDatosUsuario = (usuario) => {
+    const nombreCompleto = `${usuario.primer_nombre || ''} ${usuario.segundo_nombre || ''} ${usuario.primer_apellido || ''} ${usuario.segundo_apellido || ''}`.trim();
+    const iniciales = getIniciales(nombreCompleto);
+
+    document.getElementById('verIniciales').textContent = iniciales;
+    document.getElementById('verNombre').textContent = nombreCompleto || 'Usuario';
+    document.getElementById('verEmail').textContent = usuario.email || 'N/A';
+    document.getElementById('verRol').textContent = usuario.rol ? usuario.rol.nombre : 'Sin rol';
+
+    if (usuario.created_at) {
+        const fecha = new Date(usuario.created_at);
+        document.getElementById('verFecha').textContent = fecha.toLocaleDateString('es-GT');
+    } else {
+        document.getElementById('verFecha').textContent = 'N/A';
+    }
+};
+
+const eliminarUsuario = async (userId) => {
+    try {
+        const config = {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        };
+
+        const respuesta = await fetch(`/api/usuarios/${userId}`, config);
+        const data = await respuesta.json();
+
+        if (respuesta.ok) {
+            mostrarAlerta('Usuario eliminado exitosamente', 'success');
+            buscarUsuarios(); // Recargar datos
+        } else {
+            mostrarAlerta(data.message || 'Error al eliminar usuario', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error de conexión', 'error');
+    }
+};
+
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+
+document.addEventListener('click', (e) => {
+    // Cerrar modales
+    if (e.target.matches('[data-modal-close]') || e.target.matches('[data-modal-backdrop]')) {
+        cerrarModal('modalUsuario');
+        cerrarModal('modalVerUsuario');
+    }
+
+    // Abrir modal crear
+    if (e.target.matches('#btnOpenCreate') || e.target.closest('#btnOpenCreate')) {
+        limpiarFormulario();
+        abrirModal('modalUsuario');
+    }
+
+    // Ver usuario
+    if (e.target.matches('.btn-ver') || e.target.closest('.btn-ver')) {
+        const btn = e.target.closest('.btn-ver');
+        const usuarioData = btn.dataset.usuario;
+        if (usuarioData) {
+            const usuario = JSON.parse(usuarioData);
+            mostrarDatosUsuario(usuario);
+            abrirModal('modalVerUsuario');
+        }
+    }
+
+    // Editar usuario
+    if (e.target.matches('.btn-editar') || e.target.closest('.btn-editar')) {
+        const btn = e.target.closest('.btn-editar');
+        const usuarioData = btn.dataset.usuario;
+        if (usuarioData) {
+            const usuario = JSON.parse(usuarioData);
+            cargarDatosEdicion(usuario);
+            abrirModal('modalUsuario');
+        }
+    }
+
+    // Eliminar usuario
+    if (e.target.matches('.btn-eliminar') || e.target.closest('.btn-eliminar')) {
+        const btn = e.target.closest('.btn-eliminar');
+        const userId = btn.dataset.id;
+        if (confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
+            eliminarUsuario(userId);
+        }
+    }
+
+    // Limpiar filtros
+    if (e.target.matches('#btnClearFilters')) {
+        document.getElementById('inputSearch').value = '';
+        document.getElementById('selectRoleFilter').value = '';
+        buscarUsuarios({});
+    }
 });
 
 
+const searchInput = document.getElementById('inputSearch');
+const roleSelect = document.getElementById('selectRoleFilter');
+
+if (searchInput) {
+    searchInput.addEventListener('input', debounce((e) => {
+        const searchTerm = e.target.value.trim();
+        const roleFilter = roleSelect ? roleSelect.value : '';
+
+        const filtros = {};
+        if (searchTerm) filtros.search = searchTerm;
+        if (roleFilter) filtros.rol = roleFilter;
+
+        buscarUsuarios(filtros);
+    }, 300));
+}
+
+if (roleSelect) {
+    roleSelect.addEventListener('change', (e) => {
+        const roleFilter = e.target.value;
+        const searchTerm = searchInput ? searchInput.value.trim() : '';
+
+        const filtros = {};
+        if (searchTerm) filtros.search = searchTerm;
+        if (roleFilter) filtros.rol = roleFilter;
+
+        buscarUsuarios(filtros);
+    });
+}
+
+
+if (form) {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const datos = Object.fromEntries(formData);
+
+
+        if (datos.password && datos.password !== datos.password_confirmation) {
+            await Swal.fire('Atencion', 'Las contraseñas no coinciden', 'warning')
+            return;
+        }
+
+        try {
+            const url = isEditing ? `/api/usuarios/${currentUserId}` : '/api/usuarios';
+            const method = isEditing ? 'PUT' : 'POST';
+
+            const config = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify(datos)
+            };
+
+            swalLoadingOpen(isEditing ? 'Actualizando usuario...' : 'Creando usuario...');
+
+            const respuesta = await fetch(url, config);
+            const data = await respuesta.json();
+
+            swalLoadingClose();
+
+            const { codigo, mensaje } = data;
+
+            if (codigo === 1) {
+                await Swal.fire('Éxito', mensaje || (isEditing ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente'), 'success');
+                cerrarModal('modalUsuario');
+                buscarUsuarios();
+            } else {
+                Swal.fire('Error', mensaje || 'Error al procesar la solicitud', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            swalLoadingClose();
+            Swal.fire('Error', 'Error de conexión', 'error');
+        }
+    });
+}
+
+
+
+// Inicializar aplicación
+initDataTable();
+buscarUsuarios();

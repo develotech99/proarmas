@@ -22,12 +22,22 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+Route::resource('usuarios', UserController::class);
+Route::get('/api/usuarios/obtener', [UserController::class,'getUsers'])->name('usuario.get');
+Route::post('/api/usuarios', [UserController::class,'registroAPI'])->name('usuarios.store');
+Route::put('/api/usuarios/{id}', [UserController::class,'update'])->name('usuarios.update');
+Route::delete('/api/usuarios/{id}', [UserController::class,'destroy'])->name('usuarios.destroy');
+Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
+Route::post('/usuarios/reenviar-verificacion', [UserController::class, 'reenviarVerificacionAPI']);
+Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
+
+
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     //ruta para usuarios MarinDevelotech
-    Route::resource('usuarios', UserController::class);
 
     // Rutas para métodos de pago MarinDevelotech copia a CarlosDevelotech jaja
     Route::get('/metodos-pago', [MetodoPagoController::class, 'index'])->name('metodos-pago.index');

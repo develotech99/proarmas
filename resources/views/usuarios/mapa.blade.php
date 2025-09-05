@@ -14,7 +14,6 @@
         </p>
     </div>
 
-
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         <div class="lg:col-span-1">
@@ -112,7 +111,8 @@
         </div>
 
         <div class="lg:col-span-2">
-            <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow overflow-hidden">
+            <!-- AGREGA id="map_card" AQUÍ -->
+            <div id="map_card" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow overflow-hidden">
                 <div class="p-4 flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Mapa</h2>
                     <div class="flex items-center gap-2">
@@ -126,13 +126,28 @@
                         </button>
                     </div>
                 </div>
-                <div class="h-[520px] w-full" id="map"></div>
+
+                <!-- HAZ RELATIVE PARA POSICIONAR EL BOTÓN DENTRO -->
+                <div class="h-[520px] w-full relative" id="map"></div>
+
+                <!-- BOTÓN FLOTANTE DENTRO DEL MAPA -->
+                <button id="btn_fullscreen" type="button"
+                    class="absolute right-3 top-3 z-10 inline-flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 px-2.5 py-2 shadow hover:bg-white dark:hover:bg-slate-800"
+                    title="Pantalla completa">
+                    <!-- icono expandir -->
+                    <svg id="icon_expand" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 block" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 3H3v4h2V5h2V3zm14 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm16 0h-2v2h-2v2h4v-4z"/>
+                    </svg>
+                    <!-- icono contraer (oculto hasta fullscreen) -->
+                    <svg id="icon_compress" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M9 3H3v6h2V5h4V3zm12 0h-6v2h4v4h2V3zM5 13H3v8h8v-2H5v-6zm16 0h-2v6h-6v2h8v-8z"/>
+                    </svg>
+                </button>
+
                 <!-- Barra inferior de estado -->
                 <div class="px-4 py-2 text-xs text-slate-500 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
                     <div id="status_mapa">Haz clic en el mapa para seleccionar coordenadas.</div>
-                    <div>
-                        <span id="zoom_level">Zoom: —</span>
-                    </div>
+                    <div><span id="zoom_level">Zoom: —</span></div>
                 </div>
             </div>
         </div>
@@ -171,5 +186,20 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+  :fullscreen { background:#000; }
+  :-webkit-full-screen { background:#000; } 
+
+  #map_card:fullscreen #map,
+  #map_card:-webkit-full-screen #map {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+  }
+</style>
+@endpush
 
 @vite('resources/js/usuarios/mapa.js')
