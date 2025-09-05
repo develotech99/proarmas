@@ -1,112 +1,113 @@
 <x-guest-layout>
-    <div class="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md w-full space-y-8">
-            <!-- Header -->
-            <div class="text-center">
-                <div class="mx-auto w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center mb-6">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+    <div
+        class="relative w-full max-w-md mx-auto
+               rounded-2xl bg-white/10 backdrop-blur-xl p-8
+               border border-orange-500/50
+               shadow-[0_20px_70px_-20px_rgba(255,120,40,0.45),0_40px_120px_-30px_rgba(0,0,0,0.6)]">
+
+        {{-- HEADER --}}
+        <div class="text-center mb-6">
+            <img src="{{ asset('images/pro_armas.png') }}" alt="ProArmas"
+                class="mx-auto mb-4 h-20 w-20 rounded-xl bg-black/40 p-2
+                        ring-2 ring-orange-500/70
+                        shadow-[0_0_55px_rgba(255,115,0,0.55)]">
+            <h1 class="text-2xl font-extrabold tracking-tight text-white">
+                Restablecer Contraseña
+            </h1>
+            <p class="text-slate-300/85 text-sm">
+                Crea una nueva contraseña segura para tu cuenta
+            </p>
+        </div>
+
+        {{-- FORM --}}
+        <form method="POST" action="{{ route('password.store') }}" class="space-y-6">
+            @csrf
+            {{-- Token --}}
+            <input type="hidden" name="token" value="{{ $request->route('token') }}">
+
+            {{-- Email --}}
+            <div>
+                <label for="email" class="mb-2 block text-sm font-medium text-slate-100">
+                    Correo Electrónico
+                </label>
+                <input id="email" type="email" name="email" value="{{ old('email', $request->email) }}" required
+                    autofocus readonly
+                    class="w-full rounded-lg border border-white/25 bg-black/30 px-4 py-3 text-slate-300
+                              cursor-not-allowed">
+                @error('email')
+                    <p class="mt-2 text-sm text-red-400">{{ $message }}</p>
+                @enderror
+            </div>
+
+            {{-- Nueva contraseña --}}
+            <div>
+                <label for="password" class="mb-2 block text-sm font-medium text-slate-100">
+                    Nueva Contraseña
+                </label>
+                <input id="password" type="password" name="password" required autocomplete="new-password"
+                    placeholder="Mínimo 8 caracteres"
+                    class="w-full rounded-lg border border-white/25 bg-black/30 px-4 py-3 text-white
+                              placeholder-white/60 outline-none transition
+                              focus:border-orange-500 focus:ring-2 focus:ring-orange-500/60">
+                @error('password')
+                    <p class="mt-2 text-sm text-red-400">{{ $message }}</p>
+                @enderror
+            </div>
+
+            {{-- Confirmación --}}
+            <div>
+                <label for="password_confirmation" class="mb-2 block text-sm font-medium text-slate-100">
+                    Confirmar Nueva Contraseña
+                </label>
+                <input id="password_confirmation" type="password" name="password_confirmation" required
+                    autocomplete="new-password" placeholder="Repite tu nueva contraseña"
+                    class="w-full rounded-lg border border-white/25 bg-black/30 px-4 py-3 text-white
+                              placeholder-white/60 outline-none transition
+                              focus:border-orange-500 focus:ring-2 focus:ring-orange-500/60">
+                @error('password_confirmation')
+                    <p class="mt-2 text-sm text-red-400">{{ $message }}</p>
+                @enderror
+            </div>
+
+            {{-- Notas de seguridad --}}
+            <div class="rounded-lg border border-white/10 bg-black/20 p-4">
+                <div class="flex items-start gap-3">
+                    <svg class="h-5 w-5 text-orange-400 mt-0.5" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
+                    <div>
+                        <p class="text-sm font-medium text-slate-200">Recomendaciones de seguridad:</p>
+                        <ul class="mt-1 space-y-1 text-xs text-slate-400">
+                            <li>• Usa al menos 8 caracteres</li>
+                            <li>• Incluye números y símbolos</li>
+                            <li>• No compartas tu contraseña</li>
+                        </ul>
+                    </div>
                 </div>
-                <h1 class="text-2xl font-bold text-slate-900 mb-2">Restablecer Contraseña</h1>
-                <p class="text-slate-600">Crea una nueva contraseña para tu cuenta</p>
             </div>
 
-            <!-- Reset Password Form -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-                <form method="POST" action="{{ route('password.store') }}" class="space-y-6">
-                    @csrf
+            {{-- Botón --}}
+            <button type="submit"
+                class="relative inline-flex w-full items-center justify-center gap-2 rounded-lg
+                           bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-3 font-semibold text-black
+                           shadow-lg hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-orange-400/70">
+                <span class="absolute inset-0 -z-10 rounded-lg bg-orange-500/40 blur-md"></span>
+                Restablecer Contraseña
+            </button>
+        </form>
 
-                    <!-- Password Reset Token -->
-                    <input type="hidden" name="token" value="{{ $request->route('token') }}">
-
-                    <!-- Email Address -->
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-slate-700 mb-2">
-                            Correo Electrónico
-                        </label>
-                        <input id="email" 
-                               type="email" 
-                               name="email" 
-                               value="{{ old('email', $request->email) }}" 
-                               required 
-                               autofocus 
-                               autocomplete="username"
-                               readonly
-                               class="w-full px-4 py-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-600 cursor-not-allowed">
-                        @error('email')
-                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <!-- New Password -->
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-slate-700 mb-2">
-                            Nueva Contraseña
-                        </label>
-                        <input id="password" 
-                               type="password" 
-                               name="password" 
-                               required 
-                               autocomplete="new-password"
-                               placeholder="Mínimo 8 caracteres"
-                               class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white text-slate-900 placeholder-slate-400">
-                        @error('password')
-                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <!-- Confirm Password -->
-                    <div>
-                        <label for="password_confirmation" class="block text-sm font-medium text-slate-700 mb-2">
-                            Confirmar Nueva Contraseña
-                        </label>
-                        <input id="password_confirmation" 
-                               type="password" 
-                               name="password_confirmation" 
-                               required 
-                               autocomplete="new-password"
-                               placeholder="Repite tu nueva contraseña"
-                               class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white text-slate-900 placeholder-slate-400">
-                        @error('password_confirmation')
-                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <!-- Security Note -->
-                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                        <div class="flex items-start space-x-3">
-                            <svg class="w-5 h-5 text-slate-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <div>
-                                <p class="text-sm font-medium text-slate-800">Recomendaciones de seguridad:</p>
-                                <ul class="text-xs text-slate-600 mt-1 space-y-1">
-                                    <li>• Usa al menos 8 caracteres</li>
-                                    <li>• Incluye números y símbolos</li>
-                                    <li>• No compartas tu contraseña</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submit Button -->
-                    <button type="submit" 
-                            class="w-full bg-slate-800 text-white py-3 px-4 rounded-lg font-medium hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors duration-200">
-                        Restablecer Contraseña
-                    </button>
-                </form>
-            </div>
-
-            <!-- Back to Login -->
-            <div class="text-center">
-                <a href="{{ route('login') }}" class="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 transition-colors">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                    Volver al login
-                </a>
-            </div>
+        {{-- Volver --}}
+        <div class="mt-6 text-center">
+            <a href="{{ route('login') }}"
+                class="inline-flex items-center text-sm text-slate-300 hover:text-white transition">
+                <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Volver al login
+            </a>
         </div>
     </div>
 </x-guest-layout>

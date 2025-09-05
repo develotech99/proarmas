@@ -15,9 +15,8 @@ use App\Http\Controllers\ProModeloController;
 use App\Models\ProModelo;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('login');
 });
-
 
 Route::get('/dashboard', function () {
     return view('dashboard');
