@@ -1,181 +1,240 @@
 <?php
-
+// app/Http/Controllers/UsuarioController.php
 namespace App\Http\Controllers;
 
+use App\Mail\VerificarCorreoMailable;
 use App\Models\User;
 use App\Models\Rol;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $usuarios = User::with('rol')->paginate(15);
-        $roles = Rol::orderBy('nombre')->get(); // ← AGREGAR ESTA LÍNEA
-        
-        return view('usuarios.index', compact('usuarios', 'roles')); // ← PASAR $roles
-    }
+        $q = $request->get('q');
 
-    public function create()
-    {
+        $usuarios = User::with('rol')
+            ->when($q, function ($query) use ($q) {
+                $query->where(function ($qq) use ($q) {
+                    $qq->where('user_primer_nombre', 'like', "%{$q}%")
+                        ->orWhere('user_segundo_nombre', 'like', "%{$q}%")
+                        ->orWhere('user_primer_apellido', 'like', "%{$q}%")
+                        ->orWhere('user_segundo_apellido', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%");
+                });
+            })
+            ->orderBy('user_primer_nombre')
+            ->paginate(15)
+            ->withQueryString();
+
         $roles = Rol::orderBy('nombre')->get();
-        
-        return view('usuarios.create', compact('roles'));
+
+        // Contadores para las tarjetas
+        $totalUsuarios     = $usuarios->total();
+        $conRolAsignado    = User::whereNotNull('user_rol')->count();
+        $registradosHoy    = User::whereDate('user_fecha_creacion', now()->toDateString())->count();
+
+        return view('usuarios.index', compact(
+            'usuarios',
+            'roles',
+            'q',
+            'totalUsuarios',
+            'conRolAsignado',
+            'registradosHoy'
+        ));
     }
 
-    public function store(Request $request)
+    public function confirmEmailSucess(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:100',
-            'email' => 'required|string|email|max:100|unique:users',
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'rol_id' => 'nullable|exists:roles,id',
-        ], [
-            'name.required' => 'El nombre es obligatorio.',
-            'email.required' => 'El email es obligatorio.',
-            'email.email' => 'El formato del email no es válido.',
-            'email.unique' => 'Este email ya está registrado.',
-            'password.required' => 'La contraseña es obligatoria.',
-            'password.confirmed' => 'La confirmación de contraseña no coincide.',
-            'rol_id.exists' => 'El rol seleccionado no es válido.',
-        ]);
-
-        User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'rol_id' => $request->rol_id,
-        ]);
-
-        return redirect()->route('usuarios.index')
-                        ->with('success', 'Usuario creado exitosamente.');
+        return view('emails.confirmEmailRegister');
     }
 
-    public function show(User $usuario)
+    public function getUsers(Request $request)
     {
-        $usuario->load(['rol', 'registrosConsumo' => function($query) {
-            $query->with('ingrediente')->orderBy('fecha_uso', 'desc')->limit(10);
-        }]);
+        try {
+            $search = $request->get('search');
+            $rol = $request->get('rol');
 
-        // Estadísticas del usuario
-        $estadisticas = [
-            'total_consumos' => $usuario->registrosConsumo()->count(),
-            'consumos_este_mes' => $usuario->registrosConsumo()
-                                          ->whereMonth('fecha_uso', now()->month)
-                                          ->whereYear('fecha_uso', now()->year)
-                                          ->count(),
-            'ingredientes_usados' => $usuario->registrosConsumo()
-                                            ->distinct('ingrediente_id')
-                                            ->count(),
-            'ultimo_consumo' => $usuario->registrosConsumo()
-                                       ->orderBy('fecha_uso', 'desc')
-                                       ->first()?->fecha_uso,
+            $usuarios = User::with('rol')
+                ->where('user_situacion', 1)
+                ->when($search, function ($query) use ($search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('user_primer_nombre', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                })
+                ->when($rol, function ($query) use ($rol) {
+                    $query->whereHas('rol', function ($q) use ($rol) {
+                        $q->where('nombre', $rol);
+                    });
+                })
+                ->orderBy('user_primer_nombre')
+                ->get();
+
+            return response()->json([
+                'codigo' => 1,
+                'mensaje' => 'Usuarios encontrados',
+                'datos' => $usuarios
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => 'Error obteniendo usuarios',
+                'detalle' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function registroAPI(Request $request)
+    {
+
+        $in = [
+            'user_primer_nombre'     => $request->input('usu_primer_nombre', $request->input('user_primer_nombre')),
+            'user_segundo_nombre'    => $request->input('usu_segundo_nombre', $request->input('user_segundo_nombre')),
+            'user_primer_apellido'   => $request->input('usu_primer_apellido', $request->input('user_primer_apellido')),
+            'user_segundo_apellido'  => $request->input('usu_segundo_apellido', $request->input('user_segundo_apellido')),
+            'email'             => $request->input('usu_correo_electronico', $request->input('email')),
+            'user_dpi_dni'           => $request->input('usu_dpi', $request->input('user_dpi_dni')),
+            'user_rol'               => $request->input('usu_rol', $request->input('user_rol')),
+            'password'          => $request->input('usu_password', $request->input('password')),
+            'password2'         => $request->input('usu_password2', $request->input('password_confirmation')),
         ];
 
-        return view('usuarios.show', compact('usuario', 'estadisticas'));
-    }
-
-    public function edit(User $usuario)
-    {
-        $roles = Rol::orderBy('nombre')->get();
-        
-        return view('usuarios.edit', compact('usuario', 'roles'));
-    }
-
-    public function update(Request $request, User $usuario)
-    {
-        $request->validate([
-            'name' => 'required|string|max:100',
-            'email' => 'required|string|email|max:100|unique:users,email,' . $usuario->id,
-            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'rol_id' => 'nullable|exists:roles,id',
-        ], [
-            'name.required' => 'El nombre es obligatorio.',
-            'email.required' => 'El email es obligatorio.',
-            'email.email' => 'El formato del email no es válido.',
-            'email.unique' => 'Este email ya está registrado.',
-            'password.confirmed' => 'La confirmación de contraseña no coincide.',
-            'rol_id.exists' => 'El rol seleccionado no es válido.',
-        ]);
-
-        $data = [
-            'name' => $request->name,
-            'email' => $request->email,
-            'rol_id' => $request->rol_id,
+        $rules = [
+            'user_primer_nombre'   => ['required', 'string', 'max:100'],
+            'user_primer_apellido' => ['required', 'string', 'max:100'],
+            'email'           => ['required', 'email', 'max:100', 'unique:users,email'],
+            'user_dpi_dni'         => ['nullable', 'string', 'max:20', 'unique:users,user_dpi_dni'],
+            'password'        => ['required', 'string', 'min:8'],
         ];
+        $messages = [
+            'user_primer_nombre.required'   => 'El primer nombre es obligatorio',
+            'user_primer_apellido.required' => 'El primer apellido es obligatorio',
+            'email.required'           => 'El correo electrónico es obligatorio',
+            'email.email'              => 'Correo inválido',
+            'email.unique'             => 'El correo ya está en uso',
+            'user_dpi_dni.unique'           => 'El DPI/DNI ya está en uso',
+            'password.required'        => 'La contraseña es obligatoria',
+            'password.min'             => 'La contraseña debe tener al menos 8 caracteres',
+        ];
+        $val = validator($in, $rules, $messages);
 
-        // Solo actualizar la contraseña si se proporcionó una nueva
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
+        if ($val->fails()) {
+            return response()->json([
+                'codigo'  => 2,
+                'mensaje' => 'Errores de validación',
+                'datos'   => $val->errors(),
+            ], 422);
         }
 
-        $usuario->update($data);
-
-        return redirect()->route('usuarios.index')
-                        ->with('success', 'Usuario actualizado exitosamente.');
-    }
-
-    public function destroy(User $usuario)
-    {
-        // Verificar si el usuario tiene registros de consumo
-        if ($usuario->registrosConsumo()->count() > 0) {
-            return redirect()->route('usuarios.index')
-                           ->with('error', 'No se puede eliminar el usuario porque tiene registros de consumo asociados.');
+        if ($in['password'] !== $in['password2']) {
+            return response()->json([
+                'codigo'  => 2,
+                'mensaje' => 'Las contraseñas no coinciden',
+            ], 400);
         }
 
-        $usuario->delete();
+        try {
+            return DB::transaction(function () use ($in) {
+                $token = Str::random(64);
 
-        return redirect()->route('usuarios.index')
-                        ->with('success', 'Usuario eliminado exitosamente.');
+                $user = new User();
+                $user->user_primer_nombre      = $in['user_primer_nombre'];
+                $user->user_segundo_nombre     = $in['user_segundo_nombre'] ?? null;
+                $user->user_primer_apellido    = $in['user_primer_apellido'];
+                $user->user_segundo_apellido   = $in['user_segundo_apellido'] ?? null;
+                $user->email              = $in['email'];
+                $user->password           = Hash::make($in['password']);
+                $user->user_dpi_dni            = $in['user_dpi_dni'] ?? null;
+                $user->user_rol                = $in['user_rol'] ?? null;
+                $user->user_fecha_contrasena   = now();
+                $user->user_token              = $token;
+                $user->user_fecha_verificacion = null;
+                $user->user_situacion          = 0; // 0=pendiente, 1=activo
+                $user->save();
+
+
+                $link = config('app.url') . '/api/usuarios/verificar?token=' . urlencode($token);
+                Mail::to($user->email)->send(new VerificarCorreoMailable($user, $link));
+
+                return response()->json([
+                    'codigo'  => 1,
+                    'mensaje' => 'Solicitud registrada. Revisa tu correo para verificar la cuenta.',
+                    'datos'   => ['user_id' => $user->user_id],
+                ], 200);
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'codigo'  => 0,
+                'mensaje' => 'Error generando solicitud de usuario',
+                'detalle' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ], 500);
+        }
     }
 
-    /**
-     * Cambiar rol de usuario
-     */
-    public function cambiarRol(Request $request, User $usuario)
+
+    public function verificarCorreoAPI(Request $request)
     {
-        $request->validate([
-            'rol_id' => 'nullable|exists:roles,id',
-        ]);
+        $token = $request->query('token');
+        if (!$token) {
+            return response()->json(['codigo' => 2, 'mensaje' => 'Token requerido'], 400);
+        }
 
-        $usuario->update(['rol_id' => $request->rol_id]);
+        $user = User::where('user_token', $token)->first();
+        if (!$user) {
+            return response()->json(['codigo' => 2, 'mensaje' => 'Token inválido o ya utilizado'], 404);
+        }
 
-        return redirect()->back()
-                        ->with('success', 'Rol actualizado exitosamente.');
+        $user->user_fecha_verificacion = now();
+        $user->user_situacion = 1;
+        $user->user_token = null;
+        $user->save();
+
+        if (!$request->expectsJson()) {
+            return redirect()->route('confirmemail.success');
+        }
     }
 
-    /**
-     * Obtener usuarios para select/API
-     */
-    public function obtenerUsuarios()
+    public function reenviarVerificacionAPI(Request $request)
     {
-        $usuarios = User::select('id', 'name', 'email')
-                       ->with('rol:id,nombre')
-                       ->orderBy('name')
-                       ->get();
+        $email = $request->input('email');
+        if (!$email) {
+            return response()->json(['codigo' => 2, 'mensaje' => 'Correo requerido'], 400);
+        }
 
-        return response()->json($usuarios);
+        $user = User::where('email', $email)
+            ->whereNull('user_fecha_verificacion')
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'codigo' => 2,
+                'mensaje' => 'No hay solicitudes pendientes para este correo',
+            ], 404);
+        }
+
+        try {
+            $token = Str::random(64);
+            $user->user_token = $token;
+            $user->save();
+            $link = route('usuarios.verificar', ['token' => $token], true);
+
+            DB::afterCommit(function () use ($user, $link) {
+                Mail::to($user->email)->send(new VerificarCorreoMailable($user, $link));
+            });
+
+            return response()->json([
+                'codigo'  => 1,
+                'mensaje' => 'Se envió un nuevo correo de verificación',
+            ], 200);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['codigo' => 0, 'mensaje' => 'Error reenviando verificación'], 500);
+        }
     }
-
-    /**
-     * Estadísticas de usuarios
-     */
-    public function estadisticas()
-    {
-        $stats = [
-            'total_usuarios' => User::count(),
-            'usuarios_con_rol' => User::whereNotNull('rol_id')->count(),
-            'usuarios_sin_rol' => User::whereNull('rol_id')->count(),
-            'distribucion_roles' => Rol::withCount('usuarios')->get(),
-            'usuarios_activos_mes' => User::whereHas('registrosConsumo', function($query) {
-                $query->whereMonth('fecha_uso', now()->month)
-                      ->whereYear('fecha_uso', now()->year);
-            })->count(),
-        ];
-
-        return response()->json($stats);
-    }
-
 }

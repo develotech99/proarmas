@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
+use App\Models\ProModelo;
 
 Route::get('/', function () {
     return view('welcome');
@@ -21,13 +22,25 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+
+Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
+Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
+
+
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
     //ruta para usuarios MarinDevelotech
     Route::resource('usuarios', UserController::class);
-   
+    Route::get('/api/usuarios/obtener', [UserController::class, 'getUsers'])->name('usuario.get');
+    Route::post('/api/usuarios', [UserController::class, 'registroAPI'])->name('usuarios.store');
+    Route::put('/api/usuarios/{id}', [UserController::class, 'update'])->name('usuarios.update');
+    Route::delete('/api/usuarios/{id}', [UserController::class, 'destroy'])->name('usuarios.destroy');
+    Route::post('/usuarios/reenviar-verificacion', [UserController::class, 'reenviarVerificacionAPI']);
+
     // Rutas para métodos de pago MarinDevelotech copia a CarlosDevelotech jaja
     Route::get('/metodos-pago', [MetodoPagoController::class, 'index'])->name('metodos-pago.index');
     Route::get('/metodos-pago/search', [MetodoPagoController::class, 'search'])->name('metodos-pago.search');
@@ -61,6 +74,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/calibres/por-unidad', [CalibreController::class, 'getByUnidad'])->name('calibres.por-unidad');
 
 
+
+    /// Rutas para Licencias de Importación
+    Route::resource('licencias-importacion', LicenciaImportacionController::class);
+
+    // Rutas específicas para armas licenciadas
+    Route::prefix('licencias-importacion')->name('licencias-importacion.')->group(function () {
+        Route::post('armas', [LicenciaImportacionController::class, 'storeArma'])->name('armas.store');
+        Route::put('armas/{armaId}', [LicenciaImportacionController::class, 'updateArma'])->name('armas.update');
+        Route::delete('armas/{armaId}', [LicenciaImportacionController::class, 'destroyArma'])->name('armas.destroy');
+      
     // Rutas para Categorías
     Route::prefix('categorias')->name('categorias.')->group(function () {
         // Rutas principales de categorías
@@ -94,6 +117,12 @@ Route::middleware('auth')->group(function () {
 
     //RUTAS PARA MODELOS DE ARMAS CarlosDevelotech
     Route::get('/modelos', [ProModeloController::class, 'index'])->name('modelos.index');
+    Route::post('/modelos',             [ProModeloController::class, 'store'])->name('modelos.crear');
+    Route::put('/modelos/actualizar',             [ProModeloController::class, 'edit'])->name('modelos.update');
+    Route::delete('/modelos/eliminar', [ProModeloController::class, 'destroy'])->name('modelos.eliminar');
+
+    //PLOTEAR USERS EN EL MAPA
+    Route::get('/mapa', [UserController::class, 'indexMapa'])->name('mapa.index');
 });
 
 

@@ -4,9 +4,11 @@ CREATE TABLE roles (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL UNIQUE,
     descripcion VARCHAR(255),
-    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+
 ----marin
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -18,6 +20,26 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (rol_id) REFERENCES roles(id) ON DELETE SET NULL
+);
+
+
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_primer_nombre VARCHAR(100),
+    user_segundo_nombre VARCHAR(100),
+    user_primer_apellido VARCHAR(100),
+    user_segundo_apellido VARCHAR(100),
+    user_email VARCHAR(100) UNIQUE NOT NULL,
+    user_password VARCHAR(255) NOT NULL,
+    user_dpi_dni VARCHAR(20),
+    user_rol INT,
+    user_fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    user_fecha_contraseña DATETIME NULL,
+    user_foto VARCHAR(250),
+    user_token VARCHAR(250),
+    user_fecha_verificacion DATETIME NULL,
+    user_situacion TINYINT(1) NOT NULL DEFAULT 1,
+    FOREIGN KEY (user_rol) REFERENCES roles(id)
 );
 -- ========================
 -- ENTIDADES FUERTES

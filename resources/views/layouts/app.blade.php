@@ -84,7 +84,6 @@
             </div>
         </div>
 
-        <!-- ACA SE VAN A IR AÑADIENDO LOS JS DINAMICAMENTE -->
         @yield('scripts')
     </body>
 </html>
