@@ -22,7 +22,7 @@ class VerificarCorreoMailable extends Mailable
 
     public function build()
     {
-        return $this->subject('Verificación de correo - Pro Armas')
+        return $this->subject('Registro en la pagina - Pro Armas')
             ->view('emails.verificacion', [
                 'user' => $this->user,
                 'link' => $this->link,

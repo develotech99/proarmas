@@ -4,10 +4,10 @@ namespace App\Http\Requests\Auth;
 
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
 
 class LoginRequest extends FormRequest
 {
@@ -37,17 +37,58 @@ class LoginRequest extends FormRequest
      *
      * @throws \Illuminate\Validation\ValidationException
      */
+    // public function authenticate(): void
+    // {
+    //     $this->ensureIsNotRateLimited();
+
+    //     if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+    //         RateLimiter::hit($this->throttleKey());
+
+    //         throw ValidationException::withMessages([
+    //             'email' => trans('auth.failed'),
+    //         ]);
+    //     }
+
+    //     RateLimiter::clear($this->throttleKey());
+    // }
+
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+        $credentials = $this->only('email', 'password');
 
+        $user = \App\Models\User::where('email', $credentials['email'])->first();
+
+        if (! $user) {
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'email' => __('Usuario inexistente.'),
             ]);
         }
+
+        // Si está inactivo
+        if ($user->user_situacion == 0) {
+            if (!empty($user->user_token)) {
+                throw ValidationException::withMessages([
+                    'email' => __('Debes validar tu correo electrónico antes de ingresar. Revisa tu bandeja de entrada.'),
+                ]);
+            } else {
+                throw ValidationException::withMessages([
+                    'email' => __('Tu cuenta está inactiva o bloqueada.'),
+                ]);
+            }
+        }
+
+        // Intentar autenticación normal
+        if (! \Auth::attempt(
+            ['email' => $credentials['email'], 'password' => $credentials['password']],
+            $this->boolean('remember')
+        )) {
+            throw ValidationException::withMessages([
+                'email' => __('Credenciales incorrectas.'),
+            ]);
+        }
+
 
         RateLimiter::clear($this->throttleKey());
     }
@@ -80,6 +121,6 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->string('email')) . '|' . $this->ip());
     }
 }

@@ -1,6 +1,5 @@
 <?php
 
-// app/Models/User.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -13,13 +12,10 @@ class User extends Authenticatable
 
     protected $table = 'users';
     protected $primaryKey = 'user_id';
-    public $incrementing = true;
-    protected $keyType = 'int';
-     public $timestamps = false;
+    public $timestamps = false;
 
-    // Si NO tienes updated_at, desactiva timestamps o mapea created_at
     const CREATED_AT = 'user_fecha_creacion';
-    const UPDATED_AT = null; // o 'user_fecha_actualizacion' si existiera
+    const UPDATED_AT = null;
 
     protected $fillable = [
         'user_primer_nombre',
@@ -34,21 +30,21 @@ class User extends Authenticatable
         'user_token',
         'user_fecha_verificacion',
         'user_situacion',
+        'remember_token', 
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'user_token'];
 
     protected function casts(): array
     {
         return [
             'user_fecha_verificacion' => 'datetime',
             'user_fecha_creacion'     => 'datetime',
+            'password' => 'hashed', 
         ];
     }
 
-    // === Accessors para compatibilidad con Blade y Auth ===
-
-    // Nombre completo virtual: $user->name
+    // Nombre completo virtual
     protected function name(): Attribute
     {
         return Attribute::get(function () {
@@ -63,29 +59,14 @@ class User extends Authenticatable
         });
     }
 
-    // Email virtual: $user->email
-    protected function email(): Attribute
-    {
-        return Attribute::get(fn() => $this->email)
-            ->set(fn($value) => $this->attributes['email'] = $value);
-    }
-
-    // Password virtual para Auth: $user->password
-    protected function password(): Attribute
-    {
-        return Attribute::get(fn() => $this->password)
-            ->set(fn($value) => $this->attributes['password'] = $value);
-    }
-
-    // created_at virtual para que la vista use ->created_at
-    protected function createdAt(): Attribute
-    {
-        return Attribute::get(fn() => $this->user_fecha_creacion);
-    }
-
-    // Relación con roles (FK: user_rol -> roles.id)
     public function rol()
     {
         return $this->belongsTo(Rol::class, 'user_rol', 'id');
+    }
+
+    // Asegurar que Laravel sepa el nombre de la columna remember_token
+    public function getRememberTokenName()
+    {
+        return 'remember_token';
     }
 }

@@ -18,6 +18,7 @@ return new class extends Migration {
 
             $table->string('user_email', 100)->unique();
             $table->string('user_password');
+            $table->rememberToken(); // ← AQUÍ agregamos remember_token
             $table->string('user_dpi_dni', 20)->nullable();
 
             $table->unsignedInteger('user_rol')->nullable();

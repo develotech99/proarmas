@@ -9,28 +9,14 @@ CREATE TABLE roles (
 );
 
 
-----marin
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    rol_id INT DEFAULT NULL,  -- ya no UNSIGNED
-    remember_token VARCHAR(100) DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (rol_id) REFERENCES roles(id) ON DELETE SET NULL
-);
-
-
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     user_primer_nombre VARCHAR(100),
     user_segundo_nombre VARCHAR(100),
     user_primer_apellido VARCHAR(100),
     user_segundo_apellido VARCHAR(100),
-    user_email VARCHAR(100) UNIQUE NOT NULL,
-    user_password VARCHAR(255) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
     user_dpi_dni VARCHAR(20),
     user_rol INT,
     user_fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
