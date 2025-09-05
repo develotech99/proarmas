@@ -61,15 +61,23 @@ Route::middleware('auth')->group(function () {
     Route::get('/calibres/por-unidad', [CalibreController::class, 'getByUnidad'])->name('calibres.por-unidad');
 
 
-        /// Rutas para Licencias de Importación
-    Route::resource('licencias-importacion', LicenciaImportacionController::class);
-
-    // Rutas específicas para armas licenciadas
-    Route::prefix('licencias-importacion')->name('licencias-importacion.')->group(function () {
-        Route::post('armas', [LicenciaImportacionController::class, 'storeArma'])->name('armas.store');
-        Route::put('armas/{armaId}', [LicenciaImportacionController::class, 'updateArma'])->name('armas.update');
-        Route::delete('armas/{armaId}', [LicenciaImportacionController::class, 'destroyArma'])->name('armas.destroy');
+    // Rutas para Categorías
+    Route::prefix('categorias')->name('categorias.')->group(function () {
+        // Rutas principales de categorías
+        Route::get('/', [CategoriasController::class, 'index'])->name('index');
+        Route::post('/', [CategoriasController::class, 'store'])->name('store');
+        Route::put('/{categoria}', [CategoriasController::class, 'update'])->name('update');
+        Route::delete('/{categoria}', [CategoriasController::class, 'destroy'])->name('destroy');
+        
+        // Rutas para subcategorías
+        Route::post('/subcategorias', [CategoriasController::class, 'storeSubcategoria'])->name('subcategorias.store');
+        Route::put('/subcategorias/{subcategoria}', [CategoriasController::class, 'updateSubcategoria'])->name('subcategorias.update');
+        Route::delete('/subcategorias/{subcategoria}', [CategoriasController::class, 'destroySubcategoria'])->name('subcategorias.destroy');
+        
+        // Ruta auxiliar para obtener categorías activas
+        Route::get('/activas', [CategoriasController::class, 'getCategoriasActivas'])->name('activas');
     });
+
 
     // ruta para el manteniento de de marcas
     Route::get('/marcas', [MarcasController::class, 'index'])->name('marcas.index');
