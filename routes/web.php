@@ -114,6 +114,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/modelos/actualizar',             [ProModeloController::class, 'edit'])->name('modelos.update');
     Route::delete('/modelos/eliminar', [ProModeloController::class, 'destroy'])->name('modelos.eliminar');
 
+    Route::get('/modelos/marcas-activas', [ProModeloController::class, 'getMarcasActivas'])->name('modelos.marcas.activas');
     //PLOTEAR USERS EN EL MAPA
     Route::get('/mapa', [UserController::class, 'indexMapa'])->name('mapa.index');
 });

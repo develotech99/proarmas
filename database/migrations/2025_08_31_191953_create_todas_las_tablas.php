@@ -40,20 +40,29 @@ return new class extends Migration
         });
 
         // Marcas
+        // Tabla Marcas
         Schema::create('pro_marcas', function (Blueprint $table) {
-            $table->id('marca_id')->comment('ID de marca');
+            $table->id('marca_id')->comment('ID de marca'); // BIGINT UNSIGNED AUTO_INCREMENT
             $table->string('marca_descripcion', 50)->nullable()->comment('system defense, glock, brigade');
             $table->integer('marca_situacion')->default(1)->comment('1 = activa, 0 = inactiva');
             $table->timestamps();
         });
 
-        // Modelos
+        // Tabla Modelos
         Schema::create('pro_modelo', function (Blueprint $table) {
             $table->id('modelo_id')->comment('ID de modelo');
             $table->string('modelo_descripcion', 50)->nullable()->comment('c9, bm-f-9, sd15');
             $table->integer('modelo_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
+            
+            // Clave foránea hacia pro_marcas.marca_id
+            $table->foreignId('modelo_marca_id')
+                ->nullable()
+                ->constrained('pro_marcas', 'marca_id')
+                ->nullOnDelete(); // o ->cascadeOnDelete() según lo que prefieras
+
             $table->timestamps();
         });
+
 
         // ========================
         // EMPRESAS E IMPORTACIONES
