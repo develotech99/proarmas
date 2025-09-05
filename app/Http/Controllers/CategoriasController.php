@@ -60,13 +60,12 @@ class CategoriasController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'categoria_nombre' => 'required|string|max:100|unique:pro_categorias,categoria_nombre',
-            'categoria_situacion' => 'required|in:0,1'
+          
         ], [
             'categoria_nombre.required' => 'El nombre de la categoría es obligatorio',
             'categoria_nombre.unique' => 'Ya existe una categoría con ese nombre',
             'categoria_nombre.max' => 'El nombre no puede exceder 100 caracteres',
-            'categoria_situacion.required' => 'El estado es obligatorio',
-            'categoria_situacion.in' => 'El estado debe ser activo o inactivo'
+          
         ]);
 
         if ($validator->fails()) {
@@ -100,13 +99,12 @@ class CategoriasController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'categoria_nombre' => 'required|string|max:100|unique:pro_categorias,categoria_nombre,' . $categoria->categoria_id . ',categoria_id',
-            'categoria_situacion' => 'required|in:0,1'
+
         ], [
             'categoria_nombre.required' => 'El nombre de la categoría es obligatorio',
             'categoria_nombre.unique' => 'Ya existe una categoría con ese nombre',
             'categoria_nombre.max' => 'El nombre no puede exceder 100 caracteres',
-            'categoria_situacion.required' => 'El estado es obligatorio',
-            'categoria_situacion.in' => 'El estado debe ser activo o inactivo'
+          
         ]);
 
         if ($validator->fails()) {
@@ -169,14 +167,11 @@ class CategoriasController extends Controller
         $validator = Validator::make($request->all(), [
             'subcategoria_nombre' => 'required|string|max:100',
             'subcategoria_idcategoria' => 'required|exists:pro_categorias,categoria_id',
-            'subcategoria_situacion' => 'required|in:0,1'
         ], [
             'subcategoria_nombre.required' => 'El nombre de la subcategoría es obligatorio',
             'subcategoria_nombre.max' => 'El nombre no puede exceder 100 caracteres',
             'subcategoria_idcategoria.required' => 'La categoría es obligatoria',
             'subcategoria_idcategoria.exists' => 'La categoría seleccionada no existe',
-            'subcategoria_situacion.required' => 'El estado es obligatorio',
-            'subcategoria_situacion.in' => 'El estado debe ser activo o inactivo'
         ]);
 
         // Validar unicidad por categoría
@@ -229,14 +224,11 @@ class CategoriasController extends Controller
         $validator = Validator::make($request->all(), [
             'subcategoria_nombre' => 'required|string|max:100',
             'subcategoria_idcategoria' => 'required|exists:pro_categorias,categoria_id',
-            'subcategoria_situacion' => 'required|in:0,1'
         ], [
             'subcategoria_nombre.required' => 'El nombre de la subcategoría es obligatorio',
             'subcategoria_nombre.max' => 'El nombre no puede exceder 100 caracteres',
             'subcategoria_idcategoria.required' => 'La categoría es obligatoria',
             'subcategoria_idcategoria.exists' => 'La categoría seleccionada no existe',
-            'subcategoria_situacion.required' => 'El estado es obligatorio',
-            'subcategoria_situacion.in' => 'El estado debe ser activo o inactivo'
         ]);
 
         // Validar unicidad por categoría excluyendo el actual

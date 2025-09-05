@@ -243,7 +243,7 @@
                         </div>
 
                         <!-- Estado -->
-                        <div>
+                        <!-- <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
                             <select id="categoria_situacion"
                                     name="categoria_situacion"
@@ -254,7 +254,7 @@
                                 <option value="0">Inactivo</option>
                             </select>
                             <div id="categoria_situacion_error" class="mt-1 text-sm text-red-600 hidden"></div>
-                        </div>
+                        </div> -->
                     </div>
 
                     <div class="mt-6 flex justify-end space-x-3">
@@ -320,7 +320,7 @@
                         </div>
 
                         <!-- Estado -->
-                        <div>
+                        <!-- <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
                             <select id="subcategoria_situacion"
                                     name="subcategoria_situacion"
@@ -331,7 +331,7 @@
                                 <option value="0">Inactivo</option>
                             </select>
                             <div id="subcategoria_situacion_error" class="mt-1 text-sm text-red-600 hidden"></div>
-                        </div>
+                        </div> -->
                     </div>
 
                     <div class="mt-6 flex justify-end space-x-3">
