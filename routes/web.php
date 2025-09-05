@@ -6,6 +6,7 @@ use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\PaisController;
 use App\Http\Controllers\UnidadMedidaController;
 use App\Http\Controllers\LicenciaImportacionController;
+use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\CalibreController;
 use App\Http\Controllers\CategoriasController;
 use Illuminate\Support\Facades\Route;
@@ -117,6 +118,49 @@ Route::middleware('auth')->group(function () {
     Route::get('/modelos/marcas-activas', [ProModeloController::class, 'getMarcasActivas'])->name('modelos.marcas.activas');
     //PLOTEAR USERS EN EL MAPA
     Route::get('/mapa', [UserController::class, 'indexMapa'])->name('mapa.index');
+
+
+
+
+    
+    // Ruta principal del módulo de inventario
+    Route::get('/inventario', [InventarioController::class, 'index'])
+        ->name('inventario.index');
+
+    // Rutas para gestión de productos
+    Route::prefix('inventario')->name('inventario.')->group(function () {
+        
+        // Obtener productos con stock para DataTable
+        Route::get('/productos-stock', [InventarioController::class, 'getProductosStock'])
+            ->name('productos.stock');
+        
+        // Ingresar nuevo producto al inventario
+        Route::post('/producto/ingresar', [InventarioController::class, 'ingresarProducto'])
+            ->name('producto.ingresar');
+        
+        // Obtener detalles de un producto específico
+        Route::get('/producto/{producto_id}/detalle', [InventarioController::class, 'getDetalleProducto'])
+            ->name('producto.detalle');
+        
+        // Registrar movimientos (egresos, bajas)
+        Route::post('/movimiento/registrar', [InventarioController::class, 'registrarMovimiento'])
+            ->name('movimiento.registrar');
+        
+        // Obtener series disponibles de un producto
+        Route::get('/producto/{producto_id}/series', [InventarioController::class, 'getSeriesDisponibles'])
+            ->name('producto.series');
+        
+        // Obtener historial de movimientos de un producto
+        Route::get('/producto/{producto_id}/movimientos', [InventarioController::class, 'getHistorialMovimientos'])
+            ->name('producto.movimientos');
+        
+        // Rutas adicionales para reportes y exportaciones (futuras implementaciones)
+        Route::prefix('reportes')->name('reportes.')->group(function () {
+            // Route::get('/stock-bajo', [InventarioController::class, 'reporteStockBajo'])->name('stock.bajo');
+            // Route::get('/movimientos-periodo', [InventarioController::class, 'reporteMovimientos'])->name('movimientos');
+            // Route::get('/productos-sin-movimiento', [InventarioController::class, 'productosSinMovimiento'])->name('sin.movimiento');
+        });
+    });
 });
 
 
