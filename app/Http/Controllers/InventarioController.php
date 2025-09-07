@@ -7,6 +7,8 @@ use App\Models\ProductoFoto;
 use App\Models\SerieProducto;
 use App\Models\Lote;
 use App\Models\Movimiento;
+use App\Models\Precio;
+use App\Models\Promocion;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +19,7 @@ use Illuminate\Support\Str;
 
 /**
  * Controlador principal para la gestión de inventario de armería
- * Maneja productos, stock, movimientos y series
+ * Maneja productos, stock, movimientos, series y precios
  */
 class InventarioController extends Controller
 {
@@ -37,8 +39,10 @@ class InventarioController extends Controller
         $modelos = DB::table('pro_modelo')->where('modelo_situacion', 1)->get();
         $calibres = DB::table('pro_calibres')->where('calibre_situacion', 1)->get();
         
-        // Tabla de licencias no está en la migración, así que la omitimos por ahora
-        $licencias = collect(); // Array vacío
+        // Licencias de importación si existen
+        $licencias = DB::table('pro_licencias_para_importacion')
+            ->where('lipaimp_situacion', 2) // Solo autorizadas
+            ->get();
 
         return view('inventario.index', compact(
             'categorias', 'marcas', 'modelos', 'calibres', 'licencias'
@@ -109,11 +113,12 @@ class InventarioController extends Controller
     }
 
     /**
-     * Registra un nuevo producto en el inventario
+     * Registra un nuevo producto en el inventario (ACTUALIZADO CON PRECIOS)
      */
     public function ingresarProducto(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
+            // Validaciones del producto
             'producto_nombre' => 'required|string|max:100',
             'producto_codigo_barra' => 'nullable|string|max:100|unique:pro_productos,producto_codigo_barra',
             'producto_categoria_id' => 'required|integer|exists:pro_categorias,categoria_id',
@@ -124,10 +129,20 @@ class InventarioController extends Controller
             'producto_requiere_serie' => 'boolean',
             'producto_es_importado' => 'boolean',
             'producto_id_licencia' => 'nullable|integer',
+            
+            // Validaciones de inventario
             'cantidad_inicial' => 'required_if:producto_requiere_serie,false|integer|min:1',
             'series' => 'required_if:producto_requiere_serie,true|array',
             'series.*' => 'required_if:producto_requiere_serie,true|string|unique:pro_series_productos,serie_numero_serie',
             'lote_codigo' => 'required_if:producto_requiere_serie,false|string|max:100|unique:pro_lotes,lote_codigo',
+            
+            // Validaciones de precios (OPCIONALES)
+            'precio_costo' => 'nullable|numeric|min:0.01',
+            'precio_venta' => 'nullable|numeric|min:0.01',
+            'precio_especial' => 'nullable|numeric|min:0',
+            'precio_justificacion' => 'nullable|string|max:255',
+            
+            // Validaciones de movimiento
             'mov_origen' => 'required|string|max:100',
             'mov_observaciones' => 'nullable|string|max:250',
             'fotos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
@@ -151,29 +166,53 @@ class InventarioController extends Controller
                 'producto_id_licencia'
             ]));
 
-            // 2. Procesar fotos si existen
+            // 2. Crear precio si se proporcionó información de precios
+            if ($request->filled('precio_costo') && $request->filled('precio_venta')) {
+                $precioData = [
+                    'precio_producto_id' => $producto->producto_id,
+                    'precio_costo' => $request->precio_costo,
+                    'precio_venta' => $request->precio_venta,
+                    'precio_especial' => $request->precio_especial,
+                    'precio_justificacion' => $request->precio_justificacion,
+                    'precio_fecha_asignacion' => now()->toDateString(),
+                    'precio_situacion' => 1
+                ];
+
+                // Calcular margen automáticamente
+                if ($request->precio_costo > 0) {
+                    $margen = (($request->precio_venta - $request->precio_costo) / $request->precio_costo) * 100;
+                    $precioData['precio_margen'] = round($margen, 2);
+                }
+
+                Precio::create($precioData);
+            }
+
+            // 3. Procesar fotos si existen
             if ($request->hasFile('fotos')) {
                 $this->procesarFotos($request->file('fotos'), $producto->producto_id);
             }
 
-            // 3. Crear lote si no requiere serie
+            // 4. Crear lote si no requiere serie
             $lote_id = null;
             if (!$request->producto_requiere_serie) {
                 $lote = Lote::create([
                     'lote_codigo' => $request->lote_codigo,
-                    'lote_descripcion' => "Lote inicial para {$producto->producto_nombre}"
+                    'lote_descripcion' => "Lote inicial para {$producto->producto_nombre}",
+                    'lote_situacion' => 1
                 ]);
                 $lote_id = $lote->lote_id;
             }
 
-            // 4. Registrar movimiento inicial y series
+            // 5. Registrar movimiento inicial y series
             if ($request->producto_requiere_serie) {
                 // Crear series individuales
                 foreach ($request->series as $numeroSerie) {
                     SerieProducto::create([
                         'serie_producto_id' => $producto->producto_id,
                         'serie_numero_serie' => $numeroSerie,
-                        'serie_estado' => 'disponible'
+                        'serie_estado' => 'disponible',
+                        'serie_fecha_ingreso' => now(),
+                        'serie_situacion' => 1
                     ]);
                 }
 
@@ -183,8 +222,9 @@ class InventarioController extends Controller
                     'mov_tipo' => 'ingreso',
                     'mov_origen' => $request->mov_origen,
                     'mov_cantidad' => count($request->series),
-                    'mov_usuario_id' => Auth::id(),
-                    'mov_observaciones' => $request->mov_observaciones
+                    'mov_usuario_id' => Auth::id() ?? 1, // Fallback si no hay usuario autenticado
+                    'mov_observaciones' => $request->mov_observaciones,
+                    'mov_situacion' => 1
                 ]);
             } else {
                 // Registrar movimiento por cantidad
@@ -193,17 +233,25 @@ class InventarioController extends Controller
                     'mov_tipo' => 'ingreso',
                     'mov_origen' => $request->mov_origen,
                     'mov_cantidad' => $request->cantidad_inicial,
-                    'mov_usuario_id' => Auth::id(),
+                    'mov_usuario_id' => Auth::id() ?? 1,
                     'mov_lote_id' => $lote_id,
-                    'mov_observaciones' => $request->mov_observaciones
+                    'mov_observaciones' => $request->mov_observaciones,
+                    'mov_situacion' => 1
                 ]);
             }
 
             DB::commit();
 
+            $mensaje = 'Producto ingresado correctamente al inventario';
+            if ($request->filled('precio_costo')) {
+                $mensaje .= ' con información de precios';
+            } else {
+                $mensaje .= ' (puede agregar precios después)';
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Producto ingresado correctamente al inventario',
+                'message' => $mensaje,
                 'producto_id' => $producto->producto_id
             ]);
 
@@ -215,6 +263,170 @@ class InventarioController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * NUEVO: Obtener precios de un producto
+     */
+    public function getPreciosProducto($producto_id): JsonResponse
+    {
+        try {
+            $precios = Precio::where('precio_producto_id', $producto_id)
+                ->where('precio_situacion', 1) // Activos
+                ->orderBy('precio_fecha_asignacion', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $precios
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar precios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * NUEVO: Actualizar o crear precio de un producto
+     */
+    public function actualizarPrecio(Request $request, $producto_id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'precio_costo' => 'required|numeric|min:0.01',
+            'precio_venta' => 'required|numeric|min:0.01',
+            'precio_especial' => 'nullable|numeric|min:0',
+            'precio_justificacion' => 'nullable|string|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            // Desactivar precios anteriores
+            Precio::where('precio_producto_id', $producto_id)
+                ->where('precio_situacion', 1)
+                ->update(['precio_situacion' => 0]);
+
+            // Crear nuevo precio
+            $precioData = [
+                'precio_producto_id' => $producto_id,
+                'precio_costo' => $request->precio_costo,
+                'precio_venta' => $request->precio_venta,
+                'precio_especial' => $request->precio_especial,
+                'precio_justificacion' => $request->precio_justificacion,
+                'precio_fecha_asignacion' => now()->toDateString(),
+                'precio_situacion' => 1
+            ];
+
+            // Calcular margen automáticamente
+            if ($request->precio_costo > 0) {
+                $margen = (($request->precio_venta - $request->precio_costo) / $request->precio_costo) * 100;
+                $precioData['precio_margen'] = round($margen, 2);
+            }
+
+            $precio = Precio::create($precioData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Precio actualizado correctamente',
+                'data' => $precio
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar precio: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * NUEVO: Crear promoción para un producto
+     */
+    public function crearPromocion(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'promo_producto_id' => 'required|integer|exists:pro_productos,producto_id',
+            'promo_nombre' => 'required|string|max:100',
+            'promo_tipo' => 'required|in:porcentaje,fijo',
+            'promo_valor' => 'required|numeric|min:0.01',
+            'promo_fecha_inicio' => 'required|date',
+            'promo_fecha_fin' => 'required|date|after:promo_fecha_inicio',
+            'promo_justificacion' => 'nullable|string|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            // Obtener precio actual del producto
+            $precioActual = Precio::where('precio_producto_id', $request->promo_producto_id)
+                ->where('precio_situacion', 1)
+                ->latest('precio_fecha_asignacion')
+                ->first();
+
+            if (!$precioActual) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El producto no tiene precio asignado'
+                ], 400);
+            }
+
+            $precioOriginal = $precioActual->precio_especial ?? $precioActual->precio_venta;
+
+            // Calcular precio con descuento
+            if ($request->promo_tipo === 'porcentaje') {
+                $precioDescuento = $precioOriginal - ($precioOriginal * ($request->promo_valor / 100));
+            } else {
+                $precioDescuento = $precioOriginal - $request->promo_valor;
+            }
+
+            // Validar que el precio con descuento sea positivo
+            if ($precioDescuento <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El descuento no puede ser mayor al precio del producto'
+                ], 400);
+            }
+
+            $promocion = Promocion::create([
+                'promo_producto_id' => $request->promo_producto_id,
+                'promo_nombre' => $request->promo_nombre,
+                'promo_tipo' => $request->promo_tipo,
+                'promo_valor' => $request->promo_valor,
+                'promo_precio_original' => $precioOriginal,
+                'promo_precio_descuento' => round($precioDescuento, 2),
+                'promo_fecha_inicio' => $request->promo_fecha_inicio,
+                'promo_fecha_fin' => $request->promo_fecha_fin,
+                'promo_justificacion' => $request->promo_justificacion,
+                'promo_situacion' => 1
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Promoción creada correctamente',
+                'data' => $promocion
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear promoción: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ... (resto de métodos sin cambios: registrarMovimiento, getSeriesDisponibles, etc.)
 
     /**
      * Registra un movimiento de inventario (egreso o baja)
@@ -274,8 +486,9 @@ class InventarioController extends Controller
                 'mov_tipo' => $request->mov_tipo,
                 'mov_origen' => $request->mov_origen,
                 'mov_cantidad' => $cantidad,
-                'mov_usuario_id' => Auth::id(),
-                'mov_observaciones' => $request->mov_observaciones
+                'mov_usuario_id' => Auth::id() ?? 1,
+                'mov_observaciones' => $request->mov_observaciones,
+                'mov_situacion' => 1
             ]);
 
             DB::commit();
@@ -326,7 +539,7 @@ class InventarioController extends Controller
     {
         try {
             $movimientos = Movimiento::where('mov_producto_id', $producto_id)
-                ->activos()
+                ->where('mov_situacion', 1) // Activos
                 ->with(['lote:lote_id,lote_codigo'])
                 ->orderBy('mov_fecha', 'desc')
                 ->get();
@@ -339,7 +552,7 @@ class InventarioController extends Controller
                     'cantidad' => $mov->mov_cantidad,
                     'fecha' => $mov->mov_fecha->format('d/m/Y H:i'),
                     'usuario' => 'Usuario ID: ' . $mov->mov_usuario_id,
-                    'lote' => $mov->lote->lote_codigo ?? 'N/A',
+                    'lote' => $mov->lote ? $mov->lote->lote_codigo : 'N/A',
                     'observaciones' => $mov->mov_observaciones
                 ];
             });
@@ -358,13 +571,26 @@ class InventarioController extends Controller
     }
 
     /**
-     * Obtiene detalles de un producto específico
+     * Obtiene detalles de un producto específico (ACTUALIZADO CON PRECIOS)
      */
     public function getDetalleProducto($producto_id): JsonResponse
     {
         try {
             $producto = Producto::with(['fotos', 'series'])
                 ->findOrFail($producto_id);
+
+            // Obtener precio actual
+            $precioActual = Precio::where('precio_producto_id', $producto_id)
+                ->where('precio_situacion', 1)
+                ->latest('precio_fecha_asignacion')
+                ->first();
+
+            // Obtener promociones activas
+            $promocionesActivas = Promocion::where('promo_producto_id', $producto_id)
+                ->where('promo_situacion', 1)
+                ->where('promo_fecha_inicio', '<=', now())
+                ->where('promo_fecha_fin', '>=', now())
+                ->get();
 
             return response()->json([
                 'success' => true,
@@ -374,7 +600,9 @@ class InventarioController extends Controller
                     'requiere_serie' => $producto->producto_requiere_serie,
                     'fotos' => $producto->fotos,
                     'series_disponibles' => $producto->seriesDisponibles()->count(),
-                    'series_total' => $producto->series()->count()
+                    'series_total' => $producto->series()->count(),
+                    'precio_actual' => $precioActual,
+                    'promociones_activas' => $promocionesActivas
                 ]
             ]);
 
@@ -416,7 +644,7 @@ class InventarioController extends Controller
     public function getResumenDashboard(): JsonResponse
     {
         try {
-            $totalProductos = Producto::activos()->count();
+            $totalProductos = Producto::where('producto_situacion', 1)->count();
             
             $totalSeries = SerieProducto::where('serie_estado', 'disponible')
                 ->where('serie_situacion', 1)
@@ -427,7 +655,7 @@ class InventarioController extends Controller
                 ->count();
             
             // Stock bajo (productos con menos de 5 unidades)
-            $stockBajo = Producto::activos()->get()->filter(function($producto) {
+            $stockBajo = Producto::where('producto_situacion', 1)->get()->filter(function($producto) {
                 return $producto->stock_actual > 0 && $producto->stock_actual <= 5;
             })->count();
 
@@ -481,12 +709,12 @@ class InventarioController extends Controller
                 return [
                     'mov_id' => $mov->mov_id,
                     'fecha' => $mov->mov_fecha->format('d/m/Y H:i'),
-                    'producto_nombre' => $mov->producto->producto_nombre ?? 'N/A',
+                    'producto_nombre' => $mov->producto ? $mov->producto->producto_nombre : 'N/A',
                     'tipo' => ucfirst($mov->mov_tipo),
                     'origen' => $mov->mov_origen,
                     'cantidad' => $mov->mov_cantidad,
                     'usuario' => 'Usuario ID: ' . $mov->mov_usuario_id,
-                    'lote' => $mov->lote->lote_codigo ?? 'N/A',
+                    'lote' => $mov->lote ? $mov->lote->lote_codigo : 'N/A',
                     'observaciones' => $mov->mov_observaciones
                 ];
             });
@@ -518,7 +746,8 @@ class InventarioController extends Controller
             ProductoFoto::create([
                 'foto_producto_id' => $producto_id,
                 'foto_url' => Storage::url($ruta),
-                'foto_principal' => $esPrimera
+                'foto_principal' => $esPrimera,
+                'foto_situacion' => 1
             ]);
 
             $esPrimera = false;

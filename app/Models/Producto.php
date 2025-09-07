@@ -1,4 +1,5 @@
 <?php
+// app/Models/Producto.php
 
 namespace App\Models;
 
@@ -7,10 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * Modelo para la gestión de productos en el inventario de armería
- * Maneja la información básica de productos, sus fotos y series
- */
 class Producto extends Model
 {
     use HasFactory;
@@ -83,6 +80,38 @@ class Producto extends Model
     }
 
     /**
+     * Relación con los precios del producto
+     */
+    public function precios(): HasMany
+    {
+        return $this->hasMany(Precio::class, 'precio_producto_id', 'producto_id');
+    }
+
+    /**
+     * Obtiene el precio actual del producto
+     */
+    public function precioActual()
+    {
+        return $this->precios()->activos()->latest('precio_fecha_asignacion')->first();
+    }
+
+    /**
+     * Relación con las promociones del producto
+     */
+    public function promociones(): HasMany
+    {
+        return $this->hasMany(Promocion::class, 'promo_producto_id', 'producto_id');
+    }
+
+    /**
+     * Obtiene las promociones activas del producto
+     */
+    public function promocionesActivas(): HasMany
+    {
+        return $this->promociones()->activas();
+    }
+
+    /**
      * Calcula el stock actual del producto
      * Si requiere serie: cuenta series disponibles
      * Si no requiere serie: suma ingresos menos egresos
@@ -94,7 +123,7 @@ class Producto extends Model
         }
 
         $ingresos = $this->movimientos()
-            ->whereIn('mov_tipo', ['ingreso', 'importación'])
+            ->whereIn('mov_tipo', ['ingreso', 'importacion'])
             ->sum('mov_cantidad');
 
         $egresos = $this->movimientos()
@@ -102,6 +131,49 @@ class Producto extends Model
             ->sum('mov_cantidad');
 
         return $ingresos - $egresos;
+    }
+
+    /**
+     * Obtiene el precio de venta efectivo (con promoción si aplica)
+     */
+    public function getPrecioVentaEfectivoAttribute()
+    {
+        $precioActual = $this->precioActual();
+        if (!$precioActual) {
+            return 0;
+        }
+
+        // Verificar si tiene promoción activa
+        $promocionActiva = $this->promocionesActivas()->first();
+        if ($promocionActiva) {
+            return $promocionActiva->promo_precio_descuento;
+        }
+
+        // Si tiene precio especial, usarlo, sino el precio regular
+        return $precioActual->precio_especial ?? $precioActual->precio_venta;
+    }
+
+    /**
+     * Obtiene el precio de costo actual
+     */
+    public function getPrecioCostoActualAttribute()
+    {
+        $precioActual = $this->precioActual();
+        return $precioActual ? $precioActual->precio_costo : 0;
+    }
+
+    /**
+     * Calcula el margen de ganancia actual
+     */
+    public function getMargenGananciaAttribute()
+    {
+        $precioActual = $this->precioActual();
+        if (!$precioActual || $precioActual->precio_costo <= 0) {
+            return 0;
+        }
+
+        $precioVenta = $this->precio_venta_efectivo;
+        return (($precioVenta - $precioActual->precio_costo) / $precioActual->precio_costo) * 100;
     }
 
     /**
@@ -119,5 +191,56 @@ class Producto extends Model
     {
         return $this->stock_actual >= $cantidad;
     }
-}
 
+    /**
+     * Verifica si el producto tiene promoción activa
+     */
+    public function getTienePromocionActivaAttribute()
+    {
+        return $this->promocionesActivas()->exists();
+    }
+
+    /**
+     * Obtiene el estado del stock (normal, bajo, agotado)
+     */
+    public function getEstadoStockAttribute()
+    {
+        $stock = $this->stock_actual;
+        
+        if ($stock === 0) {
+            return 'agotado';
+        } elseif ($stock <= 5) {
+            return 'bajo';
+        } else {
+            return 'normal';
+        }
+    }
+
+    /**
+     * Relaciones con tablas maestras
+     */
+    public function categoria(): BelongsTo
+    {
+        return $this->belongsTo('App\Models\Categoria', 'producto_categoria_id', 'categoria_id');
+    }
+
+    public function subcategoria(): BelongsTo
+    {
+        return $this->belongsTo('App\Models\Subcategoria', 'producto_subcategoria_id', 'subcategoria_id');
+    }
+
+    public function marca(): BelongsTo
+    {
+        return $this->belongsTo('App\Models\Marca', 'producto_marca_id', 'marca_id');
+    }
+
+    public function modelo(): BelongsTo
+    {
+        return $this->belongsTo('App\Models\Modelo', 'producto_modelo_id', 'modelo_id');
+    }
+
+    public function calibre(): BelongsTo
+    {
+        return $this->belongsTo('App\Models\Calibre', 'producto_calibre_id', 'calibre_id');
+    }
+}
