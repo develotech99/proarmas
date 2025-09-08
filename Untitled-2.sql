@@ -67,12 +67,10 @@ CREATE TABLE pro_modelo (
     modelo_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de modelo',
     modelo_descripcion VARCHAR(50) COMMENT 'c9, bm-f-9, sd15',
     modelo_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo', 
-    modelo_marca_id INT NOT NULL,
-FOREIGN KEY (modelo_marca_id) REFERENCES pro_marcas(marca_id)
-
+    modelo_marca_id INT NULL,
+    FOREIGN KEY (modelo_marca_id) REFERENCES pro_marcas(marca_id)
 );
 
-----aquí hay una sugerencia agregar a pro_modelo
 
 --MARIN 
 -- =========================================
