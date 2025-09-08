@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
+use App\Http\Controllers\ProLicenciaParaImportacionController;
+use App\Http\Controllers\ProEmpresaDeImportacionController;
 use App\Http\Controllers\VentasController;
 use App\Models\ProModelo;
 
@@ -38,12 +40,26 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 
-Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
-Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
+
+Route::resource('proempresas', ProEmpresaDeImportacionController::class);
+
 
 
 
 Route::middleware('auth')->group(function () {
+    Route::prefix('prolicencias')->name('prolicencias.')->group(function () {
+        Route::get('/', [ProLicenciaParaImportacionController::class, 'index'])->name('index');
+        Route::get('create', [ProLicenciaParaImportacionController::class, 'create'])->name('create');
+        Route::post('/', [ProLicenciaParaImportacionController::class, 'store'])->name('store');
+        Route::get('{id}', [ProLicenciaParaImportacionController::class, 'show'])->name('show');
+        Route::get('{id}/edit', [ProLicenciaParaImportacionController::class, 'edit'])->name('edit');
+        Route::put('{id}', [ProLicenciaParaImportacionController::class, 'update'])->name('update');
+        Route::delete('{id}', [ProLicenciaParaImportacionController::class, 'destroy'])->name('destroy');
+    });
+    
+    
+    Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
+    Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
