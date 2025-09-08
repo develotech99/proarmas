@@ -1127,6 +1127,178 @@ switchToTab(tabId) {
     }
 }
 
+// productos para ingreso de produtos aqui empieza 
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Cálculo automático del margen
+    function calcularMargen() {
+        const costo = parseFloat(document.getElementById('precio_costo').value) || 0;
+        const venta = parseFloat(document.getElementById('precio_venta').value) || 0;
+        
+        if (costo > 0 && venta > 0) {
+            const margen = ((venta - costo) / costo) * 100;
+            document.getElementById('margen_calculado').value = margen.toFixed(2) + '%';
+        } else {
+            document.getElementById('margen_calculado').value = '';
+        }
+    }
+
+    // Eventos para cálculo de margen
+    document.getElementById('precio_costo').addEventListener('input', calcularMargen);
+    document.getElementById('precio_venta').addEventListener('input', calcularMargen);
+
+    // Toggle promoción
+    document.getElementById('btn-toggle-promocion').addEventListener('click', function() {
+        const panel = document.getElementById('panel-promocion');
+        const btn = this;
+        
+        if (panel.classList.contains('hidden')) {
+            panel.classList.remove('hidden');
+            btn.textContent = 'Ocultar Promoción';
+            btn.classList.remove('bg-purple-100', 'hover:bg-purple-200', 'text-purple-700');
+            btn.classList.add('bg-red-100', 'hover:bg-red-200', 'text-red-700');
+        } else {
+            panel.classList.add('hidden');
+            btn.textContent = 'Agregar Promoción';
+            btn.classList.remove('bg-red-100', 'hover:bg-red-200', 'text-red-700');
+            btn.classList.add('bg-purple-100', 'hover:bg-purple-200', 'text-purple-700');
+        }
+    });
+
+    // Mostrar información de licencia seleccionada
+    document.getElementById('producto_id_licencia').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const infoLicencia = document.getElementById('info-licencia');
+        
+        if (selectedOption.value) {
+            const vencimiento = selectedOption.dataset.vencimiento;
+            const fechaVenc = new Date(vencimiento);
+            const hoy = new Date();
+            
+            document.getElementById('fecha-vencimiento').textContent = fechaVenc.toLocaleDateString();
+            
+            const estadoSpan = document.getElementById('estado-licencia');
+            if (fechaVenc > hoy) {
+                estadoSpan.textContent = 'Vigente';
+                estadoSpan.className = 'font-medium text-green-600';
+            } else {
+                estadoSpan.textContent = 'Vencida';
+                estadoSpan.className = 'font-medium text-red-600';
+            }
+            
+            infoLicencia.classList.remove('hidden');
+        } else {
+            infoLicencia.classList.add('hidden');
+        }
+    });
+
+    // Vista previa del producto
+    document.getElementById('btn-vista-previa').addEventListener('click', function() {
+        const formData = new FormData(document.getElementById('form-ingresar-producto'));
+        mostrarVistaPrevia(formData);
+    });
+
+    function mostrarVistaPrevia(formData) {
+        const contenido = document.getElementById('contenido-vista-previa');
+        
+        // Obtener valores del formulario
+        const nombre = formData.get('producto_nombre') || 'Sin nombre';
+        const codigo = formData.get('producto_codigo_barra') || 'Sin código';
+        const requiereSerie = formData.get('producto_requiere_serie') === 'on';
+        const esImportado = formData.get('producto_es_importado') === 'on';
+        const precioVenta = formData.get('precio_venta') || '0';
+        const precioCosto = formData.get('precio_costo') || '0';
+        const precioEspecial = formData.get('precio_especial') || '';
+        
+        const html = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Información General</h4>
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Nombre:</dt>
+                            <dd class="text-sm text-gray-900 dark:text-white">${nombre}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Código:</dt>
+                            <dd class="text-sm text-gray-900 dark:text-white">${codigo}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Requiere Serie:</dt>
+                            <dd class="text-sm">
+                                <span class="px-2 py-1 text-xs rounded-full ${requiereSerie ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                    ${requiereSerie ? 'Sí' : 'No'}
+                                </span>
+                            </dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Importado:</dt>
+                            <dd class="text-sm">
+                                <span class="px-2 py-1 text-xs rounded-full ${esImportado ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">
+                                    ${esImportado ? 'Sí' : 'No'}
+                                </span>
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Precios</h4>
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Precio de Costo:</dt>
+                            <dd class="text-sm text-gray-900 dark:text-white">${parseFloat(precioCosto).toFixed(2)}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Precio de Venta:</dt>
+                            <dd class="text-sm text-gray-900 dark:text-white">${parseFloat(precioVenta).toFixed(2)}</dd>
+                        </div>
+                        ${precioEspecial ? `
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Precio Especial:</dt>
+                            <dd class="text-sm text-green-600 font-medium">${parseFloat(precioEspecial).toFixed(2)}</dd>
+                        </div>
+                        ` : ''}
+                    </dl>
+                </div>
+            </div>
+        `;
+        
+        contenido.innerHTML = html;
+        document.getElementById('modal-vista-previa').classList.remove('hidden');
+    }
+
+    // Establecer fecha mínima para promociones (hoy)
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('promo_fecha_inicio').min = hoy;
+    document.getElementById('promo_fecha_fin').min = hoy;
+
+    // Validar que fecha fin sea posterior a fecha inicio
+    document.getElementById('promo_fecha_inicio').addEventListener('change', function() {
+        document.getElementById('promo_fecha_fin').min = this.value;
+    });
+});
+
+// Cerrar modales
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('close-modal') || e.target.closest('.close-modal')) {
+        document.querySelectorAll('.fixed.inset-0').forEach(modal => {
+            modal.classList.add('hidden');
+        });
+    }
+    
+    // Cerrar modal al hacer clic fuera
+    if (e.target.classList.contains('bg-gray-500') && e.target.classList.contains('bg-opacity-75')) {
+        const modal = e.target.closest('.fixed.inset-0');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+});
+
+
+// aqui finaliza para ingreso de productos 
+
 /**
  * INICIALIZACIÓN GLOBAL
  */
