@@ -1778,7 +1778,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 <!-- TAB 4: Historial de Movimientos -->
-<div class="tab-pane fade" id="historial-movimientos" role="tabpanel" aria-labelledby="historial-tab">
+<div class="tab-pane fade" id="movimientos" role="tabpanel" aria-labelledby="historial-tab">
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
@@ -2164,7 +2164,7 @@ inventario.exportarMovimientos = function(formato) {
  
 
  <!-- TAB 5: Gráficas y Reportes -->
-<div class="tab-pane fade" id="graficas-reportes" role="tabpanel" aria-labelledby="graficas-tab">
+<div class="tab-pane fade" id="graficas" role="tabpanel" aria-labelledby="graficas-tab">
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">

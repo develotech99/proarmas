@@ -42,76 +42,91 @@ class InventarioSistema {
     /**
      * SISTEMA DE PESTAÑAS - SIN CAMBIOS
      */
-    setupTabs() {
-        const tabButtons = document.querySelectorAll('.tab-button');
+/**
+ * SISTEMA DE PESTAÑAS CORREGIDO
+ */
+setupTabs() {
+    const tabButtons = document.querySelectorAll('.tab-button');
 
-        tabButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetTab = button.getAttribute('data-bs-target');
-                if (targetTab) {
-                    this.switchTab(targetTab, button);
-                }
-            });
-        });
-
-        const firstTab = document.querySelector('.tab-button.active');
-        if (firstTab) {
-            const target = firstTab.getAttribute('data-bs-target');
-            if (target) this.switchTab(target, firstTab);
-        }
-    }
-
-    switchTab(targetId, activeButton) {
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.classList.remove('active');
-            btn.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
-            btn.classList.remove('text-blue-600', 'border-blue-500');
-        });
-
-        activeButton.classList.add('active');
-        activeButton.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
-        activeButton.classList.add('text-blue-600', 'border-blue-500');
-
-        document.querySelectorAll('.tab-pane').forEach(pane => {
-            pane.classList.remove('show', 'active');
-            pane.classList.add('fade');
-        });
-
-        const targetPane = document.querySelector(targetId);
-        if (targetPane) {
-            targetPane.classList.add('show', 'active');
-            targetPane.classList.remove('fade');
-            this.currentTab = targetId.replace('#', '');
-            this.onTabChange(targetId);
-        }
-    }
-
-    async onTabChange(tabId) {
-        console.log(`Cambiando a pestaña: ${tabId}`);
-        
-        try {
-            switch (tabId) {
-                case '#stock-actual':
-                    await this.loadStockData();
-                    break;
-                case '#ingresar-producto':
-                    await this.initializeProductForm();
-                    break;
-                case '#egresos':
-                    await this.initializeEgresosForm();
-                    break;
-                case '#historial-movimientos':
-                    await this.loadHistorialData();
-                    break;
-                case '#graficas-reportes':
-                    await this.loadGraficasData();
-                    break;
+    tabButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetTab = button.getAttribute('data-tab');
+            if (targetTab) {
+                this.switchTab(targetTab, button);
             }
-        } catch (error) {
-            console.error(`Error al cargar datos para ${tabId}:`, error);
+        });
+    });
+
+    // Inicializar primera pestaña activa
+    const firstActiveTab = document.querySelector('.tab-button.active');
+    if (firstActiveTab) {
+        const target = firstActiveTab.getAttribute('data-tab');
+        if (target) {
+            this.switchTab(target, firstActiveTab);
         }
     }
+}
+
+switchTab(targetId, activeButton) {
+    // Limpiar todas las pestañas
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.remove('text-blue-600', 'border-blue-500');
+        btn.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+    });
+
+    // Activar pestaña seleccionada
+    activeButton.classList.add('active');
+    activeButton.classList.add('text-blue-600', 'border-blue-500');
+    activeButton.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+
+    // Ocultar todos los paneles
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('show', 'active');
+        pane.classList.add('fade');
+    });
+
+    // Mostrar panel objetivo
+    const targetPane = document.getElementById(targetId);
+    if (targetPane) {
+        targetPane.classList.add('show', 'active');
+        targetPane.classList.remove('fade');
+        this.currentTab = targetId;
+        this.onTabChange(targetId);
+    }
+}
+
+async onTabChange(tabId) {
+    console.log(`Cambiando a pestaña: ${tabId}`);
+    
+    try {
+        switch (tabId) {
+            case 'stock-actual':
+                await this.loadStockData();
+                break;
+            case 'ingresar-producto':
+                await this.initializeProductForm();
+                break;
+            case 'egresos':
+                await this.initializeEgresosForm();
+                break;
+            case 'historial-movimientos':
+                await this.loadHistorialData();
+                break;
+            case 'graficas-reportes':
+                await this.loadGraficasData();
+                break;
+            case 'historial':
+                await this.loadHistorialCompleto();
+                break;
+        }
+    } catch (error) {
+        console.error(`Error al cargar datos para ${tabId}:`, error);
+    }
+}
+
+   
 
     /**
      * CARGA DE DATOS REALES DEL BACKEND
@@ -1115,6 +1130,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.inventario = inventarioSistema;
     
     // Funciones globales para eventos onclick
+    
     window.verDetalleProducto = (id) => inventarioSistema.verDetalleProducto(id);
     window.verHistorialProducto = (id) => inventarioSistema.verHistorialProducto(id);
     window.seleccionarProductoMovimiento = (id) => inventarioSistema.seleccionarProductoMovimiento(id);
