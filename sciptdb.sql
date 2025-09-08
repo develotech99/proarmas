@@ -288,125 +288,298 @@ CREATE TABLE pro_comprobantes_pago_ventas (
     FOREIGN KEY (comprobventas_pago_id) REFERENCES pro_pagos(pago_id)
 );
 
-MI TENIENTE ESTAS TABLAS HICE 
--------------INVENTARIO -------------
-------------////////////////////////------
+-- ============================================
+-- MÓDULO DE VENTAS - ESTRUCTURA SIMPLIFICADA
+-- ============================================
 
---MARIN
--- INVENTARIO: Tablas principales de productos, inventario y movimientos
+--VENDEDORES
+CREATE TABLE pro_vendedores (
+    vendedor_id INT AUTO_INCREMENT PRIMARY KEY,
+    vendedor_user_id INT NOT NULL COMMENT 'FK al usuario del sistema',
+    vendedor_codigo VARCHAR(20) UNIQUE NOT NULL,
+    vendedor_nombres VARCHAR(100) NOT NULL,
+    vendedor_apellidos VARCHAR(100) NOT NULL,
+    vendedor_comision_porcentaje DECIMAL(5,2) DEFAULT 0.00,
+    vendedor_telefono VARCHAR(20),
+    vendedor_email VARCHAR(100),
+    vendedor_situacion INT DEFAULT 1,
+    vendedor_fecha_ingreso DATE DEFAULT CURRENT_DATE,
+    
+    FOREIGN KEY (vendedor_user_id) REFERENCES users(user_id)
+);
 
--- Tabla principal de productos
-CREATE TABLE pro_productos (
-    producto_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID único del producto',
-    producto_nombre VARCHAR(100) NOT NULL COMMENT 'Nombre comercial del producto',
-    producto_codigo_barra VARCHAR(100) UNIQUE COMMENT 'Código de barra si aplica (puede ser nulo)',
-    producto_categoria_id INT NOT NULL COMMENT 'Categoría general (armas, accesorios, etc)',
-    producto_subcategoria_id INT NOT NULL COMMENT 'Subcategoría (pistolas, fusiles, etc)',
-    producto_marca_id INT NOT NULL COMMENT 'Marca del producto',
-    producto_modelo_id INT COMMENT 'Modelo, puede ser nulo si no aplica',
-    producto_calibre_id INT COMMENT 'Calibre, puede ser nulo si no aplica',
-    producto_requiere_serie BOOLEAN DEFAULT FALSE COMMENT 'Indica si requiere número de serie',
-    producto_es_importado BOOLEAN DEFAULT FALSE COMMENT 'TRUE si el producto es de importación',
-    producto_id_licencia INT NULL COMMENT 'FK a licencia de importación, si aplica',
-    producto_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo',
+--CLIENTES MEJORADOS 
+CREATE TABLE pro_clientes_ventas (
+    cliente_id INT AUTO_INCREMENT PRIMARY KEY,
+    cliente_tipo ENUM('empresa','persona') NOT NULL,
+    cliente_codigo VARCHAR(20) UNIQUE,
+    cliente_nombre VARCHAR(200) NOT NULL,
+    cliente_nombre_comercial VARCHAR(200),
+    cliente_razon_social VARCHAR(200),
+    cliente_nit VARCHAR(15),
+    cliente_dpi VARCHAR(20),
+    cliente_telefono VARCHAR(20),
+    cliente_email VARCHAR(100),
+    cliente_direccion TEXT,
+    cliente_ubicacion VARCHAR(100),
+    cliente_situacion INT DEFAULT 1,
+    cliente_fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-    FOREIGN KEY (producto_categoria_id) REFERENCES pro_categorias(categoria_id),
-    FOREIGN KEY (producto_subcategoria_id) REFERENCES pro_subcategorias(subcategoria_id),
-    FOREIGN KEY (producto_marca_id) REFERENCES pro_marcas(marca_id),
-    FOREIGN KEY (producto_modelo_id) REFERENCES pro_modelo(modelo_id),
-    FOREIGN KEY (producto_calibre_id) REFERENCES pro_calibres(calibre_id), 
-    FOREIGN KEY (producto_id_licencia) REFERENCES pro_licencias_para_importacion(lipaimp_id)
-) COMMENT='Productos disponibles para venta o control de inventario';
+--VENTAS PRINCIPALES
+CREATE TABLE pro_ventas_principales (
+    pro_venta_id INT AUTO_INCREMENT PRIMARY KEY,
+    
+    -- CÓDIGO ÚNICO PARA FACTURACIÓN (IMPORTANTE)
+    pro_venta_codigo VARCHAR(50) UNIQUE NOT NULL COMMENT 'Código único para facturas',
+    
+    pro_venta_tipo ENUM('cotizacion','venta') DEFAULT 'cotizacion',
+    pro_venta_fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Cliente (registrado o temporal)
+    cliente_id INT COMMENT 'FK cliente registrado',
+    cliente_nombre_temporal VARCHAR(200) COMMENT 'Si no está registrado',
+    cliente_nit_temporal VARCHAR(15) COMMENT 'NIT para facturar',
+    cliente_telefono_temporal VARCHAR(20),
+    cliente_direccion_temporal TEXT,
+    
+    -- Vendedor responsable
+    vendedor_id INT NOT NULL,
+    
+    -- Estados
+    venta_estado ENUM('borrador','cotizado','confirmado','entregado','cancelado') DEFAULT 'borrador',
+    venta_estado_pago ENUM('pendiente','parcial','completado') DEFAULT 'pendiente',
+    
+    -- Totales
+    venta_subtotal DECIMAL(12,2) DEFAULT 0.00,
+    venta_descuento_global DECIMAL(12,2) DEFAULT 0.00,
+    venta_impuestos DECIMAL(12,2) DEFAULT 0.00,
+    venta_total DECIMAL(12,2) DEFAULT 0.00,
+    venta_total_pagado DECIMAL(12,2) DEFAULT 0.00,
+    venta_saldo_pendiente DECIMAL(12,2) DEFAULT 0.00,
+    
+    -- Fechas
+    venta_fecha_entrega DATE,
+    venta_fecha_confirmacion DATETIME,
+    venta_fecha_completado DATETIME,
+    
+    -- Control
+    venta_observaciones TEXT,
+    venta_motivo_cancelacion VARCHAR(255),
+    venta_situacion INT DEFAULT 1,
+    venta_usuario_creacion INT NOT NULL,
+    venta_usuario_modificacion INT,
+    venta_fecha_modificacion TIMESTAMP,
+    
+    FOREIGN KEY (cliente_id) REFERENCES pro_clientes_ventas(cliente_id),
+    FOREIGN KEY (vendedor_id) REFERENCES pro_vendedores(vendedor_id),
+    FOREIGN KEY (venta_usuario_creacion) REFERENCES users(user_id),
+    FOREIGN KEY (venta_usuario_modificacion) REFERENCES users(user_id)
+);
 
--- Fotos asociadas a productos
-CREATE TABLE pro_productos_fotos (
-    foto_id INT AUTO_INCREMENT PRIMARY KEY,
-    foto_producto_id INT NOT NULL COMMENT 'FK al producto',
-    foto_url VARCHAR(255) NOT NULL COMMENT 'URL o ruta de la imagen',
-    foto_principal BOOLEAN DEFAULT FALSE COMMENT 'TRUE si es la imagen destacada',
-    foto_situacion INT DEFAULT 1 COMMENT '1 = activa, 0 = inactiva',
+--DETALLE DE VENTAS (PRODUCTOS)
+CREATE TABLE pro_detalle_ventas (
+    pro_det_detalle_id INT AUTO_INCREMENT PRIMARY KEY,
+    pro_venta_id INT NOT NULL,
+    
+    -- Referencia a inventario
+    pro_det_producto_id INT NOT NULL COMMENT 'FK al producto',
+    pro_det_serie_id INT COMMENT 'FK serie específica si aplica',
+    numero_serie VARCHAR(200) COMMENT 'Número de serie',
+    
+    -- Info del producto al momento de venta
+    pro_det_producto_nombre VARCHAR(100) NOT NULL,
+    pro_det_producto_marca VARCHAR(50),
+    pro_det_producto_modelo VARCHAR(50),
+    pro_det_producto_calibre VARCHAR(20),
+    
+    -- Cantidades y precios
+    pro_det_cantidad INT NOT NULL DEFAULT 1,
+    pro_det_precio_unitario DECIMAL(12,2) NOT NULL,
+    pro_det_descuento_porcentaje DECIMAL(5,2) DEFAULT 0.00,
+    pro_det_descuento_monto DECIMAL(12,2) DEFAULT 0.00,
+    pro_det_subtotal DECIMAL(12,2) NOT NULL,
+    
+    -- Estado
+    pro_det_detalle_estado ENUM('pendiente','reservado','entregado','cancelado') DEFAULT 'pendiente',
+    pro_det_fecha_entrega DATETIME,
+    pro_det_observaciones VARCHAR(255),
+    
+    FOREIGN KEY (venta_id) REFERENCES pro_ventas_principales(venta_id),
+    FOREIGN KEY (producto_id) REFERENCES pro_productos(producto_id),
+    FOREIGN KEY (serie_id) REFERENCES pro_series_productos(serie_id)
+);
 
-    FOREIGN KEY (foto_producto_id) REFERENCES pro_productos(producto_id)
-) COMMENT='Fotos asociadas a los productos';
+--PAGOS DE VENTAS
+CREATE TABLE pro_pagos_ventas (
+    pago_id INT AUTO_INCREMENT PRIMARY KEY,
+    venta_id INT NOT NULL,
+    pago_numero INT NOT NULL,
+    pago_fecha DATE NOT NULL,
+    pago_monto DECIMAL(12,2) NOT NULL,
+    pago_metodo_id INT NOT NULL,
+    pago_referencia VARCHAR(100),
+    pago_comprobante_ruta VARCHAR(255),
+    pago_estado ENUM('registrado','verificado','rechazado') DEFAULT 'registrado',
+    pago_fecha_verificacion DATETIME,
+    pago_usuario_verificacion INT,
+    pago_observaciones TEXT,
+    
+    FOREIGN KEY (venta_id) REFERENCES pro_ventas_principales(venta_id),
+    FOREIGN KEY (pago_metodo_id) REFERENCES pro_metodos_pago(metpago_id),
+    FOREIGN KEY (pago_usuario_verificacion) REFERENCES users(user_id)
+);
 
--- Series individuales de productos con control de serie
-CREATE TABLE pro_series_productos (
-    serie_id INT AUTO_INCREMENT PRIMARY KEY,
-    serie_producto_id INT NOT NULL COMMENT 'FK al producto',
-    serie_numero_serie VARCHAR(200) UNIQUE NOT NULL COMMENT 'Número de serie único',
-    serie_estado ENUM('disponible','reservado','vendido','baja') DEFAULT 'disponible' COMMENT 'Estado del producto individual',
-    serie_fecha_ingreso TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha en que fue ingresado al sistema',
-    serie_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = eliminado',
+--COMISIONES VENDEDORES
+CREATE TABLE pro_comisiones_vendedores (
+    comision_id INT AUTO_INCREMENT PRIMARY KEY,
+    venta_id INT NOT NULL,
+    vendedor_id INT NOT NULL,
+    comision_base_calculo DECIMAL(12,2) NOT NULL,
+    comision_porcentaje DECIMAL(5,2) NOT NULL,
+    comision_monto DECIMAL(12,2) NOT NULL,
+    comision_estado ENUM('calculada','pagada','anulada') DEFAULT 'calculada',
+    comision_fecha_calculo TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    comision_fecha_pago DATE,
+    observaciones VARCHAR(255),
+    
+    FOREIGN KEY (venta_id) REFERENCES pro_ventas_principales(venta_id),
+    FOREIGN KEY (vendedor_id) REFERENCES pro_vendedores(vendedor_id)
+);
 
-    FOREIGN KEY (serie_producto_id) REFERENCES pro_productos(producto_id)
-) COMMENT='Series individuales de productos que requieren número de serie';
+--RESERVAS DE INVENTARIO
+CREATE TABLE pro_reservas_inventario (
+    reserva_id INT AUTO_INCREMENT PRIMARY KEY,
+    venta_id INT NOT NULL,
+    detalle_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    serie_id INT,
+    cantidad INT NOT NULL DEFAULT 1,
+    fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_expiracion TIMESTAMP NOT NULL,
+    estado ENUM('activa','confirmada','expirada','cancelada') DEFAULT 'activa',
+    
+    FOREIGN KEY (venta_id) REFERENCES pro_ventas_principales(venta_id),
+    FOREIGN KEY (detalle_id) REFERENCES pro_detalle_ventas(detalle_id),
+    FOREIGN KEY (producto_id) REFERENCES pro_productos(producto_id),
+    FOREIGN KEY (serie_id) REFERENCES pro_series_productos(serie_id)
+);
 
--- Lotes para agrupar productos sin serie
-CREATE TABLE pro_lotes (
-    lote_id INT AUTO_INCREMENT PRIMARY KEY,
-    lote_codigo VARCHAR(100) UNIQUE NOT NULL COMMENT 'Código único del lote, ej: L2025-08-GLOCK-001',
-    lote_fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha de creación o ingreso del lote',
-    lote_descripcion VARCHAR(255) NULL COMMENT 'Descripción breve opcional del lote',
-    lote_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = cerrado o eliminado'
-) COMMENT='Lotes de productos, útil para productos sin serie o importaciones';
+-- ========================
+-- TRIGGERS BÁSICOS
+-- ========================
 
--- Precios base y especiales
-CREATE TABLE pro_precios (
-    precio_id INT AUTO_INCREMENT PRIMARY KEY,
-    precio_producto_id INT NOT NULL COMMENT 'FK al producto',
+-- Generar código único de venta
+DELIMITER $$
+CREATE TRIGGER tr_generar_codigo_venta
+BEFORE INSERT ON pro_ventas_principales
+FOR EACH ROW
+BEGIN
+    IF NEW.venta_codigo IS NULL OR NEW.venta_codigo = '' THEN
+        SET NEW.venta_codigo = CONCAT(
+            'VEN',
+            DATE_FORMAT(NOW(), '%Y%m%d'),
+            '-',
+            LPAD(NEW.venta_id, 6, '0')
+        );
+    END IF;
+END$$
 
-    precio_costo DECIMAL(10,2) NOT NULL COMMENT 'Precio de compra del producto',
-    precio_venta DECIMAL(10,2) NOT NULL COMMENT 'Precio regular de venta',
-    precio_margen DECIMAL(5,2) DEFAULT NULL COMMENT 'Margen de ganancia estimado (%)',
-    precio_especial DECIMAL(10,2) DEFAULT NULL COMMENT 'Precio especial, si se aplica',
+-- Calcular totales automáticamente
+CREATE TRIGGER tr_calcular_totales
+AFTER INSERT ON pro_detalle_ventas
+FOR EACH ROW
+BEGIN
+    UPDATE pro_ventas_principales SET
+        venta_subtotal = (
+            SELECT IFNULL(SUM(subtotal), 0) 
+            FROM pro_detalle_ventas 
+            WHERE venta_id = NEW.venta_id
+        )
+    WHERE venta_id = NEW.venta_id;
+    
+    UPDATE pro_ventas_principales SET
+        venta_total = venta_subtotal - venta_descuento_global + venta_impuestos
+    WHERE venta_id = NEW.venta_id;
+END$$
 
-    precio_justificacion VARCHAR(255) DEFAULT NULL COMMENT 'Motivo del precio especial (descuento, promoción, etc)',
-    precio_fecha_asignacion DATE NOT NULL DEFAULT CURRENT_DATE COMMENT 'Fecha en que se asignó este precio',
-    precio_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = histórico o inactivo',
+-- Calcular comisiones
+CREATE TRIGGER tr_calcular_comision
+AFTER UPDATE ON pro_ventas_principales
+FOR EACH ROW
+BEGIN
+    IF OLD.venta_estado != 'confirmado' AND NEW.venta_estado = 'confirmado' THEN
+        INSERT INTO pro_comisiones_vendedores (
+            venta_id,
+            vendedor_id,
+            comision_base_calculo,
+            comision_porcentaje,
+            comision_monto
+        )
+        SELECT 
+            NEW.venta_id,
+            NEW.vendedor_id,
+            NEW.venta_total,
+            v.vendedor_comision_porcentaje,
+            (NEW.venta_total * v.vendedor_comision_porcentaje / 100)
+        FROM pro_vendedores v
+        WHERE v.vendedor_id = NEW.vendedor_id;
+    END IF;
+END$$
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+-- Actualizar inventario al entregar
+CREATE TRIGGER tr_actualizar_inventario
+AFTER UPDATE ON pro_detalle_ventas
+FOR EACH ROW
+BEGIN
+    IF OLD.detalle_estado != 'entregado' AND NEW.detalle_estado = 'entregado' THEN
+        -- Si tiene serie específica
+        IF NEW.serie_id IS NOT NULL THEN
+            UPDATE pro_series_productos 
+            SET serie_estado = 'vendido'
+            WHERE serie_id = NEW.serie_id;
+        END IF;
+        
+        -- Crear movimiento de inventario
+        INSERT INTO pro_movimientos (
+            mov_producto_id,
+            mov_tipo,
+            mov_origen,
+            mov_cantidad,
+            mov_usuario_id,
+            mov_observaciones
+        ) VALUES (
+            NEW.producto_id,
+            'egreso',
+            'venta',
+            NEW.cantidad,
+            NEW.venta_id,
+            CONCAT('Venta entregada - Código: ', (SELECT venta_codigo FROM pro_ventas_principales WHERE venta_id = NEW.venta_id))
+        );
+    END IF;
+END$$
 
-    FOREIGN KEY (precio_producto_id) REFERENCES pro_productos(producto_id)
-) COMMENT='Precios por producto incluyendo costo, venta, y especiales';
+DELIMITER ;
 
--- Promociones temporales como descuentos por temporada
-CREATE TABLE pro_promociones (
-    promo_id INT AUTO_INCREMENT PRIMARY KEY,
-    promo_producto_id INT NOT NULL COMMENT 'FK al producto promocionado',
+-- ========================
+-- COMENTARIOS
+-- ========================
 
-    promo_nombre VARCHAR(100) NOT NULL COMMENT 'Nombre de la promoción, ej: Black Friday',
-    promo_tipo ENUM('porcentaje', 'fijo') NOT NULL COMMENT 'Tipo de descuento aplicado',
-    promo_valor DECIMAL(10,2) NOT NULL COMMENT 'Valor del descuento, ej: 25.00 = 25% si es porcentaje',
+/*
+ESTRUCTURA SIMPLIFICADA SIMILAR A TUS COMPAÑEROS:
 
-    promo_precio_original DECIMAL(10,2) COMMENT 'Precio antes del descuento (solo para mostrar)',
-    promo_precio_descuento DECIMAL(10,2) COMMENT 'Precio final con descuento',
+1. Nombres de tablas claros y descriptivos
+2. Campos con prefijos consistentes
+3. Estructura similar a las tablas existentes
+4. Foreign keys simples
+5. Triggers básicos para automatización
 
-    promo_fecha_inicio DATE NOT NULL COMMENT 'Inicio de la promoción',
-    promo_fecha_fin DATE NOT NULL COMMENT 'Fin de la promoción',
-    promo_justificacion VARCHAR(255) COMMENT 'Motivo de la promoción',
-    promo_situacion INT DEFAULT 1 COMMENT '1 = activa, 0 = expirada o desactivada',
+PUNTOS CLAVE:
+- venta_codigo: Código único para facturas (VEN20250908-000001)
+- Integración con inventario mediante producto_id y serie_id
+- Comisiones automáticas para vendedores
+- Control de pagos múltiples
+- Estados de venta manejables
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (promo_producto_id) REFERENCES pro_productos(producto_id)
-) COMMENT='Promociones temporales activadas sobre productos';
-
--- Movimientos de inventario (entradas, salidas, ajustes)
-CREATE TABLE pro_movimientos (
-    mov_id INT AUTO_INCREMENT PRIMARY KEY,
-    mov_producto_id INT NOT NULL COMMENT 'FK al producto involucrado',
-    mov_tipo VARCHAR(50) NOT NULL COMMENT 'Tipo de movimiento: ingreso, egreso, ajuste, etc.',
-    mov_origen VARCHAR(100) COMMENT 'Fuente del movimiento: compra, importación, venta, etc.',
-    mov_cantidad INT NOT NULL COMMENT 'Cantidad afectada por el movimiento',
-    mov_fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha del movimiento',
-    mov_usuario_id INT NOT NULL COMMENT 'Usuario que realizó el movimiento',
-    mov_lote_id INT COMMENT 'FK al lote si aplica',
-    mov_observaciones VARCHAR(250) COMMENT 'Detalles u observaciones del movimiento',
-    mov_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = anulado',
-
-    FOREIGN KEY (mov_producto_id) REFERENCES pro_productos(producto_id),
-    FOREIGN KEY (mov_usuario_id) REFERENCES users(id), 
-    FOREIGN KEY (mov_lote_id) REFERENCES pro_lotes(lote_id)
-) COMMENT='Historial de movimientos de inventario';
+Las tablas están listas para usar con Laravel o cualquier ORM.
+*/
