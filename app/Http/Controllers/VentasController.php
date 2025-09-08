@@ -3,16 +3,27 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ventas;
+
+use Illuminate\Http\Request;
+
 use App\Models\MetodoPago;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+
 
 class VentasController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
+
+      public function index()
+    {
+   
+        return view('ventas.index');
+    }
+
     public function index()
     {
         // // Datos necesarios para los selects y filtros

@@ -209,9 +209,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/inventario/graficas/movimientos', [InventarioController::class, 'graficaMovimientos'])->name('inventario.graficas.movimientos');
     Route::get('/inventario/graficas/stock-categoria', [InventarioController::class, 'graficaStockCategoria'])->name('inventario.graficas.stock-categoria');
     Route::get('/inventario/graficas/tendencias', [InventarioController::class, 'graficaTendencias'])->name('inventario.graficas.tendencias');
-    Route::get('/inventario/graficas/top-productos', [InventarioController::class, 'graficaTopProductos'])->name('inventario.graficas.top-productos');
+    Route::get('/inventario/graficas/top-productos', [InventarioController::class, 'graficaTopProductos'])->name('inventario.graficas.top-productos'); 
 
-        
+           Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index'); 
 
 
 Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
