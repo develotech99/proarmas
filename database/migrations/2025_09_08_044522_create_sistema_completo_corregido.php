@@ -47,7 +47,7 @@ return new class extends Migration
         $table->id('modelo_id')->autoIncrement()->primary()->comment('ID de modelo');
         $table->string('modelo_descripcion', 50)->nullable()->comment('c9, bm-f-9, sd15');
         $table->integer('modelo_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
-        $table->integer('modelo_marca_id')->nullable();
+        $table->unsignedBigInteger('modelo_marca_id')->nullable();
         
         // Índices
         $table->index('modelo_marca_id');
@@ -121,25 +121,29 @@ return new class extends Migration
         });
 
         // Licencias para importación
-        Schema::create('pro_licencias_para_importacion', function (Blueprint $table) {
-            $table->id('lipaimp_id')->comment('ID de licencia de importación');
-            $table->integer('lipaimp_poliza')->nullable()->comment('número de póliza o factura');
-            $table->string('lipaimp_descripcion', 100)->nullable()->comment('Descripción identificativa de la licencia');
-            $table->unsignedBigInteger('lipaimp_empresa')->comment('Empresa asignada a la licencia');
-            $table->unsignedBigInteger('lipaimp_clase')->nullable()->comment('Clase de arma');
-            $table->unsignedBigInteger('lipaimp_marca')->nullable()->comment('Marca de arma');
-            $table->unsignedBigInteger('lipaimp_modelo')->nullable()->comment('Modelo de arma');
-            $table->unsignedBigInteger('lipaimp_calibre')->nullable()->comment('Calibre de arma');
-            $table->date('lipaimp_fecha_vencimiento')->nullable()->comment('Fecha de vencimiento de la licencia');
-            $table->integer('lipaimp_situacion')->default(1)->comment('1 = activa, 0 = inactiva');
-            $table->timestamps();
-            
-            $table->foreign('lipaimp_empresa')->references('empresaimp_id')->on('pro_empresas_de_importacion');
-            $table->foreign('lipaimp_clase')->references('clase_id')->on('pro_clases_pistolas');
-            $table->foreign('lipaimp_marca')->references('marca_id')->on('pro_marcas');
-            $table->foreign('lipaimp_modelo')->references('modelo_id')->on('pro_modelo');
-            $table->foreign('lipaimp_calibre')->references('calibre_id')->on('pro_calibres');
-        });
+          // Tabla de licencias de importación (si no existe)
+          if (!Schema::hasTable('pro_licencias_para_importacion')) {
+            Schema::create('pro_licencias_para_importacion', function (Blueprint $table) {
+                $table->id('lipaimp_id')->autoIncrement()->primary();
+                $table->integer('lipaimp_poliza')->nullable();
+                $table->string('lipaimp_descripcion', 100)->nullable();
+                $table->unsignedBigInteger('lipaimp_empresa');
+                $table->date('lipaimp_fecha_vencimiento')->nullable();
+                $table->integer('lipaimp_situacion')->default(1)->comment('1 pendiente, 2 autorizado, 3 rechazado');
+                
+                // Índices
+                $table->index('lipaimp_empresa');
+                $table->index('lipaimp_situacion');
+                $table->index('lipaimp_fecha_vencimiento');
+                
+                // Clave foránea
+                $table->foreign('lipaimp_empresa')
+                      ->references('empresaimp_id')
+                      ->on('pro_empresas_de_importacion')
+                      ->onDelete('restrict');
+            });
+        }
+    
 
         // Digecam
         Schema::create('pro_digecam', function (Blueprint $table) {
@@ -162,7 +166,6 @@ return new class extends Migration
             $table->unsignedBigInteger('modelo_licencia')->comment('Licencia de importación asociada');
             $table->integer('modelo_poliza')->comment('No. de póliza/factura de compra');
             $table->date('modelo_fecha_ingreso')->comment('Fecha de ingreso del lote');
-            $table->unsignedBigInteger('modelo_clase');
             $table->unsignedBigInteger('modelo_marca');
             $table->unsignedBigInteger('modelo_modelo');
             $table->unsignedBigInteger('modelo_calibre')->nullable();
@@ -172,7 +175,6 @@ return new class extends Migration
             $table->timestamps();
             
             $table->foreign('modelo_licencia')->references('lipaimp_id')->on('pro_licencias_para_importacion');
-            $table->foreign('modelo_clase')->references('clase_id')->on('pro_clases_pistolas');
             $table->foreign('modelo_marca')->references('marca_id')->on('pro_marcas');
             $table->foreign('modelo_modelo')->references('modelo_id')->on('pro_modelo');
             $table->foreign('modelo_calibre')->references('calibre_id')->on('pro_calibres');
@@ -193,7 +195,8 @@ return new class extends Migration
         Schema::create('pro_armas_licenciadas', function (Blueprint $table) {
             $table->id('arma_lic_id')->comment('ID arma licenciada');
             $table->unsignedBigInteger('arma_licencia_id');
-            $table->unsignedBigInteger('arma_clase_id');
+            $table->unsignedBigInteger('arma_cate_id');
+            $table->unsignedBigInteger('arma_subcate_id');
             $table->unsignedBigInteger('arma_marca_id');
             $table->unsignedBigInteger('arma_modelo_id');
             $table->unsignedBigInteger('arma_calibre_id');
@@ -202,7 +205,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('arma_licencia_id')->references('lipaimp_id')->on('pro_licencias_para_importacion');
-            $table->foreign('arma_clase_id')->references('clase_id')->on('pro_clases_pistolas');
+            $table->foreign('arma_cate_id')->references('categoria_id')->on('pro_categorias');
+            $table->foreign('arma_subcate_id')->references('subcategoria_id')->on('pro_subcategorias');
             $table->foreign('arma_marca_id')->references('marca_id')->on('pro_marcas');
             $table->foreign('arma_modelo_id')->references('modelo_id')->on('pro_modelo');
             $table->foreign('arma_calibre_id')->references('calibre_id')->on('pro_calibres');
@@ -393,7 +397,7 @@ return new class extends Migration
         // Tabla de fotos de productos (CORREGIDA - foreign key apunta a foto_producto_id)
         Schema::create('pro_productos_fotos', function (Blueprint $table) {
             $table->id('foto_id')->autoIncrement()->primary();
-            $table->integer('foto_producto_id');
+            $table->unsignedBigInteger('foto_producto_id');
             $table->string('foto_url', 255);
             $table->boolean('foto_principal')->default(false);
             $table->integer('foto_situacion')->default(1);
@@ -497,7 +501,7 @@ return new class extends Migration
             $table->decimal('precio_margen', 5, 2)->nullable()->comment('Margen de ganancia estimado (%)');
             $table->decimal('precio_especial', 10, 2)->nullable()->comment('Precio especial, si se aplica');
             $table->string('precio_justificacion', 255)->nullable()->comment('Motivo del precio especial (descuento, promoción, etc)');
-            $table->date('precio_fecha_asignacion')->default(DB::raw('CURRENT_DATE'))->comment('Fecha en que se asignó este precio');
+            $table->date('precio_fecha_asignacion')->comment('Fecha en que se asignó este precio');
             $table->integer('precio_situacion')->default(1)->comment('1 = activo, 0 = histórico o inactivo');
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
@@ -549,7 +553,7 @@ return new class extends Migration
         if (!Schema::hasTable('pro_empresas_de_importacion')) {
             Schema::create('pro_empresas_de_importacion', function (Blueprint $table) {
                 $table->id('empresaimp_id')->autoIncrement()->primary()->comment('ID empresa importadora');
-                $table->integer('empresaimp_pais')->comment('ID del país asociado');
+                $table->unsignedBigInteger('empresaimp_pais')->comment('ID del país asociado');
                 $table->string('empresaimp_descripcion', 50)->nullable()->comment('tipo: empresa matriz o logística');
                 $table->integer('empresaimp_situacion')->default(1)->comment('1 = activa, 0 = inactiva');
                 
@@ -597,7 +601,6 @@ return new class extends Migration
         Schema::dropIfExists('pro_unidades_medida');
         Schema::dropIfExists('pro_modelo');
         Schema::dropIfExists('pro_marcas');
-        Schema::dropIfExists('pro_clases_pistolas');
         Schema::dropIfExists('pro_paises');
         Schema::dropIfExists('pro_metodos_pago');
         Schema::dropIfExists('pro_promociones');
