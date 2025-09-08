@@ -13,6 +13,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
+const visitadoSelect = document.getElementById('visitado');
+const ventaInfo = document.getElementById('venta_info');
+
 // --------- Selectores ----------
 const $ = (id) => document.getElementById(id);
 const elMap = () => $('map');
@@ -369,24 +372,38 @@ function toggleClickMode() {
 
 // --------- Pantalla completa (Fullscreen API) ----------
 function getFullscreenTarget() {
-  // Hacemos fullscreen del CARD para que el botón siga visible
-  return mapCard() || elMap();
+  // Hacemos fullscreen del CARD completo
+  return mapCard();
 }
+
 function isFullscreen() {
   return document.fullscreenElement === getFullscreenTarget();
 }
+
 async function enterFullscreen() {
   const target = getFullscreenTarget();
   if (!target) return;
-  if (!document.fullscreenElement) {
-    await target.requestFullscreen();
+
+  try {
+    if (!document.fullscreenElement) {
+      await target.requestFullscreen();
+    }
+  } catch (err) {
+    console.error('Error entering fullscreen:', err);
+    setStatus('No se pudo activar pantalla completa.');
   }
 }
+
 async function exitFullscreen() {
-  if (document.fullscreenElement) {
-    await document.exitFullscreen();
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  } catch (err) {
+    console.error('Error exiting fullscreen:', err);
   }
 }
+
 async function toggleFullscreen() {
   try {
     if (!document.fullscreenElement) {
@@ -399,16 +416,30 @@ async function toggleFullscreen() {
     setStatus('No se pudo cambiar a pantalla completa.');
   }
 }
+
 function onFullscreenChange() {
-  // Recalcular Leaflet tras cambiar layout
-  setTimeout(() => {
-    if (map) map.invalidateSize();
-  }, 60);
+  const inFS = !!document.fullscreenElement;
+
+  // Forzar recálculo del mapa con múltiples intentos
+  if (map) {
+    // Primer recálculo inmediato
+    map.invalidateSize();
+
+    // Segundo recálculo después de que el layout se estabilice
+    setTimeout(() => {
+      map.invalidateSize();
+
+      // Tercer recálculo para asegurar que todo esté correcto
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
+    }, 100);
+  }
 
   // Cambiar iconos
   const exp = iconExpand();
   const comp = iconCompress();
-  const inFS = !!document.fullscreenElement;
+
   if (exp && comp) {
     exp.classList.toggle('hidden', inFS);
     comp.classList.toggle('hidden', !inFS);
@@ -416,8 +447,18 @@ function onFullscreenChange() {
 
   // Tooltip y estado
   const btn = btnFullscreen();
-  if (btn) btn.title = inFS ? 'Salir de pantalla completa' : 'Pantalla completa';
+  if (btn) {
+    btn.title = inFS ? 'Salir de pantalla completa' : 'Pantalla completa';
+  }
+
   setStatus(inFS ? 'Mapa en pantalla completa.' : 'Mapa en modo normal.');
+
+  // Si está en fullscreen, asegurar que el body no tenga scroll
+  if (inFS) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
 }
 
 // --------- Bind UI ----------
@@ -434,18 +475,38 @@ function bindUI() {
   });
   btnTomarPosicion()?.addEventListener('click', toggleClickMode);
 
-  // NUEVO: botón fullscreen
+  // Botón fullscreen
   btnFullscreen()?.addEventListener('click', toggleFullscreen);
 }
 
 // --------- Bootstrap ----------
 document.addEventListener('DOMContentLoaded', () => {
   if (!elMap()) return;
+
   initMap();
   bindUI();
+
   // Monta HUD para que esté listo (invisible hasta que lo uses)
   mountMapHUD();
 
-  // NUEVO: escuchar cambios de fullscreen
+  // Escuchar cambios de fullscreen
   document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  document.addEventListener('mozfullscreenchange', onFullscreenChange);
+  document.addEventListener('MSFullscreenChange', onFullscreenChange);
 });
+
+function toggleVentaInfo() {
+  const estadoVisita = visitadoSelect.value;
+  if (estadoVisita == '2') { // Si "Visitado, Comprado"
+    ventaInfo.classList.remove('hidden');
+  } else {
+    ventaInfo.classList.add('hidden');
+  }
+}
+
+// Evento para cambiar la visibilidad cuando se cambia la selección
+visitadoSelect.addEventListener('change', toggleVentaInfo);
+
+// Inicializar el estado al cargar la página
+toggleVentaInfo();
