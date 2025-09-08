@@ -276,7 +276,7 @@ CREATE TABLE pro_armas_licenciadas (
     arma_situacion INT DEFAULT 1,
 
     FOREIGN KEY (arma_licencia_id) REFERENCES pro_licencias_para_importacion(lipaimp_id),
-    FOREIGN KEY (arma_clase_id) REFERENCES pro_clases_pistolas(clase_id),
+    FOREIGN KEY (arma_clase_id) REFERENCES pro_clases_pistolas(clase_id), ----aqui tiene que referenciar a categorias y subcategorias
     FOREIGN KEY (arma_marca_id) REFERENCES pro_marcas(marca_id),
     FOREIGN KEY (arma_modelo_id) REFERENCES pro_modelo(modelo_id),
     FOREIGN KEY (arma_calibre_id) REFERENCES pro_calibres(calibre_id)
