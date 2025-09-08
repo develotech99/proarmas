@@ -13,11 +13,14 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             // Renombrar columnas existentes
-            $table->renameColumn('user_email', 'email');
+            $table->renameColumn('user_email', 'user');
             $table->renameColumn('user_password', 'password');
+        });
 
-            // Ajustar tamaños si hace falta
-            $table->string('email', 100)->unique()->change();
+        // Aplicar cambios de tipo/restricciones en una segunda operación
+        // para evitar conflictos con el renombrado
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('user', 100)->unique()->change();
             $table->string('password', 255)->change();
         });
     }
@@ -29,9 +32,11 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             // Volver al estado anterior
-            $table->renameColumn('email', 'user_email');
+            $table->renameColumn('user', 'user_email');
             $table->renameColumn('password', 'user_password');
+        });
 
+        Schema::table('users', function (Blueprint $table) {
             $table->string('user_email', 100)->unique()->change();
             $table->string('user_password', 255)->change();
         });

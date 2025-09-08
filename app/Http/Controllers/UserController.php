@@ -48,6 +48,18 @@ class UserController extends Controller
         ));
     }
 
+
+    public function indexMapa()
+    {
+
+        $usuarios = User::where('user_rol', 2)
+            ->select('user_id', 'user_primer_nombre', 'user_primer_apellido', 'user_empresa')
+            ->orderBy('user_primer_nombre')
+            ->get();
+
+        return view('usuarios.mapa', compact('usuarios'));
+    }
+
     public function confirmEmailSucess(Request $request)
     {
         return view('emails.confirmEmailRegister');
@@ -102,11 +114,13 @@ class UserController extends Controller
             'user_rol'               => $request->input('usu_rol', $request->input('user_rol')),
             'password'          => $request->input('usu_password', $request->input('password')),
             'password2'         => $request->input('usu_password2', $request->input('password_confirmation')),
+            'user_empresa'         => $request->input('user_empresa', $request->input('user_empresa')),
         ];
 
         $rules = [
             'user_primer_nombre'   => ['required', 'string', 'max:100'],
             'user_primer_apellido' => ['required', 'string', 'max:100'],
+            'user_empresa' => ['required', 'string', 'max:100'],
             'email'           => ['required', 'email', 'max:100', 'unique:users,email'],
             'user_dpi_dni'         => ['nullable', 'string', 'max:20', 'unique:users,user_dpi_dni'],
             'password'        => ['required', 'string', 'min:8'],
@@ -114,6 +128,7 @@ class UserController extends Controller
         $messages = [
             'user_primer_nombre.required'   => 'El primer nombre es obligatorio',
             'user_primer_apellido.required' => 'El primer apellido es obligatorio',
+            'user_empresa.required'           => 'El usuario debe de tener una tienda o empresa asociada',
             'email.required'           => 'El correo electrónico es obligatorio',
             'email.email'              => 'Correo inválido',
             'email.unique'             => 'El correo ya está en uso',
@@ -154,6 +169,7 @@ class UserController extends Controller
                 $user->user_fecha_contrasena   = now();
                 $user->user_token              = $token;
                 $user->user_fecha_verificacion = null;
+                $user->user_empresa = $in['user_empresa'] ?? null;
                 $user->user_situacion          = 0; // 0=pendiente, 1=activo
                 $user->save();
 

@@ -213,6 +213,19 @@ Route::middleware('auth')->group(function () {
 
            Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index'); 
 
+
+Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
+Route::get('/ventas/search', [VentasController::class, 'search'])->name('ventas.search');
+Route::post('/ventas', [VentasController::class, 'store'])->name('ventas.store');
+Route::put('/ventas/{id}', [VentasController::class, 'update'])->name('ventas.update');
+
+// APIs para filtros en cascada
+Route::get('/api/ventas/subcategorias/{categoria_id}', [VentasController::class, 'getSubcategorias'])->name('ventas.api.subcategorias');
+Route::get('/api/ventas/marcas/{subcategoria_id}', [VentasController::class, 'getMarcas'])->name('ventas.api.marcas');
+Route::get('/api/ventas/modelos/{marca_id}', [VentasController::class, 'getModelos'])->name('ventas.api.modelos');
+Route::get('/api/ventas/calibres/{modelo_id}', [VentasController::class, 'getCalibres'])->name('ventas.api.calibres');
+Route::get('/api/ventas/productos', [VentasController::class, 'getProductos'])->name('ventas.api.productos');
+
 });
 
 
