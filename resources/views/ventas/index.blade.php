@@ -1,3 +1,9 @@
+@extends('layouts.app')
+
+@section('title', 'Gestión de Ventas')
+
+@section('content')
+
 
 <!DOCTYPE html>
 <html lang="es">
