@@ -1,550 +1,798 @@
 /**
- * Módulo de Control de Inventario - Armería
- * JavaScript puro sin frameworks (compatible con AdminLTE 4)
- * Requiere: jQuery, DataTables, Select2, SweetAlert2
+ * Sistema de Inventario - Armería
+ * JavaScript corregido para trabajar con datos reales del backend
  */
 
-class InventarioManager {
+class InventarioSistema {
     constructor() {
-        this.tablaStock = null;
-        this.tablaHistorial = null;
-        this.tablaHistorialProducto = null;
-        this.productosSelect2Data = [];
-        
+        this.currentTab = 'stock-actual';
+        this.modals = new Map();
+        this.isLoading = false;
         this.init();
     }
 
-    /**
-     * Inicializa el módulo completo
-     */
     init() {
-        this.initializeComponents();
-        this.bindEvents();
-        this.loadInitialData();
+        console.log('Inicializando Sistema de Inventario...');
         
-        console.log('InventarioManager inicializado correctamente');
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.initializeSystem());
+        } else {
+            this.initializeSystem();
+        }
+    }
+
+    async initializeSystem() {
+        try {
+            this.setupTabs();
+            this.setupModals();
+            this.setupForms();
+            this.setupTooltips();
+            this.bindGlobalEvents();
+            
+            // Cargar datos iniciales del backend
+            await this.loadInitialData();
+            
+            console.log('Sistema de inventario inicializado correctamente');
+        } catch (error) {
+            console.error('Error al inicializar el sistema:', error);
+            this.showError('Error al inicializar el sistema de inventario');
+        }
     }
 
     /**
-     * Inicializa componentes como DataTables, Select2, etc.
+     * SISTEMA DE PESTAÑAS - SIN CAMBIOS
      */
-    initializeComponents() {
-        // Inicializar Select2
-        this.initSelect2();
-        
-        // Inicializar DataTables
-        this.initDataTables();
-        
-        // Configurar formularios
-        this.setupForms();
-        
-        // Configurar tooltips
-        $('[data-toggle="tooltip"]').tooltip();
-    }
+    setupTabs() {
+        const tabButtons = document.querySelectorAll('.tab-button');
 
-    /**
-     * Configura todos los Select2 del módulo
-     */
-    initSelect2() {
-        // Select2 básicos
-        $('.select2').select2({
-            theme: 'bootstrap4',
-            placeholder: 'Seleccionar...',
-            allowClear: true
+        tabButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetTab = button.getAttribute('data-bs-target');
+                if (targetTab) {
+                    this.switchTab(targetTab, button);
+                }
+            });
         });
 
-        // Select2 para búsqueda de productos en movimientos
-        $('#mov_producto_id').select2({
-            theme: 'bootstrap4',
-            placeholder: 'Buscar producto...',
-            allowClear: true,
-            ajax: {
-                url: '/inventario/productos-stock',
-                dataType: 'json',
-                delay: 250,
-                data: (params) => ({
-                    search: params.term,
-                    page: params.page || 1
-                }),
-                processResults: (data) => {
-                    const results = data.data.map(item => ({
-                        id: item.producto_id,
-                        text: `${item.nombre} (Stock: ${item.stock_actual})`,
-                        data: item
-                    }));
-                    
-                    return {
-                        results: results,
-                        pagination: { more: false }
-                    };
-                },
-                cache: true
+        const firstTab = document.querySelector('.tab-button.active');
+        if (firstTab) {
+            const target = firstTab.getAttribute('data-bs-target');
+            if (target) this.switchTab(target, firstTab);
+        }
+    }
+
+    switchTab(targetId, activeButton) {
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+            btn.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+            btn.classList.remove('text-blue-600', 'border-blue-500');
+        });
+
+        activeButton.classList.add('active');
+        activeButton.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+        activeButton.classList.add('text-blue-600', 'border-blue-500');
+
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+            pane.classList.add('fade');
+        });
+
+        const targetPane = document.querySelector(targetId);
+        if (targetPane) {
+            targetPane.classList.add('show', 'active');
+            targetPane.classList.remove('fade');
+            this.currentTab = targetId.replace('#', '');
+            this.onTabChange(targetId);
+        }
+    }
+
+    async onTabChange(tabId) {
+        console.log(`Cambiando a pestaña: ${tabId}`);
+        
+        try {
+            switch (tabId) {
+                case '#stock-actual':
+                    await this.loadStockData();
+                    break;
+                case '#ingresar-producto':
+                    await this.initializeProductForm();
+                    break;
+                case '#egresos':
+                    await this.initializeEgresosForm();
+                    break;
+                case '#historial-movimientos':
+                    await this.loadHistorialData();
+                    break;
+                case '#graficas-reportes':
+                    await this.loadGraficasData();
+                    break;
+            }
+        } catch (error) {
+            console.error(`Error al cargar datos para ${tabId}:`, error);
+        }
+    }
+
+    /**
+     * CARGA DE DATOS REALES DEL BACKEND
+     */
+    async loadInitialData() {
+        console.log('Cargando datos iniciales...');
+        
+        try {
+            // Cargar métricas del dashboard
+            await this.updateDashboardMetrics();
+            
+            // Si estamos en la pestaña de stock, cargar datos
+            if (this.currentTab === 'stock-actual') {
+                await this.loadStockData();
+            }
+            
+        } catch (error) {
+            console.error('Error al cargar datos iniciales:', error);
+            // Mostrar datos por defecto en caso de error
+            this.showDefaultDashboard();
+        }
+    }
+
+    async updateDashboardMetrics() {
+        try {
+            const response = await fetch('/inventario/resumen-dashboard', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.updateElement('total-productos', result.data.total_productos || 0);
+                this.updateElement('total-series', result.data.total_series || 0);
+                this.updateElement('movimientos-hoy', result.data.movimientos_hoy || 0);
+                this.updateElement('egresos-mes', result.data.egresos_mes || 0);
+                this.updateElement('stock-bajo', result.data.stock_bajo || 0);
+            } else {
+                throw new Error(result.message || 'Error en la respuesta del servidor');
+            }
+            
+        } catch (error) {
+            console.error('Error al actualizar métricas del dashboard:', error);
+            this.showDefaultDashboard();
+        }
+    }
+
+    showDefaultDashboard() {
+        // Mostrar valores por defecto cuando no se pueden cargar datos
+        this.updateElement('total-productos', '0');
+        this.updateElement('total-series', '0');
+        this.updateElement('movimientos-hoy', '0');
+        this.updateElement('egresos-mes', '0');
+        this.updateElement('stock-bajo', '0');
+    }
+
+    async loadStockData() {
+        console.log('Cargando datos de stock desde el backend...');
+        
+        // Mostrar loader
+        this.showStockLoader();
+        
+        try {
+            const response = await fetch('/inventario/productos-stock', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.data && Array.isArray(result.data)) {
+                this.renderStockTable(result.data);
+                this.updateStockCounters(result.data);
+                this.hideStockLoader();
+            } else {
+                throw new Error('Formato de datos incorrecto');
+            }
+            
+        } catch (error) {
+            console.error('Error al cargar stock:', error);
+            this.hideStockLoader();
+            this.showEmptyStockTable();
+            this.showError('Error al cargar datos de stock. Verifique la conexión con el servidor.');
+        }
+    }
+
+    showStockLoader() {
+        const tbody = document.querySelector('#tabla-stock tbody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr id="loading-row">
+                    <td colspan="9" class="px-6 py-8 text-center">
+                        <div class="flex items-center justify-center space-x-3">
+                            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span class="text-gray-500 dark:text-gray-400">Cargando productos...</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    hideStockLoader() {
+        const loadingRow = document.getElementById('loading-row');
+        if (loadingRow) {
+            loadingRow.remove();
+        }
+    }
+
+    showEmptyStockTable() {
+        const tbody = document.querySelector('#tabla-stock tbody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="px-6 py-8 text-center">
+                        <div class="text-gray-500 dark:text-gray-400">
+                            <svg class="mx-auto h-12 w-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                            </svg>
+                            <p>No hay productos en el inventario</p>
+                            <p class="text-sm mt-2">Comience agregando productos desde la pestaña "Ingresar Producto"</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    renderStockTable(productos) {
+        const tbody = document.querySelector('#tabla-stock tbody');
+        if (!tbody) {
+            console.error('No se encontró el tbody de la tabla de stock');
+            return;
+        }
+
+        // Limpiar tabla
+        tbody.innerHTML = '';
+
+        if (!productos || productos.length === 0) {
+            this.showEmptyStockTable();
+            return;
+        }
+
+        productos.forEach(producto => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
+            
+            const estadoStock = this.getEstadoStock(producto.stock_actual || 0);
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    ${producto.codigo_barra || 'Sin código'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">${producto.nombre || 'Sin nombre'}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    ${producto.categoria || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    ${producto.marca || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    ${producto.modelo || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <span class="text-lg font-bold ${estadoStock.clase}">${producto.stock_actual || 0}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    ${producto.requiere_serie ? 
+                        `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            ${producto.series_disponibles || 0}
+                        </span>` : 
+                        '<span class="text-gray-400">N/A</span>'
+                    }
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estadoStock.badgeClass}">
+                        ${estadoStock.texto}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <div class="flex items-center justify-center space-x-2">
+                        <button onclick="inventario.verDetalleProducto(${producto.producto_id || producto.id})" 
+                                class="text-blue-600 hover:text-blue-900 text-sm" title="Ver detalles">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                        <button onclick="inventario.verHistorialProducto(${producto.producto_id || producto.id})" 
+                                class="text-green-600 hover:text-green-900 text-sm" title="Ver historial">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </button>
+                        <button onclick="inventario.seleccionarProductoMovimiento(${producto.producto_id || producto.id})" 
+                                class="text-orange-600 hover:text-orange-900 text-sm" title="Registrar movimiento">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+
+        // Actualizar información de paginación
+        this.updateElement('total-productos-tabla', productos.length);
+    }
+
+    getEstadoStock(cantidad) {
+        const stock = parseInt(cantidad) || 0;
+        
+        if (stock === 0) {
+            return {
+                clase: 'text-red-600',
+                badgeClass: 'bg-red-100 text-red-800',
+                texto: 'Agotado'
+            };
+        } else if (stock <= 5) {
+            return {
+                clase: 'text-yellow-600',
+                badgeClass: 'bg-yellow-100 text-yellow-800',
+                texto: 'Bajo'
+            };
+        } else {
+            return {
+                clase: 'text-green-600',
+                badgeClass: 'bg-green-100 text-green-800',
+                texto: 'Normal'
+            };
+        }
+    }
+
+    updateStockCounters(productos) {
+        if (!productos || !Array.isArray(productos)) {
+            productos = [];
+        }
+
+        const stockNormal = productos.filter(p => (p.stock_actual || 0) > 5).length;
+        const stockBajo = productos.filter(p => (p.stock_actual || 0) > 0 && (p.stock_actual || 0) <= 5).length;
+        const stockAgotado = productos.filter(p => (p.stock_actual || 0) === 0).length;
+        const conSeries = productos.filter(p => p.requiere_serie).length;
+
+        this.updateElement('count-stock-normal', stockNormal);
+        this.updateElement('count-stock-bajo', stockBajo);
+        this.updateElement('count-stock-agotado', stockAgotado);
+        this.updateElement('count-con-series', conSeries);
+    }
+
+    async initializeProductForm() {
+        console.log('Inicializando formulario de producto...');
+        
+        try {
+            // Aquí deberías cargar las opciones para los selects desde el backend
+            // Por ejemplo, categorías, marcas, modelos, etc.
+            
+            const form = document.getElementById('form-ingresar-producto');
+            if (form) {
+                this.limpiarFormulario(form);
+            }
+
+            // Ejemplo de cómo cargar opciones reales
+            // await this.cargarOpcionesFormulario();
+            
+        } catch (error) {
+            console.error('Error al inicializar formulario de producto:', error);
+        }
+    }
+
+    async initializeEgresosForm() {
+        console.log('Inicializando formulario de egresos...');
+        
+        try {
+            await this.setupProductSelectForEgresos();
+            this.setupEgresosEvents();
+        } catch (error) {
+            console.error('Error al inicializar formulario de egresos:', error);
+        }
+    }
+
+    async setupProductSelectForEgresos() {
+        const select = document.getElementById('egreso_producto_id');
+        if (!select) return;
+        
+        try {
+            const response = await fetch('/inventario/productos-stock', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            select.innerHTML = '<option value="">Seleccionar producto...</option>';
+            
+            if (result.data && Array.isArray(result.data)) {
+                result.data.filter(p => (p.stock_actual || 0) > 0).forEach(producto => {
+                    select.innerHTML += `<option value="${producto.producto_id || producto.id}">${producto.nombre} (Stock: ${producto.stock_actual || 0})</option>`;
+                });
+            }
+            
+        } catch (error) {
+            console.error('Error al cargar productos para egresos:', error);
+            select.innerHTML = '<option value="">Error al cargar productos</option>';
+        }
+    }
+
+    async loadHistorialData() {
+        console.log('Cargando historial de movimientos...');
+        
+        try {
+            const response = await fetch('/inventario/movimientos', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                this.renderHistorialTable(result.data);
+            } else {
+                this.showEmptyHistorialTable();
+            }
+            
+        } catch (error) {
+            console.error('Error al cargar historial:', error);
+            this.showEmptyHistorialTable();
+            this.showError('Error al cargar historial de movimientos');
+        }
+    }
+
+    showEmptyHistorialTable() {
+        const tbody = document.querySelector('#tbody-historial-movimientos');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <svg class="mx-auto h-12 w-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p>No hay movimientos registrados</p>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    async loadGraficasData() {
+        console.log('Cargando datos para gráficas...');
+        // Implementar cuando tengas los endpoints de gráficas
+    }
+
+    /**
+     * UTILIDADES
+     */
+    updateElement(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.style.opacity = '0.5';
+            setTimeout(() => {
+                element.textContent = value;
+                element.style.opacity = '1';
+            }, 200);
+        }
+    }
+
+    /**
+     * SETUP DE MODALES Y TOOLTIPS - CORREGIDOS
+     */
+    setupModals() {
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('close-modal') || e.target.closest('.close-modal')) {
+                this.closeAllModals();
+            }
+            
+            if (e.target.classList.contains('bg-gray-500') && e.target.classList.contains('bg-opacity-75')) {
+                const modal = e.target.closest('.fixed.inset-0');
+                if (modal) {
+                    this.closeModal(modal);
+                }
             }
         });
 
-        // Select2 para filtros en historial
-        $('#filtro-producto-historial').select2({
-            theme: 'bootstrap4',
-            placeholder: 'Buscar producto...',
-            allowClear: true
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeAllModals();
+            }
         });
     }
 
-    /**
-     * Inicializa las DataTables del módulo
-     */
-    initDataTables() {
-        // Tabla de Stock Actual
-        this.tablaStock = $('#tabla-stock').DataTable({
-            processing: true,
-            serverSide: false,
-            ajax: {
-                url: '/inventario/productos-stock',
-                type: 'GET',
-                data: (d) => {
-                    d.categoria = $('#filtro-categoria').val();
-                    d.marca = $('#filtro-marca').val();
-                }
-            },
-            columns: [
-                { data: 'codigo_barra', defaultContent: 'Sin código' },
-                { data: 'nombre' },
-                { data: 'categoria' },
-                { data: 'marca' },
-                { data: 'modelo', defaultContent: '-' },
-                { 
-                    data: 'stock_actual',
-                    render: (data, type, row) => {
-                        let clase = 'stock-normal';
-                        if (data === 0) clase = 'stock-agotado';
-                        else if (data <= 5) clase = 'stock-bajo';
-                        
-                        return `<span class="${clase}">${data}</span>`;
-                    }
-                },
-                { 
-                    data: 'series_disponibles',
-                    render: (data, type, row) => {
-                        if (!row.requiere_serie) return '<span class="text-muted">N/A</span>';
-                        return `<span class="badge badge-info">${data}</span>`;
-                    }
-                },
-                {
-                    data: 'stock_actual',
-                    render: (data, type, row) => {
-                        if (data > 5) return '<span class="badge badge-success">Normal</span>';
-                        if (data > 0) return '<span class="badge badge-warning">Bajo</span>';
-                        return '<span class="badge badge-danger">Agotado</span>';
-                    }
-                },
-                {
-                    data: 'producto_id',
-                    render: (data, type, row) => {
-                        return `
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-sm btn-info" 
-                                        onclick="inventario.verDetalleProducto(${data})"
-                                        data-toggle="tooltip" title="Ver detalles">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary" 
-                                        onclick="inventario.verHistorialProducto(${data})"
-                                        data-toggle="tooltip" title="Ver historial">
-                                    <i class="fas fa-history"></i>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-warning" 
-                                        onclick="inventario.seleccionarProductoMovimiento(${data})"
-                                        data-toggle="tooltip" title="Registrar movimiento">
-                                    <i class="fas fa-exchange-alt"></i>
-                                </button>
-                            </div>
-                        `;
-                    }
-                }
-            ],
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
-            },
-            pageLength: 25,
-            responsive: true,
-            dom: 'Bfrtip',
-            buttons: [
-                {
-                    extend: 'excel',
-                    text: '<i class="fas fa-file-excel"></i> Excel',
-                    className: 'btn btn-success btn-sm'
-                },
-                {
-                    extend: 'pdf',
-                    text: '<i class="fas fa-file-pdf"></i> PDF',
-                    className: 'btn btn-danger btn-sm'
-                }
-            ]
+    setupTooltips() {
+        // Tooltip corregido - verificar que sea un elemento antes de usar hasAttribute
+        document.addEventListener('mouseenter', (e) => {
+            if (e.target && e.target.nodeType === Node.ELEMENT_NODE && e.target.hasAttribute && e.target.hasAttribute('data-tooltip')) {
+                this.showTooltip(e.target, e.target.getAttribute('data-tooltip'));
+            }
         });
 
-        // Tabla de Historial General
-        this.tablaHistorial = $('#tabla-historial').DataTable({
-            processing: true,
-            serverSide: false,
-            ajax: {
-                url: '/inventario/movimientos',
-                type: 'GET',
-                data: (d) => {
-                    d.producto_id = $('#filtro-producto-historial').val();
-                    d.fecha_desde = $('#fecha-desde').val();
-                    d.fecha_hasta = $('#fecha-hasta').val();
-                    d.tipo = $('#filtro-tipo-movimiento').val();
-                }
-            },
-            columns: [
-                { data: 'fecha' },
-                { data: 'producto_nombre' },
-                { 
-                    data: 'tipo',
-                    render: (data) => {
-                        const badges = {
-                            'Ingreso': 'badge-success',
-                            'Egreso': 'badge-primary',
-                            'Baja': 'badge-danger',
-                            'Importación': 'badge-info'
-                        };
-                        return `<span class="badge ${badges[data] || 'badge-secondary'}">${data}</span>`;
-                    }
-                },
-                { data: 'origen' },
-                { data: 'cantidad' },
-                { data: 'usuario' },
-                { data: 'lote', defaultContent: '-' },
-                { data: 'observaciones', defaultContent: '-' }
-            ],
-            order: [[0, 'desc']],
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
-            },
-            pageLength: 25,
-            responsive: true
-        });
-
-        // Tabla de Historial por Producto (Modal)
-        this.tablaHistorialProducto = $('#tabla-historial-producto').DataTable({
-            processing: true,
-            serverSide: false,
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
-            },
-            pageLength: 10,
-            order: [[0, 'desc']]
+        document.addEventListener('mouseleave', (e) => {
+            if (e.target && e.target.nodeType === Node.ELEMENT_NODE && e.target.hasAttribute && e.target.hasAttribute('data-tooltip')) {
+                this.hideTooltip();
+            }
         });
     }
 
-    /**
-     * Configura los formularios y sus validaciones
-     */
+    showTooltip(element, text) {
+        const tooltip = document.createElement('div');
+        tooltip.id = 'custom-tooltip';
+        tooltip.className = 'absolute z-50 px-2 py-1 text-sm text-white bg-gray-900 rounded shadow-lg';
+        tooltip.textContent = text;
+        
+        document.body.appendChild(tooltip);
+        
+        const rect = element.getBoundingClientRect();
+        tooltip.style.left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2) + 'px';
+        tooltip.style.top = rect.top - tooltip.offsetHeight - 5 + 'px';
+    }
+
+    hideTooltip() {
+        const tooltip = document.getElementById('custom-tooltip');
+        if (tooltip) tooltip.remove();
+    }
+
     setupForms() {
-        // Configurar preview de fotos
-        $('#fotos').on('change', this.previewFotos);
-        
-        // Configurar campos dinámicos del formulario de ingreso
-        $('#producto_requiere_serie').on('change', this.toggleSeriesCantidad);
-        $('#producto_es_importado').on('change', this.toggleLicenciaImportacion);
-        
-        // Configurar dependencias de categoría -> subcategoría
-        $('#producto_categoria_id').on('change', this.cargarSubcategorias);
-        
-        // Configurar gestión dinámica de series
-        this.setupSeriesManager();
+        // Configuración básica de formularios - expandir según necesites
+        const formIngreso = document.getElementById('form-ingresar-producto');
+        if (formIngreso) {
+            formIngreso.addEventListener('submit', (e) => this.handleProductoSubmit(e));
+        }
+
+        const formEgreso = document.getElementById('form-registrar-egreso');
+        if (formEgreso) {
+            formEgreso.addEventListener('submit', (e) => this.handleEgresoSubmit(e));
+        }
     }
 
-    /**
-     * Configura el gestor dinámico de números de serie
-     */
-    setupSeriesManager() {
-        // Agregar nueva serie
-        $(document).on('click', '.btn-add-serie', function() {
-            const container = $('#container-series');
-            const newInput = `
-                <div class="input-group mb-2 serie-input-group">
-                    <input type="text" class="form-control serie-input" name="series[]" placeholder="Número de serie" required>
-                    <div class="input-group-append">
-                        <button type="button" class="btn btn-danger btn-remove-serie">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-            container.append(newInput);
-        });
-
-        // Remover serie
-        $(document).on('click', '.btn-remove-serie', function() {
-            $(this).closest('.serie-input-group').remove();
-        });
-
-        // Validar series únicas en tiempo real
-        $(document).on('blur', '.serie-input', this.validarSerieUnica);
-    }
-
-    /**
-     * Vincula todos los eventos del módulo
-     */
-    bindEvents() {
-        // Eventos de formularios
-        $('#form-ingresar-producto').on('submit', this.procesarIngresoProducto.bind(this));
-        $('#form-registrar-movimiento').on('submit', this.procesarRegistroMovimiento.bind(this));
-        
-        // Eventos de filtros
-        $('#btn-aplicar-filtros').on('click', () => this.aplicarFiltrosStock());
-        $('#btn-limpiar-filtros').on('click', () => this.limpiarFiltrosStock());
-        $('#btn-filtrar-historial').on('click', () => this.filtrarHistorial());
-        
-        // Eventos de botones de limpieza
-        $('#btn-limpiar-form').on('click', () => this.limpiarFormularioIngreso());
-        $('#btn-limpiar-movimiento').on('click', () => this.limpiarFormularioMovimiento());
-        
-        // Evento cambio de producto en movimientos
-        $('#mov_producto_id').on('select2:select', this.cargarInfoProductoMovimiento.bind(this));
-        
-        // Eventos de selección de series
-        $('#check-all-series').on('change', this.toggleTodasSeries);
-        $(document).on('change', '.serie-checkbox', this.actualizarContadorSeries);
-        
-        // Eventos de pestañas
-        $('a[data-toggle="pill"]').on('shown.bs.tab', this.onTabChange.bind(this));
-    }
-
-    /**
-     * Carga datos iniciales del módulo
-     */
-    loadInitialData() {
-        this.actualizarResumenDashboard();
-        this.cargarProductosParaFiltros();
-    }
-
-    /**
-     * Procesa el formulario de ingreso de producto
-     */
-    async procesarIngresoProducto(e) {
+    async handleProductoSubmit(e) {
         e.preventDefault();
         
         const form = e.target;
         const formData = new FormData(form);
         
-        // Validaciones adicionales
-        if (!this.validarFormularioIngreso(formData)) {
-            return false;
-        }
-        
         try {
-            this.showLoading('Ingresando producto...');
+            this.showLoading('Registrando producto...');
             
-            const response = await fetch('/inventario/producto/ingresar', {
+            const response = await fetch('/inventario/ingresar-producto', {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
                 }
             });
             
             const result = await response.json();
             
             if (result.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Producto Ingresado!',
-                    text: result.message,
-                    timer: 3000,
-                    showConfirmButton: false
-                });
-                
-                this.limpiarFormularioIngreso();
-                this.tablaStock.ajax.reload();
-                this.actualizarResumenDashboard();
-                
-                // Cambiar a pestaña de stock
-                $('#stock-tab').tab('show');
-                
+                this.showSuccess('Producto registrado exitosamente');
+                this.limpiarFormulario(form);
+                // Recargar datos de stock si estamos en esa pestaña
+                if (this.currentTab === 'stock-actual') {
+                    await this.loadStockData();
+                }
             } else {
-                this.showValidationErrors(result.errors);
+                this.showValidationErrors(result.errors || { general: ['Error al registrar producto'] });
             }
             
         } catch (error) {
-            console.error('Error al ingresar producto:', error);
+            console.error('Error al registrar producto:', error);
             this.showError('Error de conexión al procesar la solicitud');
         } finally {
             this.hideLoading();
         }
     }
 
-    /**
-     * Procesa el formulario de registro de movimiento
-     */
-    async procesarRegistroMovimiento(e) {
+    async handleEgresoSubmit(e) {
         e.preventDefault();
         
-        const formData = new FormData(e.target);
-        
-        // Agregar series seleccionadas si aplica
-        const productId = $('#mov_producto_id').val();
-        const productoData = $('#mov_producto_id').select2('data')[0]?.data;
-        
-        if (productoData?.requiere_serie) {
-            const seriesSeleccionadas = [];
-            $('.serie-checkbox:checked').each(function() {
-                seriesSeleccionadas.push($(this).val());
-            });
-            
-            if (seriesSeleccionadas.length === 0) {
-                this.showError('Debe seleccionar al menos una serie');
-                return false;
-            }
-            
-            formData.append('series_seleccionadas', JSON.stringify(seriesSeleccionadas));
-            formData.append('requiere_serie', 'true');
-        } else {
-            formData.append('requiere_serie', 'false');
-        }
+        const form = e.target;
+        const formData = new FormData(form);
         
         try {
-            this.showLoading('Registrando movimiento...');
+            this.showLoading('Registrando egreso...');
             
-            const response = await fetch('/inventario/movimiento/registrar', {
+            const response = await fetch('/inventario/registrar-egreso', {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
                 }
             });
             
             const result = await response.json();
             
             if (result.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Movimiento Registrado!',
-                    text: result.message,
-                    timer: 3000,
-                    showConfirmButton: false
-                });
-                
-                this.limpiarFormularioMovimiento();
-                this.tablaStock.ajax.reload();
-                this.actualizarResumenDashboard();
-                
+                this.showSuccess('Egreso registrado exitosamente');
+                this.limpiarFormulario(form);
+                // Recargar datos si es necesario
+                if (this.currentTab === 'stock-actual') {
+                    await this.loadStockData();
+                }
             } else {
-                this.showValidationErrors(result.errors);
+                this.showValidationErrors(result.errors || { general: ['Error al registrar egreso'] });
             }
             
         } catch (error) {
-            console.error('Error al registrar movimiento:', error);
+            console.error('Error al registrar egreso:', error);
             this.showError('Error de conexión al procesar la solicitud');
         } finally {
             this.hideLoading();
         }
     }
 
-    /**
-     * Carga información del producto seleccionado para movimiento
-     */
-    async cargarInfoProductoMovimiento(e) {
-        const productoData = e.params.data.data;
+    limpiarFormulario(form) {
+        form.reset();
         
-        if (!productoData) return;
-        
-        try {
-            const response = await fetch(`/inventario/producto/${productoData.producto_id}/detalle`);
-            const result = await response.json();
-            
-            if (result.success) {
-                this.mostrarInfoProductoMovimiento(result.data);
-                
-                if (result.data.requiere_serie) {
-                    await this.cargarSeriesDisponibles(productoData.producto_id);
-                }
+        form.querySelectorAll('.border-red-500').forEach(el => {
+            el.classList.remove('border-red-500');
+        });
+    }
+
+    setupEgresosEvents() {
+        // Implementar eventos específicos de egresos
+    }
+
+    bindGlobalEvents() {
+        // Eventos globales básicos
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.altKey && e.keyCode === 73) {
+                e.preventDefault();
+                const ingresoTab = document.querySelector('[data-bs-target="#ingresar-producto"]');
+                if (ingresoTab) ingresoTab.click();
             }
             
-        } catch (error) {
-            console.error('Error al cargar info del producto:', error);
+            if (e.ctrlKey && e.altKey && e.keyCode === 83) {
+                e.preventDefault();
+                const stockTab = document.querySelector('[data-bs-target="#stock-actual"]');
+                if (stockTab) stockTab.click();
+            }
+        });
+    }
+
+    showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('hidden');
+            this.modals.set(modalId, modal);
         }
     }
 
-    /**
-     * Muestra la información del producto en el panel de movimiento
-     */
-    mostrarInfoProductoMovimiento(producto) {
-        const html = `
-            <div class="row">
-                <div class="col-md-12">
-                    <h5>${producto.producto.producto_nombre}</h5>
-                    <p class="mb-1"><strong>Stock actual:</strong> 
-                        <span class="badge badge-${producto.stock_actual > 0 ? 'success' : 'danger'}">${producto.stock_actual}</span>
-                    </p>
-                    <p class="mb-1"><strong>Requiere serie:</strong> 
-                        <span class="badge badge-${producto.requiere_serie ? 'info' : 'secondary'}">
-                            ${producto.requiere_serie ? 'Sí' : 'No'}
-                        </span>
-                    </p>
-                    ${producto.requiere_serie ? `
-                        <p class="mb-1"><strong>Series disponibles:</strong> ${producto.series_disponibles}</p>
-                    ` : ''}
-                </div>
+    closeModal(modal) {
+        if (modal) {
+            modal.classList.add('hidden');
+            this.modals.delete(modal.id);
+        }
+    }
+
+    closeAllModals() {
+        document.querySelectorAll('.fixed.inset-0:not(.hidden)').forEach(modal => {
+            this.closeModal(modal);
+        });
+    }
+
+    showLoading(message = 'Procesando...') {
+        const loadingModal = document.createElement('div');
+        loadingModal.id = 'loading-modal';
+        loadingModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+        loadingModal.innerHTML = `
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span class="text-gray-700 dark:text-gray-300">${message}</span>
             </div>
         `;
-        
-        $('#info-producto-seleccionado').html(html);
-        
-        // Mostrar panel correspondiente
-        if (producto.requiere_serie) {
-            $('#panel-cantidad-movimiento').hide();
-            $('#panel-series-movimiento').show();
-        } else {
-            $('#panel-series-movimiento').hide();
-            $('#panel-cantidad-movimiento').show();
-            $('#stock-disponible').text(producto.stock_actual);
-            $('#mov_cantidad_input').attr('max', producto.stock_actual);
+        document.body.appendChild(loadingModal);
+    }
+
+    hideLoading() {
+        const loadingModal = document.getElementById('loading-modal');
+        if (loadingModal) {
+            loadingModal.remove();
         }
     }
 
-    /**
-     * Carga las series disponibles de un producto
-     */
-    async cargarSeriesDisponibles(productoId) {
-        try {
-            const response = await fetch(`/inventario/producto/${productoId}/series`);
-            const result = await response.json();
-            
-            if (result.success) {
-                const tbody = $('#tabla-series-disponibles tbody');
-                tbody.empty();
+    showSuccess(message) {
+        this.showToast(message, 'success');
+    }
+
+    showError(message) {
+        this.showToast(message, 'error');
+    }
+
+    showValidationErrors(errors) {
+        let errorMessage = 'Se encontraron errores:\n\n';
+        
+        for (const field in errors) {
+            if (errors.hasOwnProperty(field)) {
+                errorMessage += `• ${Array.isArray(errors[field]) ? errors[field].join('\n• ') : errors[field]}\n`;
                 
-                result.data.forEach(serie => {
-                    const row = `
-                        <tr>
-                            <td>
-                                <input type="checkbox" class="serie-checkbox" value="${serie.serie_id}">
-                            </td>
-                            <td>${serie.serie_numero_serie}</td>
-                            <td>${new Date(serie.serie_fecha_ingreso).toLocaleDateString()}</td>
-                        </tr>
-                    `;
-                    tbody.append(row);
-                });
-                
-                this.actualizarContadorSeries();
+                // Marcar campo con error
+                const input = document.querySelector(`[name="${field}"]`);
+                if (input) {
+                    input.classList.add('border-red-500');
+                }
             }
-            
-        } catch (error) {
-            console.error('Error al cargar series:', error);
         }
+        
+        this.showError(errorMessage);
     }
 
-    /**
-     * Ver detalles de un producto específico
-     */
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm`;
+        
+        const colors = {
+            success: 'bg-green-500 text-white',
+            error: 'bg-red-500 text-white',
+            warning: 'bg-yellow-500 text-white',
+            info: 'bg-blue-500 text-white'
+        };
+        
+        toast.className += ` ${colors[type] || colors.info}`;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        // Auto-remove después de 3 segundos
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Funciones para acciones desde botones
     async verDetalleProducto(productoId) {
         try {
             this.showLoading('Cargando detalles...');
             
-            const response = await fetch(`/inventario/producto/${productoId}/detalle`);
+            const response = await fetch(`/inventario/producto/${productoId}/detalle`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            });
+            
             const result = await response.json();
             
             if (result.success) {
@@ -561,14 +809,19 @@ class InventarioManager {
         }
     }
 
-    /**
-     * Ver historial de movimientos de un producto
-     */
     async verHistorialProducto(productoId) {
         try {
             this.showLoading('Cargando historial...');
             
-            const response = await fetch(`/inventario/producto/${productoId}/movimientos`);
+            const response = await fetch(`/inventario/producto/${productoId}/movimientos`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            });
+            
             const result = await response.json();
             
             if (result.success) {
@@ -585,713 +838,293 @@ class InventarioManager {
         }
     }
 
-    /**
-     * Muestra el modal con detalles del producto
-     */
+    seleccionarProductoMovimiento(id) {
+        console.log(`Seleccionar producto ${id} para movimiento`);
+        const egresosTab = document.querySelector('[data-bs-target="#egresos"]');
+        if (egresosTab) {
+            egresosTab.click();
+            // Preseleccionar el producto en el formulario de egresos
+            setTimeout(() => {
+                const select = document.getElementById('egreso_producto_id');
+                if (select) {
+                    select.value = id;
+                    select.dispatchEvent(new Event('change'));
+                }
+            }, 500);
+        }
+    }
+
     mostrarModalDetalleProducto(producto) {
+        const modal = document.getElementById('modal-detalle-producto');
+        const contenido = document.getElementById('contenido-detalle-producto');
+        
+        if (!modal || !contenido) {
+            console.error('Modal de detalle no encontrado');
+            return;
+        }
+        
         let fotosHtml = '';
         if (producto.fotos && producto.fotos.length > 0) {
             fotosHtml = producto.fotos.map(foto => 
-                `<img src="${foto.foto_url}" class="img-thumbnail m-1" style="max-width: 100px;">`
+                `<img src="${foto.foto_url}" class="w-20 h-20 object-cover rounded-lg" alt="Foto del producto">`
             ).join('');
         }
         
-        const html = `
-            <div class="row">
-                <div class="col-md-8">
-                    <h4>${producto.producto.producto_nombre}</h4>
-                    <p><strong>Código de barras:</strong> ${producto.producto.producto_codigo_barra || 'Sin código'}</p>
-                    <p><strong>Stock actual:</strong> <span class="badge badge-primary">${producto.stock_actual}</span></p>
-                    <p><strong>Requiere serie:</strong> 
-                        <span class="badge badge-${producto.requiere_serie ? 'success' : 'secondary'}">
-                            ${producto.requiere_serie ? 'Sí' : 'No'}
-                        </span>
-                    </p>
-                    ${producto.requiere_serie ? `
-                        <p><strong>Series disponibles:</strong> ${producto.series_disponibles}</p>
-                        <p><strong>Total de series:</strong> ${producto.series_total}</p>
-                    ` : ''}
-                    <p><strong>Producto importado:</strong> 
-                        <span class="badge badge-${producto.producto.producto_es_importado ? 'warning' : 'secondary'}">
-                            ${producto.producto.producto_es_importado ? 'Sí' : 'No'}
-                        </span>
-                    </p>
+        contenido.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">${producto.producto_nombre || 'Sin nombre'}</h4>
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Código de barras:</dt>
+                            <dd class="text-sm text-gray-900 dark:text-white">${producto.codigo_barra || 'Sin código'}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Stock actual:</dt>
+                            <dd><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">${producto.stock_actual || 0}</span></dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Categoría:</dt>
+                            <dd class="text-sm text-gray-900 dark:text-white">${producto.categoria || '-'}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Marca:</dt>
+                            <dd class="text-sm text-gray-900 dark:text-white">${producto.marca || '-'}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Requiere serie:</dt>
+                            <dd><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${producto.requiere_serie ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${producto.requiere_serie ? 'Sí' : 'No'}</span></dd>
+                        </div>
+                        ${producto.requiere_serie ? `
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Series disponibles:</dt>
+                            <dd class="text-sm text-gray-900 dark:text-white">${producto.series_disponibles || 0}</dd>
+                        </div>
+                        ` : ''}
+                    </dl>
                 </div>
-                <div class="col-md-4">
-                    <h6>Fotos del producto:</h6>
-                    <div class="fotos-container">
-                        ${fotosHtml || '<p class="text-muted">Sin fotos disponibles</p>'}
+                <div>
+                    <h6 class="text-md font-medium text-gray-900 dark:text-white mb-3">Fotos del producto:</h6>
+                    <div class="flex flex-wrap gap-2">
+                        ${fotosHtml || '<p class="text-gray-500 dark:text-gray-400">Sin fotos disponibles</p>'}
                     </div>
                 </div>
             </div>
         `;
         
-        $('#contenido-detalle-producto').html(html);
-        $('#modal-detalle-producto').modal('show');
+        this.showModal('modal-detalle-producto');
     }
 
-    /**
-     * Muestra el modal con historial del producto
-     */
     mostrarModalHistorialProducto(movimientos) {
-        this.tablaHistorialProducto.clear();
-        this.tablaHistorialProducto.rows.add(movimientos);
-        this.tablaHistorialProducto.draw();
+        const modal = document.getElementById('modal-historial-producto');
+        const tbody = document.querySelector('#tabla-historial-producto tbody');
         
-        $('#modal-historial-producto').modal('show');
-    }
-
-    /**
-     * Selecciona un producto para registrar movimiento
-     */
-    seleccionarProductoMovimiento(productoId) {
-        // Cambiar a la pestaña de movimientos
-        $('#movimientos-tab').tab('show');
-        
-        // Buscar el producto en la tabla y seleccionarlo
-        const filaProducto = this.tablaStock.row((idx, data) => data.producto_id === productoId).data();
-        
-        if (filaProducto) {
-            // Crear opción para Select2 y seleccionarla
-            const option = new Option(
-                `${filaProducto.nombre} (Stock: ${filaProducto.stock_actual})`,
-                productoId,
-                true,
-                true
-            );
-            
-            $('#mov_producto_id').append(option).trigger('change');
-        }
-    }
-
-    /**
-     * Funciones utilitarias y helpers
-     */
-
-    // Toggle entre campos de serie y cantidad
-    toggleSeriesCantidad() {
-        const requiereSerie = $('#producto_requiere_serie').is(':checked');
-        
-        if (requiereSerie) {
-            $('#grupo-cantidad').hide();
-            $('#grupo-series').show();
-            $('#cantidad_inicial, #lote_codigo').removeAttr('required');
-            $('.serie-input').attr('required', true);
-        } else {
-            $('#grupo-series').hide();
-            $('#grupo-cantidad').show();
-            $('#cantidad_inicial, #lote_codigo').attr('required', true);
-            $('.serie-input').removeAttr('required');
-        }
-    }
-
-    // Toggle campo de licencia de importación
-    toggleLicenciaImportacion() {
-        const esImportado = $('#producto_es_importado').is(':checked');
-        
-        if (esImportado) {
-            $('#grupo-licencia').show();
-        } else {
-            $('#grupo-licencia').hide();
-            $('#producto_id_licencia').val('').trigger('change');
-        }
-    }
-
-    // Preview de fotos seleccionadas
-    previewFotos() {
-        const files = this.files;
-        const preview = $('#preview-fotos');
-        preview.empty();
-        
-        Array.from(files).forEach((file, index) => {
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const col = `
-                        <div class="col-md-2 mb-2">
-                            <img src="${e.target.result}" class="img-thumbnail">
-                            <small class="d-block text-center mt-1">
-                                ${index === 0 ? '<span class="badge badge-primary">Principal</span>' : 'Secundaria'}
-                            </small>
-                        </div>
-                    `;
-                    preview.append(col);
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    // Validar que el número de serie sea único
-    async validarSerieUnica() {
-        const numeroSerie = $(this).val().trim();
-        
-        if (!numeroSerie) return;
-        
-        // Aquí implementarías una validación AJAX para verificar unicidad
-        // Por simplicidad, solo verifico duplicados en el formulario actual
-        const series = $('.serie-input').map(function() { return $(this).val().trim(); }).get();
-        const duplicados = series.filter(serie => serie === numeroSerie).length;
-        
-        if (duplicados > 1) {
-            $(this).addClass('is-invalid');
-            $(this).after('<div class="invalid-feedback">Este número de serie ya está en la lista</div>');
-        } else {
-            $(this).removeClass('is-invalid');
-            $(this).siblings('.invalid-feedback').remove();
-        }
-    }
-
-    // Cargar subcategorías basadas en categoría seleccionada
-    async cargarSubcategorias() {
-        const categoriaId = $(this).val();
-        const subcategoriaSelect = $('#producto_subcategoria_id');
-        
-        subcategoriaSelect.empty().append('<option value="">Cargando...</option>');
-        
-        if (!categoriaId) {
-            subcategoriaSelect.empty().append('<option value="">Seleccionar categoría primero...</option>');
+        if (!modal || !tbody) {
+            console.error('Modal de historial no encontrado');
             return;
         }
         
-        try {
-            // Aquí harías la llamada AJAX para cargar subcategorías
-            // Por ahora, simulamos algunas opciones
-            const subcategorias = [
-                { id: 1, nombre: 'Subcategoría 1' },
-                { id: 2, nombre: 'Subcategoría 2' },
-                { id: 3, nombre: 'Subcategoría 3' }
-            ];
+        tbody.innerHTML = '';
+        
+        if (!movimientos || movimientos.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        No hay movimientos registrados para este producto
+                    </td>
+                </tr>
+            `;
+        } else {
+            movimientos.forEach(mov => {
+                const row = document.createElement('tr');
+                const tipoBadge = this.getTipoBadge(mov.tipo);
+                
+                row.innerHTML = `
+                    <td class="px-4 py-2 text-sm">${mov.fecha}</td>
+                    <td class="px-4 py-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tipoBadge}">${mov.tipo}</span></td>
+                    <td class="px-4 py-2 text-sm text-center">${mov.cantidad}</td>
+                    <td class="px-4 py-2 text-sm">${mov.origen}</td>
+                    <td class="px-4 py-2 text-sm">${mov.usuario}</td>
+                    <td class="px-4 py-2 text-sm">${mov.observaciones || '-'}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+        
+        this.showModal('modal-historial-producto');
+    }
+
+    renderHistorialTable(movimientos) {
+        const tbody = document.querySelector('#tbody-historial-movimientos');
+        if (!tbody) return;
+
+        // Remover loading
+        const loadingRow = document.getElementById('loading-historial');
+        if (loadingRow) loadingRow.remove();
+
+        tbody.innerHTML = '';
+
+        if (!movimientos || movimientos.length === 0) {
+            this.showEmptyHistorialTable();
+            return;
+        }
+
+        movimientos.forEach(mov => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
             
-            subcategoriaSelect.empty().append('<option value="">Seleccionar...</option>');
-            subcategorias.forEach(sub => {
-                subcategoriaSelect.append(`<option value="${sub.id}">${sub.nombre}</option>`);
+            const tipoBadge = this.getTipoBadge(mov.tipo);
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    ${mov.fecha || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tipoBadge}">
+                        ${mov.tipo || '-'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    ${mov.producto_nombre || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-900 dark:text-white">
+                    ${mov.cantidad || 0}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    ${mov.origen || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    ${mov.usuario || '-'}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    ${mov.observaciones || '-'}
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+    }
+
+    getTipoBadge(tipo) {
+        const badges = {
+            'Ingreso': 'bg-green-100 text-green-800',
+            'ingreso': 'bg-green-100 text-green-800',
+            'Egreso': 'bg-blue-100 text-blue-800',
+            'egreso': 'bg-blue-100 text-blue-800',
+            'Baja': 'bg-red-100 text-red-800',
+            'baja': 'bg-red-100 text-red-800',
+            'Venta': 'bg-purple-100 text-purple-800',
+            'venta': 'bg-purple-100 text-purple-800',
+            'Devolucion': 'bg-yellow-100 text-yellow-800',
+            'devolucion': 'bg-yellow-100 text-yellow-800',
+            'Prestamo': 'bg-indigo-100 text-indigo-800',
+            'prestamo': 'bg-indigo-100 text-indigo-800'
+        };
+        return badges[tipo] || 'bg-gray-100 text-gray-800';
+    }
+
+    // Funciones de exportación
+    async exportarStock(formato) {
+        console.log(`Exportando stock en formato ${formato}`);
+        
+        try {
+            this.showLoading('Generando archivo...');
+            
+            const response = await fetch(`/inventario/exportar-stock?formato=${formato}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
             });
             
-        } catch (error) {
-            console.error('Error al cargar subcategorías:', error);
-            subcategoriaSelect.empty().append('<option value="">Error al cargar</option>');
-        }
-    }
-
-    // Aplicar filtros a la tabla de stock
-    aplicarFiltrosStock() {
-        this.tablaStock.ajax.reload();
-    }
-
-    // Limpiar filtros de stock
-    limpiarFiltrosStock() {
-        $('#filtro-categoria, #filtro-marca').val('').trigger('change');
-        this.tablaStock.ajax.reload();
-    }
-
-    // Filtrar historial
-    filtrarHistorial() {
-        this.tablaHistorial.ajax.reload();
-    }
-
-    // Limpiar formulario de ingreso
-    limpiarFormularioIngreso() {
-        $('#form-ingresar-producto')[0].reset();
-        $('.select2').val('').trigger('change');
-        $('#preview-fotos').empty();
-        $('#grupo-cantidad').show();
-        $('#grupo-series, #grupo-licencia').hide();
-        $('.is-invalid').removeClass('is-invalid');
-        $('.invalid-feedback').remove();
-    }
-
-    // Limpiar formulario de movimiento
-    limpiarFormularioMovimiento() {
-        $('#form-registrar-movimiento')[0].reset();
-        $('#mov_producto_id').val('').trigger('change');
-        $('#info-producto-seleccionado').html('<p class="text-muted text-center">Seleccione un producto para ver su información</p>');
-        $('#panel-cantidad-movimiento, #panel-series-movimiento').hide();
-        $('.is-invalid').removeClass('is-invalid');
-        $('.invalid-feedback').remove();
-    }
-
-    // Toggle todas las series
-    toggleTodasSeries() {
-        const checked = $(this).is(':checked');
-        $('.serie-checkbox').prop('checked', checked);
-        inventario.actualizarContadorSeries();
-    }
-
-    // Actualizar contador de series seleccionadas
-    actualizarContadorSeries() {
-        const total = $('.serie-checkbox').length;
-        const seleccionadas = $('.serie-checkbox:checked').length;
-        
-        // Actualizar estado del checkbox "Todos"
-        $('#check-all-series').prop('indeterminate', seleccionadas > 0 && seleccionadas < total);
-        $('#check-all-series').prop('checked', seleccionadas === total);
-    }
-
-    // Validar formulario de ingreso
-    validarFormularioIngreso(formData) {
-        const requiereSerie = formData.get('producto_requiere_serie') === 'on';
-        
-        if (requiereSerie) {
-            const series = formData.getAll('series[]').filter(s => s.trim() !== '');
-            if (series.length === 0) {
-                this.showError('Debe ingresar al menos un número de serie');
-                return false;
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `inventario_stock.${formato}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                this.showSuccess(`Stock exportado en formato ${formato.toUpperCase()}`);
+            } else {
+                throw new Error('Error en la exportación');
             }
             
-            // Verificar series únicas
-            const seriesUnicas = [...new Set(series)];
-            if (seriesUnicas.length !== series.length) {
-                this.showError('No puede haber números de serie duplicados');
-                return false;
-            }
-        } else {
-            const cantidad = parseInt(formData.get('cantidad_inicial'));
-            if (!cantidad || cantidad < 1) {
-                this.showError('La cantidad inicial debe ser mayor a 0');
-                return false;
-            }
+        } catch (error) {
+            console.error('Error al exportar:', error);
+            this.showError('Error al exportar los datos');
+        } finally {
+            this.hideLoading();
         }
-        
-        return true;
     }
 
-    // Cargar productos para filtros
-    async cargarProductosParaFiltros() {
+    async exportarMovimientos(formato) {
+        console.log(`Exportando movimientos en formato ${formato}`);
+        
         try {
-            const response = await fetch('/inventario/productos-stock');
-            const result = await response.json();
+            this.showLoading('Generando archivo...');
             
-            if (result.data) {
-                const select = $('#filtro-producto-historial');
-                select.empty().append('<option value="">Todos los productos</option>');
+            const response = await fetch(`/inventario/exportar-movimientos?formato=${formato}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `movimientos_inventario.${formato}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
                 
-                result.data.forEach(producto => {
-                    select.append(`<option value="${producto.producto_id}">${producto.nombre}</option>`);
-                });
+                this.showSuccess(`Movimientos exportados en formato ${formato.toUpperCase()}`);
+            } else {
+                throw new Error('Error en la exportación');
             }
             
         } catch (error) {
-            console.error('Error al cargar productos para filtros:', error);
+            console.error('Error al exportar:', error);
+            this.showError('Error al exportar los datos');
+        } finally {
+            this.hideLoading();
         }
-    }
-
-    // Actualizar resumen del dashboard
-    async actualizarResumenDashboard() {
-        try {
-            const response = await fetch('/inventario/resumen-dashboard');
-            const result = await response.json();
-            
-            if (result.success) {
-                $('#total-productos').text(result.data.total_productos);
-                $('#total-series').text(result.data.total_series);
-                $('#movimientos-hoy').text(result.data.movimientos_hoy);
-                $('#stock-bajo').text(result.data.stock_bajo);
-            }
-            
-        } catch (error) {
-            console.error('Error al actualizar resumen:', error);
-            // Valores por defecto si falla la carga
-            $('#total-productos').text('--');
-            $('#total-series').text('--');
-            $('#movimientos-hoy').text('--');
-            $('#stock-bajo').text('--');
-        }
-    }
-
-    // Manejar cambio de pestañas
-    onTabChange(e) {
-        const tabId = $(e.target).attr('href');
-        
-        switch (tabId) {
-            case '#stock-actual':
-                if (this.tablaStock) {
-                    this.tablaStock.columns.adjust().responsive.recalc();
-                }
-                break;
-                
-            case '#historial-movimientos':
-                if (this.tablaHistorial) {
-                    this.tablaHistorial.ajax.reload();
-                    this.tablaHistorial.columns.adjust().responsive.recalc();
-                }
-                break;
-        }
-    }
-
-    /**
-     * Funciones utilitarias para UI
-     */
-
-    showLoading(message = 'Procesando...') {
-        Swal.fire({
-            title: message,
-            allowEscapeKey: false,
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-    }
-
-    hideLoading() {
-        Swal.close();
-    }
-
-    showError(message) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: message,
-            confirmButtonColor: '#d33'
-        });
-    }
-
-    showSuccess(message) {
-        Swal.fire({
-            icon: 'success',
-            title: '¡Éxito!',
-            text: message,
-            timer: 3000,
-            showConfirmButton: false
-        });
-    }
-
-    showValidationErrors(errors) {
-        let errorMessage = 'Se encontraron los siguientes errores:\n\n';
-        
-        for (const field in errors) {
-            if (errors.hasOwnProperty(field)) {
-                errorMessage += `• ${errors[field].join('\n• ')}\n`;
-                
-                // Marcar campos con error
-                const input = $(`[name="${field}"]`);
-                input.addClass('is-invalid');
-                
-                // Agregar mensaje de error si no existe
-                if (!input.siblings('.invalid-feedback').length) {
-                    input.after(`<div class="invalid-feedback">${errors[field][0]}</div>`);
-                }
-            }
-        }
-        
-        this.showError(errorMessage);
-    }
-
-    /**
-     * Funciones de confirmación para acciones críticas
-     */
-
-    async confirmarEliminacion(callback, mensaje = '¿Está seguro de eliminar este elemento?') {
-        const result = await Swal.fire({
-            title: '¿Está seguro?',
-            text: mensaje,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        });
-        
-        if (result.isConfirmed && typeof callback === 'function') {
-            callback();
-        }
-        
-        return result.isConfirmed;
-    }
-
-    async confirmarAccion(callback, titulo = '¿Confirmar acción?', mensaje = 'Esta acción no se puede deshacer') {
-        const result = await Swal.fire({
-            title: titulo,
-            text: mensaje,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Confirmar',
-            cancelButtonText: 'Cancelar'
-        });
-        
-        if (result.isConfirmed && typeof callback === 'function') {
-            callback();
-        }
-        
-        return result.isConfirmed;
-    }
-
-    /**
-     * Funciones de utilidad para formateo
-     */
-
-    formatearFecha(fecha) {
-        if (!fecha) return '-';
-        return new Date(fecha).toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
-
-    formatearNumero(numero) {
-        if (numero === null || numero === undefined) return '-';
-        return new Intl.NumberFormat('es-ES').format(numero);
-    }
-
-    formatearMoneda(cantidad) {
-        if (cantidad === null || cantidad === undefined) return '-';
-        return new Intl.NumberFormat('es-ES', {
-            style: 'currency',
-            currency: 'USD' // Ajustar según la moneda de tu país
-        }).format(cantidad);
-    }
-
-    /**
-     * Funciones para manejo de archivos e imágenes
-     */
-
-    validarArchivo(file, tiposPermitidos = ['image/jpeg', 'image/png', 'image/gif'], tamañoMax = 2048000) {
-        if (!tiposPermitidos.includes(file.type)) {
-            this.showError(`Tipo de archivo no permitido. Tipos válidos: ${tiposPermitidos.join(', ')}`);
-            return false;
-        }
-        
-        if (file.size > tamañoMax) {
-            this.showError(`El archivo es demasiado grande. Tamaño máximo: ${tamañoMax / 1024 / 1024}MB`);
-            return false;
-        }
-        
-        return true;
-    }
-
-    /**
-     * Funciones para exportación de datos
-     */
-
-    exportarStock(formato = 'excel') {
-        const datos = this.tablaStock.data().toArray();
-        
-        if (datos.length === 0) {
-            this.showError('No hay datos para exportar');
-            return;
-        }
-        
-        switch (formato) {
-            case 'excel':
-                this.exportarExcel(datos, 'stock_inventario');
-                break;
-            case 'pdf':
-                this.exportarPDF(datos, 'Stock de Inventario');
-                break;
-            case 'csv':
-                this.exportarCSV(datos, 'stock_inventario');
-                break;
-        }
-    }
-
-    exportarExcel(datos, nombreArchivo) {
-        // Implementación de exportación a Excel usando librerías como SheetJS
-        console.log('Exportando a Excel:', datos);
-        this.showSuccess('Función de exportación a Excel pendiente de implementación');
-    }
-
-    exportarPDF(datos, titulo) {
-        // Implementación de exportación a PDF usando librerías como jsPDF
-        console.log('Exportando a PDF:', datos);
-        this.showSuccess('Función de exportación a PDF pendiente de implementación');
-    }
-
-    exportarCSV(datos, nombreArchivo) {
-        const csv = this.convertirArrayToCSV(datos);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        
-        if (link.download !== undefined) {
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `${nombreArchivo}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    }
-
-    convertirArrayToCSV(datos) {
-        if (datos.length === 0) return '';
-        
-        const headers = Object.keys(datos[0]);
-        const csvContent = [
-            headers.join(','),
-            ...datos.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
-        ].join('\n');
-        
-        return csvContent;
-    }
-
-    /**
-     * Funciones de debug y desarrollo
-     */
-
-    debug(mensaje, datos = null) {
-        if (typeof console !== 'undefined' && console.log) {
-            console.log(`[InventarioManager] ${mensaje}`, datos);
-        }
-    }
-
-    getEstadoActual() {
-        return {
-            tablaStock: this.tablaStock ? this.tablaStock.data().count() : 0,
-            tablaHistorial: this.tablaHistorial ? this.tablaHistorial.data().count() : 0,
-            productosSelect2: this.productosSelect2Data.length,
-            timestamp: new Date().toISOString()
-        };
     }
 }
 
 /**
- * Funciones globales para compatibilidad con eventos onclick en HTML
+ * INICIALIZACIÓN GLOBAL
  */
+let inventarioSistema;
 
-// Variable global para el manager de inventario
-let inventario;
-
-// Inicializar cuando el documento esté listo
-$(document).ready(function() {
-    inventario = new InventarioManager();
+// Inicializar cuando esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    inventarioSistema = new InventarioSistema();
     
-    // Exponer funciones globalmente para uso en botones
-    window.inventario = inventario;
+    // Exponer funciones globalmente para compatibilidad con HTML
+    window.inventario = inventarioSistema;
     
     // Funciones globales para eventos onclick
-    window.verDetalleProducto = (id) => inventario.verDetalleProducto(id);
-    window.verHistorialProducto = (id) => inventario.verHistorialProducto(id);
-    window.seleccionarProductoMovimiento = (id) => inventario.seleccionarProductoMovimiento(id);
+    window.verDetalleProducto = (id) => inventarioSistema.verDetalleProducto(id);
+    window.verHistorialProducto = (id) => inventarioSistema.verHistorialProducto(id);
+    window.seleccionarProductoMovimiento = (id) => inventarioSistema.seleccionarProductoMovimiento(id);
     
-    console.log('Sistema de inventario inicializado correctamente');
+    console.log('✅ Sistema de inventario cargado y listo para usar');
 });
 
-/**
- * Configuración de eventos globales para el módulo
- */
-
-// Limpiar eventos cuando se abandona la página
-$(window).on('beforeunload', function() {
-    if (inventario && inventario.tablaStock) {
-        inventario.tablaStock.destroy();
-    }
-    if (inventario && inventario.tablaHistorial) {
-        inventario.tablaHistorial.destroy();
-    }
-});
-
-// Manejar errores de JavaScript globales
+// Manejo de errores globales
 window.addEventListener('error', function(e) {
-    console.error('Error JavaScript en módulo de inventario:', e.error);
-    
-    // Solo mostrar errores críticos al usuario
-    if (e.error && e.error.message && e.error.message.includes('inventario')) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error del Sistema',
-            text: 'Ha ocurrido un error inesperado. Por favor, recargue la página.',
-            confirmButtonText: 'Recargar',
-            allowOutsideClick: false
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.reload();
-            }
-        });
-    }
+    console.error('Error JavaScript en sistema de inventario:', e.error);
 });
 
-/**
- * Configuraciones adicionales para mejorar la experiencia del usuario
- */
-
-// Prevenir envío doble de formularios
-$(document).on('submit', 'form', function() {
-    const submitButton = $(this).find('button[type="submit"]');
-    submitButton.prop('disabled', true);
-    
-    setTimeout(() => {
-        submitButton.prop('disabled', false);
-    }, 3000);
-});
-
-// Autoguardado de borradores (opcional)
-let borradorTimeout;
-$(document).on('input', '#form-ingresar-producto input, #form-ingresar-producto select, #form-ingresar-producto textarea', function() {
-    clearTimeout(borradorTimeout);
-    borradorTimeout = setTimeout(() => {
-        // Aquí podrías implementar autoguardado en localStorage
-        // localStorage.setItem('borrador_producto', JSON.stringify(formData));
-    }, 2000);
-});
-
-// Shortcuts de teclado útiles
-$(document).on('keydown', function(e) {
-    // Ctrl + Alt + I = Ir a pestaña de ingreso
-    if (e.ctrlKey && e.altKey && e.keyCode === 73) {
-        e.preventDefault();
-        $('#ingreso-tab').tab('show');
-    }
-    
-    // Ctrl + Alt + S = Ir a pestaña de stock
-    if (e.ctrlKey && e.altKey && e.keyCode === 83) {
-        e.preventDefault();
-        $('#stock-tab').tab('show');
-    }
-    
-    // Ctrl + Alt + M = Ir a pestaña de movimientos
-    if (e.ctrlKey && e.altKey && e.keyCode === 77) {
-        e.preventDefault();
-        $('#movimientos-tab').tab('show');
-    }
-    
-    // ESC = Cerrar modales
-    if (e.keyCode === 27) {
-        $('.modal').modal('hide');
-    }
-});
-
-// Tooltips informativos dinámicos
-$(document).on('mouseenter', '[data-info]', function() {
-    const info = $(this).data('info');
-    $(this).attr('title', info).tooltip('show');
-});
-
-/**
- * Validaciones adicionales en tiempo real
- */
-
-// Validar códigos de barras en tiempo real
-$(document).on('blur', '#producto_codigo_barra', function() {
-    const codigo = $(this).val().trim();
-    if (codigo && codigo.length < 8) {
-        $(this).addClass('is-invalid');
-        if (!$(this).siblings('.invalid-feedback').length) {
-            $(this).after('<div class="invalid-feedback">El código de barras debe tener al menos 8 caracteres</div>');
-        }
-    } else {
-        $(this).removeClass('is-invalid');
-        $(this).siblings('.invalid-feedback').remove();
-    }
-});
-
-// Validar cantidades numéricas
-$(document).on('input', 'input[type="number"]', function() {
-    const valor = parseInt($(this).val());
-    const min = parseInt($(this).attr('min')) || 0;
-    const max = parseInt($(this).attr('max')) || Infinity;
-    
-    if (valor < min || valor > max) {
-        $(this).addClass('is-invalid');
-    } else {
-        $(this).removeClass('is-invalid');
-    }
-});
-
-console.log('Módulo de inventario cargado completamente');
+console.log('📦 Sistema de Inventario - Armería v2.0 cargado completamente');

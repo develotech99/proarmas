@@ -3,14 +3,49 @@
 @section('title', 'Control de Inventario')
 
 @section('content')
+<style>
+        /* Estilos para las transiciones de pestañas */
+        .tab-pane {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        .tab-pane.active {
+            display: block;
+            opacity: 1;
+        }
+        
+        /* Estilos para los botones de pestañas */
+        .tab-button {
+            position: relative;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .tab-button.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+        }
+        
+        .tab-button:not(.active) {
+            color: #6b7280;
+        }
+        
+        .tab-button:not(.active):hover {
+            color: #374151;
+            border-bottom-color: #d1d5db;
+        }
+    </style>
+
+
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-    <!-- Header Principal con Gradiente Moderno -->
+    <!-- Header Principal -->
     <div class="relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600"></div>
         <div class="absolute inset-0 bg-black opacity-20"></div>
         <div class="relative px-4 py-8 sm:px-6 lg:px-8">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                <!-- Información Principal -->
                 <div class="flex items-center space-x-4 mb-6 lg:mb-0">
                     <div class="flex-shrink-0 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl p-4">
                         <svg class="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,253 +56,113 @@
                     <div class="text-white">
                         <h1 class="text-3xl font-bold tracking-tight">Control de Inventario</h1>
                         <p class="text-blue-100 text-lg">Sistema Integral de Armería</p>
-                        <div class="flex items-center space-x-4 mt-2">
-                            <div class="flex items-center space-x-2">
-                                <div class="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
-                                <span class="text-sm text-blue-100">Sistema Activo</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <svg class="h-4 w-4 text-blue-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                </svg>
-                                <span class="text-sm text-blue-100">Seguro & Confiable</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Breadcrumb y Usuario -->
-                <div class="text-right">
-                    <nav class="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg px-4 py-2 mb-4">
-                        <ol class="flex items-center space-x-2 text-sm text-white">
-                            <li>
-                                <a href="{{ route('dashboard') }}" class="hover:text-blue-200 transition-colors">
-                                    <svg class="h-4 w-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"/>
-                                    </svg>
-                                    Dashboard
-                                </a>
-                            </li>
-                            <li class="text-blue-200">/</li>
-                            <li class="font-medium">Inventario</li>
-                        </ol>
-                    </nav>
-                    <div class="text-right text-blue-100">
-                        <p class="text-sm">Bienvenido,</p>
-                        <p class="font-semibold">{{ Auth::user()->name }}</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Dashboard de Métricas Moderno -->
+    <!-- Dashboard de Métricas -->
     <div class="px-4 py-6 sm:px-6 lg:px-8 -mt-8 relative z-10">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-            <!-- Card 1: Productos Totales -->
-            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                <div class="relative">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                                Productos Totales
-                            </p>
-                            <div class="mt-2 flex items-baseline">
-                                <span class="text-3xl font-bold text-gray-900 dark:text-white" id="total-productos">
-                                    <div class="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-16 rounded"></div>
-                                </span>
-                            </div>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                En inventario activo
-                            </p>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-blue-100 dark:bg-blue-900 rounded-xl p-3 group-hover:bg-blue-200 dark:group-hover:bg-blue-800 transition-colors duration-300">
-                                <svg class="h-8 w-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                                </svg>
-                            </div>
+            <!-- Cards de métricas -->
+            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Productos Totales</p>
+                        <span class="text-3xl font-bold text-gray-900 dark:text-white" id="total-productos">126</span>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="bg-blue-100 dark:bg-blue-900 rounded-xl p-3">
+                            <svg class="h-8 w-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                            </svg>
                         </div>
                     </div>
                 </div>
-                <div class="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-b-2xl"></div>
             </div>
 
-            <!-- Card 2: Series Disponibles -->
-            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                <div class="absolute inset-0 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                <div class="relative">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                                Series Disponibles
-                            </p>
-                            <div class="mt-2 flex items-baseline">
-                                <span class="text-3xl font-bold text-gray-900 dark:text-white" id="total-series">
-                                    <div class="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-16 rounded"></div>
-                                </span>
-                            </div>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                Listas para venta
-                            </p>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-green-100 dark:bg-green-900 rounded-xl p-3 group-hover:bg-green-200 dark:group-hover:bg-green-800 transition-colors duration-300">
-                                <svg class="h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                                </svg>
-                            </div>
+            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Series Disponibles</p>
+                        <span class="text-3xl font-bold text-gray-900 dark:text-white" id="total-series">87</span>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="bg-green-100 dark:bg-green-900 rounded-xl p-3">
+                            <svg class="h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                            </svg>
                         </div>
                     </div>
                 </div>
-                <div class="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-green-600 rounded-b-2xl"></div>
             </div>
 
-            <!-- Card 3: Movimientos Hoy -->
-            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                <div class="absolute inset-0 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                <div class="relative">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                                Movimientos Hoy
-                            </p>
-                            <div class="mt-2 flex items-baseline">
-                                <span class="text-3xl font-bold text-gray-900 dark:text-white" id="movimientos-hoy">
-                                    <div class="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-16 rounded"></div>
-                                </span>
-                            </div>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                Transacciones registradas
-                            </p>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-purple-100 dark:bg-purple-900 rounded-xl p-3 group-hover:bg-purple-200 dark:group-hover:bg-purple-800 transition-colors duration-300">
-                                <svg class="h-8 w-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                                </svg>
-                            </div>
+            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Movimientos Hoy</p>
+                        <span class="text-3xl font-bold text-gray-900 dark:text-white" id="movimientos-hoy">23</span>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="bg-purple-100 dark:bg-purple-900 rounded-xl p-3">
+                            <svg class="h-8 w-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M8 7h12m0 0l-4-4m4 4l-4 4"/>
+                            </svg>
                         </div>
                     </div>
                 </div>
-                <div class="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600 rounded-b-2xl"></div>
             </div>
 
-            <!-- Card 4: Egresos del Mes -->
-            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                <div class="absolute inset-0 bg-gradient-to-r from-red-500 to-red-600 rounded-2xl opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                <div class="relative">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                                Egresos del Mes
-                            </p>
-                            <div class="mt-2 flex items-baseline">
-                                <span class="text-3xl font-bold text-gray-900 dark:text-white" id="egresos-mes">
-                                    <div class="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-16 rounded"></div>
-                                </span>
-                            </div>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                Productos egresados
-                            </p>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-red-100 dark:bg-red-900 rounded-xl p-3 group-hover:bg-red-200 dark:group-hover:bg-red-800 transition-colors duration-300">
-                                <svg class="h-8 w-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                </svg>
-                            </div>
+            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Egresos del Mes</p>
+                        <span class="text-3xl font-bold text-gray-900 dark:text-white" id="egresos-mes">15</span>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="bg-red-100 dark:bg-red-900 rounded-xl p-3">
+                            <svg class="h-8 w-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M17 16l4-4m0 0l-4-4m4 4H7"/>
+                            </svg>
                         </div>
                     </div>
                 </div>
-                <div class="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-red-600 rounded-b-2xl"></div>
             </div>
 
-            <!-- Card 5: Stock Bajo -->
-            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                <div class="absolute inset-0 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                <div class="relative">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                                Alertas de Stock
-                            </p>
-                            <div class="mt-2 flex items-baseline">
-                                <span class="text-3xl font-bold text-gray-900 dark:text-white" id="stock-bajo">
-                                    <div class="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-16 rounded"></div>
-                                </span>
-                            </div>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                Productos con stock bajo
-                            </p>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-amber-100 dark:bg-amber-900 rounded-xl p-3 group-hover:bg-amber-200 dark:group-hover:bg-amber-800 transition-colors duration-300">
-                                <svg class="h-8 w-8 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                                </svg>
-                            </div>
+            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Alertas de Stock</p>
+                        <span class="text-3xl font-bold text-gray-900 dark:text-white" id="stock-bajo">3</span>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="bg-amber-100 dark:bg-amber-900 rounded-xl p-3">
+                            <svg class="h-8 w-8 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M12 9v2m0 4h.01"/>
+                            </svg>
                         </div>
                     </div>
                 </div>
-                <div class="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-b-2xl"></div>
             </div>
         </div>
 
-        <!-- Sección de Gráficas -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Gráfica de Movimientos del Mes -->
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Movimientos del Mes</h3>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Ingresos</span>
-                        <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Egresos</span>
-                    </div>
-                </div>
-                <div class="h-64">
-                    <canvas id="grafica-movimientos" class="w-full h-full"></canvas>
-                </div>
-            </div>
-
-            <!-- Gráfica de Stock por Categoría -->
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Stock por Categoría</h3>
-                    <button class="text-sm text-blue-600 dark:text-blue-400 hover:underline" onclick="inventario.actualizarGraficas()">
-                        Actualizar
-                    </button>
-                </div>
-                <div class="h-64">
-                    <canvas id="grafica-stock-categoria" class="w-full h-full"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panel Principal con Pestañas Modernas -->
-    <div class="px-4 sm:px-6 lg:px-8 pb-8">
+        <!-- Panel Principal con Pestañas -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <!-- Header de Pestañas con Diseño Moderno -->
+            <!-- Header de Pestañas CORREGIDO -->
             <div class="relative">
                 <div class="absolute inset-0 bg-gradient-to-r from-slate-50 to-gray-100 dark:from-gray-800 dark:to-gray-900"></div>
                 <div class="relative border-b border-gray-200 dark:border-gray-700">
                     <nav class="flex space-x-8 px-6" aria-label="Tabs">
+                        <!-- Pestaña 1: Stock Actual -->
                         <button 
-                            id="stock-tab" 
-                            data-bs-toggle="pill" 
-                            data-bs-target="#stock-actual"
-                            class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 font-semibold text-sm transition-all duration-200 flex items-center space-x-2">
+                            class="tab-button active whitespace-nowrap py-4 px-1 font-semibold text-sm transition-all duration-200 flex items-center space-x-2"
+                            data-tab="stock-actual">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                                       d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
@@ -275,11 +170,10 @@
                             <span>Stock Actual</span>
                         </button>
                         
+                        <!-- Pestaña 2: Ingresar Producto -->
                         <button 
-                            id="ingreso-tab" 
-                            data-bs-toggle="pill" 
-                            data-bs-target="#ingresar-producto"
-                            class="tab-button whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 font-semibold text-sm transition-all duration-200 flex items-center space-x-2">
+                            class="tab-button whitespace-nowrap py-4 px-1 font-semibold text-sm transition-all duration-200 flex items-center space-x-2"
+                            data-tab="ingresar-producto">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                                       d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -287,47 +181,43 @@
                             <span>Ingresar Producto</span>
                         </button>
                         
+                        <!-- Pestaña 3: Egresos -->
                         <button 
-                            id="egresos-tab" 
-                            data-bs-toggle="pill" 
-                            data-bs-target="#egresos"
-                            class="tab-button whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 font-semibold text-sm transition-all duration-200 flex items-center space-x-2">
+                            class="tab-button whitespace-nowrap py-4 px-1 font-semibold text-sm transition-all duration-200 flex items-center space-x-2"
+                            data-tab="egresos">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                      d="M17 16l4-4m0 0l-4-4m4 4H7"/>
                             </svg>
                             <span>Egresos</span>
                         </button>
                         
+                        <!-- Pestaña 4: Movimientos -->
                         <button 
-                            id="movimientos-tab" 
-                            data-bs-toggle="pill" 
-                            data-bs-target="#movimientos"
-                            class="tab-button whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 font-semibold text-sm transition-all duration-200 flex items-center space-x-2">
+                            class="tab-button whitespace-nowrap py-4 px-1 font-semibold text-sm transition-all duration-200 flex items-center space-x-2"
+                            data-tab="movimientos">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                      d="M8 7h12m0 0l-4-4m4 4l-4 4"/>
                             </svg>
                             <span>Movimientos</span>
                         </button>
                         
+                        <!-- Pestaña 5: Gráficas -->
                         <button 
-                            id="graficas-tab" 
-                            data-bs-toggle="pill" 
-                            data-bs-target="#graficas-reportes"
-                            class="tab-button whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 font-semibold text-sm transition-all duration-200 flex items-center space-x-2">
+                            class="tab-button whitespace-nowrap py-4 px-1 font-semibold text-sm transition-all duration-200 flex items-center space-x-2"
+                            data-tab="graficas">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2z"/>
                             </svg>
                             <span>Gráficas</span>
                         </button>
                         
+                        <!-- Pestaña 6: Historial -->
                         <button 
-                            id="historial-tab" 
-                            data-bs-toggle="pill" 
-                            data-bs-target="#historial-movimientos"
-                            class="tab-button whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 font-semibold text-sm transition-all duration-200 flex items-center space-x-2">
+                            class="tab-button whitespace-nowrap py-4 px-1 font-semibold text-sm transition-all duration-200 flex items-center space-x-2"
+                            data-tab="historial">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -3324,11 +3214,9 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<!-- Scripts necesarios (CDN para el ejemplo) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.24/js/jquery.dataTables.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.0.19/sweetalert2.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
 
 @endsection
+
+
+@vite('resources/js/inventario/index.js')

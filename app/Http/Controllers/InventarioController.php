@@ -570,49 +570,49 @@ class InventarioController extends Controller
         }
     }
 
-    /**
-     * Obtiene detalles de un producto específico (ACTUALIZADO CON PRECIOS)
-     */
-    public function getDetalleProducto($producto_id): JsonResponse
-    {
-        try {
-            $producto = Producto::with(['fotos', 'series'])
-                ->findOrFail($producto_id);
+    // /**
+    //  * Obtiene detalles de un producto específico (ACTUALIZADO CON PRECIOS)
+    //  */
+    // public function getDetalleProducto($producto_id): JsonResponse
+    // {
+    //     try {
+    //         $producto = Producto::with(['fotos', 'series'])
+    //             ->findOrFail($producto_id);
 
-            // Obtener precio actual
-            $precioActual = Precio::where('precio_producto_id', $producto_id)
-                ->where('precio_situacion', 1)
-                ->latest('precio_fecha_asignacion')
-                ->first();
+    //         // Obtener precio actual
+    //         $precioActual = Precio::where('precio_producto_id', $producto_id)
+    //             ->where('precio_situacion', 1)
+    //             ->latest('precio_fecha_asignacion')
+    //             ->first();
 
-            // Obtener promociones activas
-            $promocionesActivas = Promocion::where('promo_producto_id', $producto_id)
-                ->where('promo_situacion', 1)
-                ->where('promo_fecha_inicio', '<=', now())
-                ->where('promo_fecha_fin', '>=', now())
-                ->get();
+    //         // Obtener promociones activas
+    //         $promocionesActivas = Promocion::where('promo_producto_id', $producto_id)
+    //             ->where('promo_situacion', 1)
+    //             ->where('promo_fecha_inicio', '<=', now())
+    //             ->where('promo_fecha_fin', '>=', now())
+    //             ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'producto' => $producto,
-                    'stock_actual' => $producto->stock_actual,
-                    'requiere_serie' => $producto->producto_requiere_serie,
-                    'fotos' => $producto->fotos,
-                    'series_disponibles' => $producto->seriesDisponibles()->count(),
-                    'series_total' => $producto->series()->count(),
-                    'precio_actual' => $precioActual,
-                    'promociones_activas' => $promocionesActivas
-                ]
-            ]);
+    //         return response()->json([
+    //             'success' => true,
+    //             'data' => [
+    //                 'producto' => $producto,
+    //                 'stock_actual' => $producto->stock_actual,
+    //                 'requiere_serie' => $producto->producto_requiere_serie,
+    //                 'fotos' => $producto->fotos,
+    //                 'series_disponibles' => $producto->seriesDisponibles()->count(),
+    //                 'series_total' => $producto->series()->count(),
+    //                 'precio_actual' => $precioActual,
+    //                 'promociones_activas' => $promocionesActivas
+    //             ]
+    //         ]);
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al cargar detalles: ' . $e->getMessage()
-            ], 500);
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Error al cargar detalles: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
 
     /**
      * Obtener subcategorías por categoría
@@ -753,4 +753,706 @@ class InventarioController extends Controller
             $esPrimera = false;
         }
     }
+
+
+
+/**
+ * Obtener detalles de un producto específico
+ */
+public function getDetalleProducto($id): JsonResponse
+{
+    try {
+        $producto = Producto::with(['fotos', 'precios', 'promociones'])
+            ->where('producto_id', $id)
+            ->where('producto_situacion', 1)
+            ->first();
+
+        if (!$producto) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Producto no encontrado'
+            ], 404);
+        }
+
+        $data = [
+            'producto_id' => $producto->producto_id,
+            'producto_nombre' => $producto->producto_nombre,
+            'codigo_barra' => $producto->producto_codigo_barra,
+            'requiere_serie' => $producto->producto_requiere_serie,
+            'es_importado' => $producto->producto_es_importado,
+            'stock_actual' => $producto->stock_actual,
+            'series_disponibles' => $producto->producto_requiere_serie ? 
+                $producto->seriesDisponibles()->count() : 0,
+            'fotos' => $producto->fotos->map(function($foto) {
+                return [
+                    'foto_id' => $foto->foto_id,
+                    'foto_url' => $foto->foto_url,
+                    'foto_principal' => $foto->foto_principal
+                ];
+            }),
+            'precios' => $producto->precios->map(function($precio) {
+                return [
+                    'precio_costo' => $precio->precio_costo,
+                    'precio_venta' => $precio->precio_venta,
+                    'precio_especial' => $precio->precio_especial
+                ];
+            })
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener detalles: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Obtener movimientos de un producto específico
+ */
+public function getMovimientosProducto($id): JsonResponse
+{
+    try {
+        $movimientos = Movimiento::where('mov_producto_id', $id)
+            ->where('mov_situacion', 1)
+            ->with(['lote:lote_id,lote_codigo'])
+            ->orderBy('mov_fecha', 'desc')
+            ->get();
+
+        $data = $movimientos->map(function($mov) {
+            return [
+                'mov_id' => $mov->mov_id,
+                'fecha' => $mov->mov_fecha->format('d/m/Y H:i'),
+                'tipo' => ucfirst($mov->mov_tipo),
+                'cantidad' => $mov->mov_cantidad,
+                'origen' => $mov->mov_origen,
+                'usuario' => 'Usuario ID: ' . $mov->mov_usuario_id,
+                'lote' => $mov->lote ? $mov->lote->lote_codigo : 'N/A',
+                'observaciones' => $mov->mov_observaciones
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener movimientos: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Obtener series disponibles de un producto
+ */
+public function getSeriesProducto($id): JsonResponse
+{
+    try {
+        $producto = Producto::find($id);
+        
+        if (!$producto || !$producto->producto_requiere_serie) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El producto no requiere series o no existe'
+            ], 400);
+        }
+
+        $series = SerieProducto::where('serie_producto_id', $id)
+            ->where('serie_estado', 'disponible')
+            ->where('serie_situacion', 1)
+            ->with(['lote:lote_id,lote_codigo'])
+            ->get();
+
+        $data = $series->map(function($serie) {
+            return [
+                'serie_id' => $serie->serie_id,
+                'serie_numero_serie' => $serie->serie_numero_serie,
+                'serie_fecha_ingreso' => $serie->serie_fecha_ingreso,
+                'lote' => $serie->lote ? $serie->lote->lote_codigo : null
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener series: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Verificar si un número de serie está disponible
+ */
+public function verificarSerie($numero_serie): JsonResponse
+{
+    try {
+        $serie = SerieProducto::where('serie_numero_serie', $numero_serie)
+            ->where('serie_situacion', 1)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'disponible' => !$serie,
+            'mensaje' => $serie ? 'El número de serie ya existe' : 'Número de serie disponible'
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al verificar serie: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Registrar egreso de productos
+ */
+public function registrarEgreso(Request $request): JsonResponse
+{
+    $validator = Validator::make($request->all(), [
+        'producto_id' => 'required|exists:pro_productos,producto_id',
+        'mov_tipo' => 'required|in:egreso,baja,devolucion,prestamo',
+        'mov_origen' => 'required|string|max:100',
+        'mov_observaciones' => 'required|string|max:255',
+        'mov_cantidad' => 'required_without:series_seleccionadas|integer|min:1',
+        'series_seleccionadas' => 'required_without:mov_cantidad|array'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    try {
+        DB::beginTransaction();
+
+        $producto = Producto::find($request->producto_id);
+        
+        if ($producto->producto_requiere_serie) {
+            // Manejar egreso por series
+            $seriesIds = $request->series_seleccionadas;
+            $cantidad = count($seriesIds);
+
+            // Actualizar estado de las series
+            SerieProducto::whereIn('serie_id', $seriesIds)
+                ->update(['serie_estado' => 'vendido']);
+
+        } else {
+            // Manejar egreso por cantidad
+            $cantidad = $request->mov_cantidad;
+            
+            if ($producto->stock_actual < $cantidad) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stock insuficiente'
+                ], 400);
+            }
+        }
+
+        // Registrar el movimiento
+        $movimiento = Movimiento::create([
+            'mov_producto_id' => $request->producto_id,
+            'mov_tipo' => $request->mov_tipo,
+            'mov_origen' => $request->mov_origen,
+            'mov_cantidad' => $cantidad,
+            'mov_fecha' => now(),
+            'mov_usuario_id' => auth()->id() ?? 1,
+            'mov_observaciones' => $request->mov_observaciones,
+            'mov_situacion' => 1
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Egreso registrado exitosamente',
+            'data' => ['movimiento_id' => $movimiento->mov_id]
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al registrar egreso: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Exportar stock a Excel
+ */
+public function exportarStock(Request $request)
+{
+    try {
+        $formato = $request->get('formato', 'excel');
+        
+        $productos = Producto::activos()
+            ->leftJoin('pro_categorias', 'pro_productos.producto_categoria_id', '=', 'pro_categorias.categoria_id')
+            ->leftJoin('pro_marcas', 'pro_productos.producto_marca_id', '=', 'pro_marcas.marca_id')
+            ->leftJoin('pro_modelo', 'pro_productos.producto_modelo_id', '=', 'pro_modelo.modelo_id')
+            ->select([
+                'pro_productos.producto_nombre',
+                'pro_productos.producto_codigo_barra',
+                'pro_categorias.categoria_nombre',
+                'pro_marcas.marca_descripcion',
+                'pro_modelo.modelo_descripcion'
+            ])
+            ->get();
+
+        // Agregar cálculo de stock
+        $data = $productos->map(function($producto) {
+            $productoModel = Producto::find($producto->producto_id);
+            return [
+                'Nombre' => $producto->producto_nombre,
+                'Código de Barras' => $producto->producto_codigo_barra ?: 'Sin código',
+                'Categoría' => $producto->categoria_nombre ?: '-',
+                'Marca' => $producto->marca_descripcion ?: '-',
+                'Modelo' => $producto->modelo_descripcion ?: '-',
+                'Stock Actual' => $productoModel->stock_actual,
+                'Estado' => $productoModel->stock_actual > 5 ? 'Normal' : 
+                           ($productoModel->stock_actual > 0 ? 'Bajo' : 'Agotado')
+            ];
+        });
+
+        if ($formato === 'excel') {
+            // Generar Excel
+            $filename = 'stock_inventario_' . date('Y-m-d_H-i-s') . '.xlsx';
+            
+            // Aquí puedes usar Laravel Excel o crear manualmente
+            // Por ahora, retorno CSV como Excel básico
+            $csv = $this->generateCSV($data);
+            
+            return response($csv, 200, [
+                'Content-Type' => 'application/vnd.ms-excel',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
+        }
+
+        // Otros formatos...
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al exportar: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Exportar movimientos
+ */
+public function exportarMovimientos(Request $request)
+{
+    try {
+        $formato = $request->get('formato', 'excel');
+        
+        $movimientos = Movimiento::with(['producto:producto_id,producto_nombre'])
+            ->where('mov_situacion', 1)
+            ->orderBy('mov_fecha', 'desc')
+            ->get();
+
+        $data = $movimientos->map(function($mov) {
+            return [
+                'Fecha' => $mov->mov_fecha->format('d/m/Y H:i'),
+                'Producto' => $mov->producto ? $mov->producto->producto_nombre : 'N/A',
+                'Tipo' => ucfirst($mov->mov_tipo),
+                'Cantidad' => $mov->mov_cantidad,
+                'Origen/Destino' => $mov->mov_origen,
+                'Usuario' => 'Usuario ID: ' . $mov->mov_usuario_id,
+                'Observaciones' => $mov->mov_observaciones
+            ];
+        });
+
+        if ($formato === 'excel') {
+            $filename = 'movimientos_inventario_' . date('Y-m-d_H-i-s') . '.xlsx';
+            $csv = $this->generateCSV($data);
+            
+            return response($csv, 200, [
+                'Content-Type' => 'application/vnd.ms-excel',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
+        }
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al exportar movimientos: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Generar CSV desde array de datos
+ */
+private function generateCSV($data)
+{
+    if (empty($data)) {
+        return '';
+    }
+
+    $output = fopen('php://temp', 'r+');
+    
+    // Headers
+    fputcsv($output, array_keys($data[0]));
+    
+    // Data
+    foreach ($data as $row) {
+        fputcsv($output, $row);
+    }
+    
+    rewind($output);
+    $csv = stream_get_contents($output);
+    fclose($output);
+    
+    return $csv;
+}
+
+// Agregar estos métodos al final de tu InventarioController existente:
+
+/**
+ * Actualizar un producto existente
+ */
+public function actualizarProducto(Request $request, $id): JsonResponse
+{
+    try {
+        $producto = Producto::findOrFail($id);
+        
+        $validator = Validator::make($request->all(), [
+            'producto_nombre' => 'required|string|max:100',
+            'producto_codigo_barra' => 'nullable|string|max:100|unique:pro_productos,producto_codigo_barra,' . $id . ',producto_id',
+            'producto_categoria_id' => 'required|integer|exists:pro_categorias,categoria_id',
+            'producto_subcategoria_id' => 'required|integer|exists:pro_subcategorias,subcategoria_id',
+            'producto_marca_id' => 'required|integer|exists:pro_marcas,marca_id',
+            'producto_modelo_id' => 'nullable|integer|exists:pro_modelo,modelo_id',
+            'producto_calibre_id' => 'nullable|integer|exists:pro_calibres,calibre_id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $producto->update($request->only([
+            'producto_nombre', 'producto_codigo_barra', 'producto_categoria_id',
+            'producto_subcategoria_id', 'producto_marca_id', 'producto_modelo_id',
+            'producto_calibre_id'
+        ]));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto actualizado correctamente',
+            'data' => $producto
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar producto: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Eliminar producto (cambiar estado a inactivo)
+ */
+public function eliminarProducto($id): JsonResponse
+{
+    try {
+        $producto = Producto::findOrFail($id);
+        
+        // Verificar que no tenga stock antes de eliminar
+        if ($producto->stock_actual > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede eliminar un producto con stock. Stock actual: ' . $producto->stock_actual
+            ], 400);
+        }
+
+        $producto->update(['producto_situacion' => 0]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto eliminado correctamente'
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar producto: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Eliminar promoción
+ */
+public function eliminarPromocion($id): JsonResponse
+{
+    try {
+        $promocion = Promocion::findOrFail($id);
+        $promocion->update(['promo_situacion' => 0]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Promoción eliminada correctamente'
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar promoción: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Obtener lotes
+ */
+public function getLotes(): JsonResponse
+{
+    try {
+        $lotes = Lote::where('lote_situacion', 1)
+            ->orderBy('lote_fecha', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $lotes
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar lotes: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Crear nuevo lote
+ */
+public function crearLote(Request $request): JsonResponse
+{
+    $validator = Validator::make($request->all(), [
+        'lote_codigo' => 'required|string|max:100|unique:pro_lotes,lote_codigo',
+        'lote_descripcion' => 'nullable|string|max:255'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    try {
+        $lote = Lote::create([
+            'lote_codigo' => $request->lote_codigo,
+            'lote_descripcion' => $request->lote_descripcion,
+            'lote_situacion' => 1
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lote creado correctamente',
+            'data' => $lote
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al crear lote: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Obtener alertas de stock bajo
+ */
+public function getAlertasStock(): JsonResponse
+{
+    try {
+        $productos = Producto::where('producto_situacion', 1)->get();
+        
+        $alertas = $productos->filter(function($producto) {
+            return $producto->stock_actual > 0 && $producto->stock_actual <= 5;
+        })->map(function($producto) {
+            return [
+                'producto_id' => $producto->producto_id,
+                'producto_nombre' => $producto->producto_nombre,
+                'stock_actual' => $producto->stock_actual,
+                'nivel_alerta' => $producto->stock_actual <= 2 ? 'critico' : 'bajo'
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $alertas->values()
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar alertas: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Búsqueda avanzada de productos
+ */
+public function buscarProductos(Request $request): JsonResponse
+{
+    try {
+        $query = Producto::where('producto_situacion', 1);
+
+        if ($request->filled('termino')) {
+            $termino = $request->termino;
+            $query->where(function($q) use ($termino) {
+                $q->where('producto_nombre', 'LIKE', "%{$termino}%")
+                  ->orWhere('producto_codigo_barra', 'LIKE', "%{$termino}%");
+            });
+        }
+
+        if ($request->filled('categoria_id')) {
+            $query->where('producto_categoria_id', $request->categoria_id);
+        }
+
+        if ($request->filled('marca_id')) {
+            $query->where('producto_marca_id', $request->marca_id);
+        }
+
+        $productos = $query->with(['categoria', 'marca', 'modelo'])
+            ->limit(50)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $productos
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en la búsqueda: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Reporte completo
+ */
+public function reporteCompleto(): JsonResponse
+{
+    try {
+        $datos = [
+            'resumen' => [
+                'total_productos' => Producto::where('producto_situacion', 1)->count(),
+                'total_movimientos' => Movimiento::where('mov_situacion', 1)->count(),
+                'productos_con_stock' => Producto::where('producto_situacion', 1)
+                    ->get()->filter(function($p) { return $p->stock_actual > 0; })->count(),
+                'productos_sin_stock' => Producto::where('producto_situacion', 1)
+                    ->get()->filter(function($p) { return $p->stock_actual == 0; })->count(),
+            ],
+            'fecha_generacion' => now()->format('d/m/Y H:i:s')
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $datos
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar reporte: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Análisis de productos
+ */
+public function analisisProductos(): JsonResponse
+{
+    try {
+        $productos = Producto::where('producto_situacion', 1)->get();
+        
+        $analisis = $productos->map(function($producto) {
+            $movimientos = Movimiento::where('mov_producto_id', $producto->producto_id)
+                ->where('mov_situacion', 1)
+                ->get();
+            
+            return [
+                'producto_id' => $producto->producto_id,
+                'producto_nombre' => $producto->producto_nombre,
+                'stock_actual' => $producto->stock_actual,
+                'total_ingresos' => $movimientos->where('mov_tipo', 'ingreso')->sum('mov_cantidad'),
+                'total_egresos' => $movimientos->whereIn('mov_tipo', ['egreso', 'venta', 'baja'])->sum('mov_cantidad'),
+                'ultimo_movimiento' => $movimientos->max('mov_fecha')
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $analisis
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en análisis: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+// Métodos placeholder para gráficas (implementar según necesidades específicas)
+public function graficaMovimientos(): JsonResponse
+{
+    return response()->json([
+        'success' => true,
+        'data' => ['labels' => [], 'datasets' => []]
+    ]);
+}
+
+public function graficaStockCategoria(): JsonResponse
+{
+    return response()->json([
+        'success' => true,
+        'data' => ['labels' => [], 'datasets' => []]
+    ]);
+}
+
+public function graficaTendencias(): JsonResponse
+{
+    return response()->json([
+        'success' => true,
+        'data' => ['labels' => [], 'datasets' => []]
+    ]);
+}
+
+public function graficaTopProductos(): JsonResponse
+{
+    return response()->json([
+        'success' => true,
+        'data' => ['labels' => [], 'datasets' => []]
+    ]);
+}
 }
