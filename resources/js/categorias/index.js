@@ -398,7 +398,6 @@ class CategoriasManager {
         
         // Llenar el formulario
         document.getElementById('categoria_nombre').value = categoria.categoria_nombre;
-        document.getElementById('categoria_situacion').value = categoria.categoria_situacion.toString();
         
         this.showModal('categoria');
     }
@@ -435,7 +434,7 @@ class CategoriasManager {
         this.loadCategoriasForSelect().then(() => {
             document.getElementById('subcategoria_idcategoria').value = subcategoria.categoria_id;
             document.getElementById('subcategoria_nombre').value = subcategoria.subcategoria_nombre;
-            document.getElementById('subcategoria_situacion').value = subcategoria.subcategoria_situacion.toString();
+
         });
         
         this.showModal('subcategoria');
@@ -679,7 +678,7 @@ class CategoriasManager {
      */
     validateCategoriaForm() {
         const nombre = document.getElementById('categoria_nombre').value.trim();
-        const situacion = document.getElementById('categoria_situacion').value;
+   
         
         this.clearErrors('categoria');
         
@@ -693,10 +692,6 @@ class CategoriasManager {
             isValid = false;
         }
         
-        if (!situacion) {
-            this.showFieldError('categoria_situacion', 'El estado es obligatorio');
-            isValid = false;
-        }
         
         return isValid;
     }
@@ -707,7 +702,7 @@ class CategoriasManager {
     validateSubcategoriaForm() {
         const nombre = document.getElementById('subcategoria_nombre').value.trim();
         const categoria = document.getElementById('subcategoria_idcategoria').value;
-        const situacion = document.getElementById('subcategoria_situacion').value;
+  
         
         this.clearErrors('subcategoria');
         
@@ -726,10 +721,6 @@ class CategoriasManager {
             isValid = false;
         }
         
-        if (!situacion) {
-            this.showFieldError('subcategoria_situacion', 'El estado es obligatorio');
-            isValid = false;
-        }
         
         return isValid;
     }

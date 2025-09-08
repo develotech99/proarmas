@@ -3,25 +3,31 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProModelo;
+use App\Models\Marcas;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ProModeloController extends Controller
 {
-
     public function index()
     {
+        $modelos = ProModelo::with('marca')
+                           ->orderBy('modelo_descripcion')
+                           ->paginate(20);
+        
+        // Para uso en JavaScript
+        $modelosData = $modelos->getCollection()->map(function($modelo) {
+            return [
+                'modelo_id' => $modelo->modelo_id,
+                'modelo_descripcion' => $modelo->modelo_descripcion,
+                'modelo_situacion' => $modelo->modelo_situacion,
+                'modelo_marca_id' => $modelo->modelo_marca_id,
+                'marca_nombre' => $modelo->marca ? $modelo->marca->marca_descripcion : null,
+                'created_at' => $modelo->created_at,
+            ];
+        });
 
-        $modelos = ProModelo::orderBy('modelo_descripcion')->paginate(20);
-        return view('modelos.index', compact('modelos'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+        return view('modelos.index', compact('modelos', 'modelosData'));
     }
 
     /**
@@ -29,19 +35,21 @@ class ProModeloController extends Controller
      */
     public function store(Request $request)
     {
-
         $request->validate([
             'modelo_descripcion' => 'required|string|max:50|unique:pro_modelo,modelo_descripcion',
+            'modelo_marca_id' => 'required|exists:pro_marcas,marca_id'
         ], [
-            'modelo_descripcion.required' => 'La descripcion es obligatoria',
-            'modelo_descripcion.max' => 'La descripcion no puede tener mas de 50 caracteres',
-            'modelo_descripcion.unique' => 'Ya existe un registro con el mismo nombre, revise'
+            'modelo_descripcion.required' => 'La descripción es obligatoria',
+            'modelo_descripcion.max' => 'La descripción no puede tener más de 50 caracteres',
+            'modelo_descripcion.unique' => 'Ya existe un modelo con el mismo nombre',
+            'modelo_marca_id.required' => 'La marca es obligatoria',
+            'modelo_marca_id.exists' => 'La marca seleccionada no existe'
         ]);
-
 
         try {
             ProModelo::create([
                 'modelo_descripcion' => trim($request->modelo_descripcion),
+                'modelo_marca_id' => $request->modelo_marca_id,
                 'modelo_situacion' => 1
             ]);
 
@@ -52,14 +60,15 @@ class ProModeloController extends Controller
                 ]);
             }
 
-            return  redirect()->route('modelos.index')
+            return redirect()->route('modelos.index')
                 ->with('success', 'Modelo creado exitosamente');
+                
         } catch (\Exception $e) {
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'mensaje' => 'Error al crear el modelo: ' . $e->getMessage()
-                ], 404);
+                ], 500);
             }
 
             return redirect()->back()
@@ -69,23 +78,10 @@ class ProModeloController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(ProModelo $proModelo)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
+     * Update the specified resource in storage.
      */
     public function edit(Request $request)
     {
-        // return response()->json([
-        //     'success' => false,
-        //     'form_data' => $request->all()
-        // ], 404);
-
         $id = (int)$request->modelo_id;
         $modelo = ProModelo::findOrFail($id);
 
@@ -98,17 +94,19 @@ class ProModeloController extends Controller
                     ->ignore($modelo->modelo_id, 'modelo_id')
                     ->where(fn($q) => $q->where('modelo_situacion', 1))
             ],
+            'modelo_marca_id' => 'required|exists:pro_marcas,marca_id'
         ], [
-
-            'modelo_descripcion.required' => 'La descripcion es obligatoria',
-            'modelo_descripcion.max' => 'La descripcion no puede tener mas de 50 caracteres.',
-            'modelo_descripcion.unique' => 'Ya existe un registro con el mismo nombre.'
+            'modelo_descripcion.required' => 'La descripción es obligatoria',
+            'modelo_descripcion.max' => 'La descripción no puede tener más de 50 caracteres',
+            'modelo_descripcion.unique' => 'Ya existe un modelo con el mismo nombre',
+            'modelo_marca_id.required' => 'La marca es obligatoria',
+            'modelo_marca_id.exists' => 'La marca seleccionada no existe'
         ]);
 
         try {
-
             $modelo->update([
                 'modelo_descripcion' => trim($request->modelo_descripcion),
+                'modelo_marca_id' => $request->modelo_marca_id,
             ]);
 
             if ($request->ajax()) {
@@ -119,13 +117,14 @@ class ProModeloController extends Controller
             }
 
             return redirect()->route('modelos.index')
-                ->with('success', 'modelo actualizado correctamente');
+                ->with('success', 'Modelo actualizado correctamente');
+                
         } catch (\Exception $e) {
             if ($request->ajax()) {
-                return  response()->json([
+                return response()->json([
                     'success' => false,
-                    'mensaje' => 'eror al actualizar' . $e->getMessage()
-                ], 404);
+                    'mensaje' => 'Error al actualizar: ' . $e->getMessage()
+                ], 500);
             }
 
             return redirect()->back()
@@ -135,33 +134,37 @@ class ProModeloController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ProModelo $proModelo)
-    {
-        //
-    }
-
-    /**
      * Remove the specified resource from storage.
      */
     public function destroy(Request $request)
     {
-
         try {
-
             $id = (int) $request->modelo_id;
             $modelo = ProModelo::findOrFail($id);
 
             $modelo->delete();
 
             return redirect()->route('modelos.index')
-                ->with('succes', 'Modelo eliminado correctamente');
+                ->with('success', 'Modelo eliminado correctamente');
+                
         } catch (\Exception $e) {
-
-
             return redirect()->route('modelos.index')
-                ->with('error', 'Error al eliminar el modelo, puede tener registro relacionados');
+                ->with('error', 'Error al eliminar el modelo, puede tener registros relacionados');
         }
+    }
+
+    /**
+     * Get active brands for select options
+     */
+    public function getMarcasActivas()
+    {
+        $marcas = Marcas::activos() // Cambiar scopeActivos() por activos()
+                       ->orderBy('marca_descripcion')
+                       ->get(['marca_id', 'marca_descripcion']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $marcas
+        ]);
     }
 }
