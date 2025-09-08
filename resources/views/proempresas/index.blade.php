@@ -1,24 +1,28 @@
 @extends('layouts.app')
 
-@section('title', 'Gestión de Países')
+@section('title', 'Gestión de Empresas de Importación')
 
 @section('content')
 <!-- Meta tag para CSRF token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
+
 <!-- Pasar datos a JavaScript -->
+<script id="empresas-data" type="application/json">
+@json($empresas->items())
+</script>
 <script id="paises-data" type="application/json">
-@json($paises->items())
+@json($paises)
 </script>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" 
-     x-data="paisesManager()">
+     x-data="empresasManager()">
     
     <!-- Header -->
     <div class="md:flex md:items-center md:justify-between mb-6">
         <div class="min-w-0 flex-1">
             <h2 class="text-2xl font-bold leading-7 text-gray-900 dark:text-gray-800 sm:text-3xl sm:truncate">
-                Gestión de Países
+                Gestión de Empresas de Importación
             </h2>
         </div>
         <div class="mt-4 flex md:mt-0 md:ml-4">
@@ -27,7 +31,7 @@
                 <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                Nuevo País
+                Nueva Empresa
             </button>
         </div>
     </div>
@@ -63,6 +67,35 @@
         </div>
     @endif
 
+
+<!-- Alertas Dinámicas -->
+<div class="fixed top-4 right-4 z-50">
+    <template x-for="alert in alerts" :key="alert.id">
+        <div x-show="alert" 
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 transform translate-y-2"
+             x-transition:enter-end="opacity-100 transform translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="mb-2 rounded-md p-4 shadow-lg max-w-sm"
+             :class="{
+                'bg-green-50 text-green-800 border border-green-200': alert.type === 'success',
+                'bg-red-50 text-red-800 border border-red-200': alert.type === 'error'
+             }">
+            
+            <div class="flex justify-between items-center">
+                <span x-text="alert.message" class="text-sm font-medium"></span>
+                <button @click="removeAlert(alert.id)" class="ml-2 text-current opacity-70 hover:opacity-100">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </template>
+</div>
+
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-6">
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
@@ -70,13 +103,13 @@
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Países</dt>
-                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ $paises->total() }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Empresas</dt>
+                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ $empresas->total() }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -93,8 +126,8 @@
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Activos</dt>
-                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ $paises->where('pais_situacion', 1)->count() }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Activas</dt>
+                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ $empresas->where('empresaimp_situacion', 1)->count() }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -111,8 +144,8 @@
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Inactivos</dt>
-                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ $paises->where('pais_situacion', 0)->count() }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Inactivas</dt>
+                            <dd class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ $empresas->where('empresaimp_situacion', 0)->count() }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -125,21 +158,32 @@
         <div class="px-4 py-5 sm:p-6">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar país</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar empresa</label>
                     <input type="text" 
                            x-model="searchTerm" 
-                           @input="filterPaises()"
-                           placeholder="Escribir nombre del país..."
+                           @input="filterEmpresas()"
+                           placeholder="Escribir descripción de empresa..."
                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por país</label>
+                    <select x-model="paisFilter" 
+                            @change="filterEmpresas()"
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                        <option value="">Todos los países</option>
+                        @foreach($paises as $pais)
+                            <option value="{{ $pais->pais_id }}">{{ $pais->pais_descripcion }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por estado</label>
                     <select x-model="statusFilter" 
-                            @change="filterPaises()"
+                            @change="filterEmpresas()"
                             class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
                         <option value="">Todos los estados</option>
-                        <option value="1">Activos</option>
-                        <option value="0">Inactivos</option>
+                        <option value="1">Activas</option>
+                        <option value="0">Inactivas</option>
                     </select>
                 </div>
                 <div class="flex items-end">
@@ -164,6 +208,9 @@
                                     ID
                                 </th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Empresa
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                     País
                                 </th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -178,44 +225,49 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            @forelse ($paises as $pais)
-                                <tr x-show="showPais({{ $pais->pais_id }})" x-transition>
+                            @forelse ($empresas as $empresa)
+                                <tr x-show="showEmpresa({{ $empresa->empresaimp_id }})" x-transition>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                        {{ $pais->pais_id }}
+                                        {{ $empresa->empresaimp_id }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
                                             <div class="flex-shrink-0 h-8 w-8">
                                                 <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
-                                                    <span class="text-xs font-medium text-white">{{ strtoupper(substr($pais->pais_descripcion, 0, 2)) }}</span>
+                                                    <span class="text-xs font-medium text-white">{{ strtoupper(substr($empresa->empresaimp_descripcion ?? 'EM', 0, 2)) }}</span>
                                                 </div>
                                             </div>
                                             <div class="ml-4">
                                                 <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                    {{ $pais->pais_descripcion }}
+                                                    {{ $empresa->empresaimp_descripcion ?? 'Sin descripción' }}
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200">
+                                            {{ $empresa->pais->pais_descripcion ?? 'Sin país' }}
+                                        </span>
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full 
-                                            {{ $pais->pais_situacion == 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}"
-                                              data-status="{{ $pais->pais_situacion }}">
-                                            {{ $pais->pais_situacion == 1 ? 'Activo' : 'Inactivo' }}
+                                            {{ $empresa->empresaimp_situacion == 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}"
+                                              data-status="{{ $empresa->empresaimp_situacion }}">
+                                            {{ $empresa->empresaimp_situacion == 1 ? 'Activa' : 'Inactiva' }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        {{ $pais->created_at->format('d/m/Y') }}
+                                        {{ $empresa->created_at ? $empresa->created_at->format('d/m/Y') : 'N/A' }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div class="flex items-center space-x-2">
-                                            <button @click="editPais({{ $pais->pais_id }})" 
+                                            <button @click="editEmpresa({{ $empresa->empresaimp_id }})" 
                                                     class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
                                             </button>
-                                            <button @click="deletePais({{ $pais->pais_id }})" 
+                                            <button @click="deleteEmpresa({{ $empresa->empresaimp_id }})" 
                                                     class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -226,12 +278,12 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
+                                    <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
                                         <div class="flex flex-col items-center">
                                             <svg class="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                             </svg>
-                                            <p class="mt-2">No hay países registrados.</p>
+                                            <p class="mt-2">No hay empresas de importación registradas.</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -244,11 +296,38 @@
     </div>
 
     <!-- Pagination -->
-    @if($paises->hasPages())
+    @if($empresas->hasPages())
         <div class="mt-6">
-            {{ $paises->links() }}
+            {{ $empresas->links() }}
         </div>
     @endif
+<!-- Alertas Dinámicas -->
+<div class="fixed top-4 right-4 z-50">
+    <template x-for="alert in alerts" :key="alert.id">
+        <div 
+            x-show="alert"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform translate-y-2"
+            x-transition:enter-end="opacity-100 transform translate-y-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="mb-2 rounded-md p-4 shadow-lg max-w-sm"
+            :class="{
+                'bg-green-50 text-green-800 border border-green-200': alert.type === 'success',
+                'bg-red-50 text-red-800 border border-red-200': alert.type === 'error'
+            }">
+            <div class="flex justify-between items-center">
+                <span x-text="alert.message" class="text-sm font-medium"></span>
+                <button @click="removeAlert(alert.id)" class="ml-2 text-current opacity-70 hover:opacity-100">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </template>
+</div>
 
     <!-- Modal para Crear/Editar -->
     <div x-show="showModal" 
@@ -274,32 +353,45 @@
                 
                 <form @submit="handleFormSubmit($event)">
                     <div class="mb-4">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100" x-text="isEditing ? 'Editar País' : 'Crear Nuevo País'"></h3>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100" x-text="isEditing ? 'Editar Empresa' : 'Crear Nueva Empresa'"></h3>
                     </div>
 
                     <div class="grid grid-cols-1 gap-4">
-                        <!-- Nombre del País -->
+                        <!-- País -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del país</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">País</label>
+                            <select x-model="formData.empresaimp_pais"
+                                    required
+                                    @change="validateForm()"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                                <option value="">Seleccionar País</option>
+                                @foreach($paises as $pais)
+                                    <option value="{{ $pais->pais_id }}">{{ $pais->pais_descripcion }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
                             <input type="text" 
-                                   x-model="formData.pais_descripcion"
-                                   required
+                                   x-model="formData.empresaimp_descripcion"
                                    maxlength="50"
                                    @input="validateForm()"
-                                   placeholder="Ej: Guatemala, México, España, etc."
+                                   placeholder="Ej: Empresa XYZ S.A."
                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
                         </div>
 
-                        <!-- Estado -->
+                        <!-- Situación -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
-                            <select x-model="formData.pais_situacion"
+                            <select x-model="formData.empresaimp_situacion"
                                     required
                                     @change="validateForm()"
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
                                 <option value="">Seleccionar estado</option>
-                                <option value="1">Activo</option>
-                                <option value="0">Inactivo</option>
+                                <option value="1">Activa</option>
+                                <option value="0">Inactiva</option>
                             </select>
                         </div>
                     </div>
@@ -329,6 +421,30 @@
     </div>
 </div>
 
+
+
+<!-- Scripts de Debug -->
+<script>
+    console.log('Países cargados:', @json($paises));
+    console.log('Total países:', {{ $paises->count() }});
+    
+    @if($paises->count() > 0)
+        @foreach($paises as $pais)
+            console.log('País:', {
+                id: '{{ $pais->pais_id }}',
+                nombre: '{{ $pais->pais_nombre }}'
+            });
+        @endforeach
+    @else
+        console.log('No se encontraron países');
+    @endif
+    
+    console.log('Empresas:', @json($empresas->items()));
+    console.log('Total empresas:', {{ $empresas->total() }});
+
+    
+</script>
+
 @endsection
 
-@vite('resources/js/paises/index.js')
+@vite('resources/js/empresas/index.js')
