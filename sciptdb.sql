@@ -9,6 +9,7 @@ CREATE TABLE roles (
 );
 
 
+
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     user_primer_nombre VARCHAR(100),
@@ -40,11 +41,7 @@ CREATE TABLE pro_metodos_pago (
 ); 
 
 --marin
-CREATE TABLE pro_paises (
-    pais_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de país',
-    pais_descripcion VARCHAR(50) COMMENT 'Descripción del país',
-    pais_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
-);
+
 
 --marin 
 CREATE TABLE pro_paises (
@@ -52,14 +49,24 @@ CREATE TABLE pro_paises (
     pais_descripcion VARCHAR(50) COMMENT 'Descripción del país',
     pais_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
 );
-
---sergio
-CREATE TABLE pro_clases_pistolas (
-    clase_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de clase de arma',
-    clase_descripcion VARCHAR(50) COMMENT 'pistola, carabina, etc.',
-    clase_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
+--MARIN
+CREATE TABLE pro_categorias (
+    categoria_id INT AUTO_INCREMENT PRIMARY KEY,
+    categoria_nombre VARCHAR(100) NOT NULL,  ----ejemplo armas, accessorios, municiones, etc.. 
+    categoria_situacion INT DEFAULT 1
 );
---sergio
+--MARIN
+
+CREATE TABLE pro_subcategorias (
+    subcategoria_id INT AUTO_INCREMENT PRIMARY KEY,
+    subcategoria_nombre VARCHAR(100) NOT NULL, --ejemplo pistola, fusil, chaleco, mira, etc.... 
+    subcategoria_idcategoria INT NOT NULL,
+    subcategoria_situacion INT DEFAULT 1,
+    FOREIGN KEY (subcategoria_idcategoria) REFERENCES pro_categorias(categoria_id)
+);
+
+
+--SERGIO
 CREATE TABLE pro_marcas (
     marca_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de marca',
     marca_descripcion VARCHAR(50) COMMENT 'system defense, glock, brigade',
@@ -69,7 +76,9 @@ CREATE TABLE pro_marcas (
 CREATE TABLE pro_modelo (
     modelo_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de modelo',
     modelo_descripcion VARCHAR(50) COMMENT 'c9, bm-f-9, sd15',
-    modelo_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo'
+    modelo_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo', 
+    modelo_marca_id INT NULL,
+    FOREIGN KEY (modelo_marca_id) REFERENCES pro_marcas(marca_id)
 );
 --MARIN 
 -- =========================================
@@ -95,6 +104,138 @@ CREATE TABLE pro_calibres (
 
     FOREIGN KEY (calibre_unidad_id) REFERENCES pro_unidades_medida(unidad_id)
 );
+
+
+
+
+
+
+
+-------------INVENTARIO -------------
+------------////////////////////////------
+
+--MARIN
+-- INVENTARIO: Tablas principales de productos, inventario y movimientos
+
+-- Tabla principal de productos
+CREATE TABLE pro_productos (
+    producto_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID único del producto',
+    producto_nombre VARCHAR(100) NOT NULL COMMENT 'Nombre comercial del producto',
+    producto_codigo_barra VARCHAR(100) UNIQUE COMMENT 'Código de barra si aplica (puede ser nulo)',
+    producto_categoria_id INT NOT NULL COMMENT 'Categoría general (armas, accesorios, etc)',
+    producto_subcategoria_id INT NOT NULL COMMENT 'Subcategoría (pistolas, fusiles, etc)',
+    producto_marca_id INT NOT NULL COMMENT 'Marca del producto',
+    producto_modelo_id INT COMMENT 'Modelo, puede ser nulo si no aplica',
+    producto_calibre_id INT COMMENT 'Calibre, puede ser nulo si no aplica',
+    producto_requiere_serie BOOLEAN DEFAULT FALSE COMMENT 'Indica si requiere número de serie',
+    producto_es_importado BOOLEAN DEFAULT FALSE COMMENT 'TRUE si el producto es de importación',
+    producto_id_licencia INT NULL COMMENT 'FK a licencia de importación, si aplica',
+    producto_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo',
+
+    FOREIGN KEY (producto_categoria_id) REFERENCES pro_categorias(categoria_id),
+    FOREIGN KEY (producto_subcategoria_id) REFERENCES pro_subcategorias(subcategoria_id),
+    FOREIGN KEY (producto_marca_id) REFERENCES pro_marcas(marca_id),
+    FOREIGN KEY (producto_modelo_id) REFERENCES pro_modelo(modelo_id),
+    FOREIGN KEY (producto_calibre_id) REFERENCES pro_calibres(calibre_id), 
+    FOREIGN KEY (producto_id_licencia) REFERENCES pro_licencias_para_importacion(lipaimp_id)
+) COMMENT='Productos disponibles para venta o control de inventario';
+
+-- Fotos asociadas a productos
+CREATE TABLE pro_productos_fotos (
+    foto_id INT AUTO_INCREMENT PRIMARY KEY,
+    foto_producto_id INT NOT NULL COMMENT 'FK al producto',
+    foto_url VARCHAR(255) NOT NULL COMMENT 'URL o ruta de la imagen',
+    foto_principal BOOLEAN DEFAULT FALSE COMMENT 'TRUE si es la imagen destacada',
+    foto_situacion INT DEFAULT 1 COMMENT '1 = activa, 0 = inactiva',
+
+    FOREIGN KEY (foto_producto_id) REFERENCES pro_productos(producto_id)
+) COMMENT='Fotos asociadas a los productos';
+
+-- Series individuales de productos con control de serie
+CREATE TABLE pro_series_productos (
+    serie_id INT AUTO_INCREMENT PRIMARY KEY,
+    serie_producto_id INT NOT NULL COMMENT 'FK al producto',
+    serie_numero_serie VARCHAR(200) UNIQUE NOT NULL COMMENT 'Número de serie único',
+    serie_estado ENUM('disponible','reservado','vendido','baja') DEFAULT 'disponible' COMMENT 'Estado del producto individual',
+    serie_fecha_ingreso TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha en que fue ingresado al sistema',
+    serie_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = eliminado',
+
+    FOREIGN KEY (serie_producto_id) REFERENCES pro_productos(producto_id)
+) COMMENT='Series individuales de productos que requieren número de serie';
+
+-- Lotes para agrupar productos sin serie
+CREATE TABLE pro_lotes (
+    lote_id INT AUTO_INCREMENT PRIMARY KEY,
+    lote_codigo VARCHAR(100) UNIQUE NOT NULL COMMENT 'Código único del lote, ej: L2025-08-GLOCK-001',
+    lote_fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha de creación o ingreso del lote',
+    lote_descripcion VARCHAR(255) NULL COMMENT 'Descripción breve opcional del lote',
+    lote_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = cerrado o eliminado'
+) COMMENT='Lotes de productos, útil para productos sin serie o importaciones';
+
+-- Precios base y especiales
+CREATE TABLE pro_precios (
+    precio_id INT AUTO_INCREMENT PRIMARY KEY,
+    precio_producto_id INT NOT NULL COMMENT 'FK al producto',
+
+    precio_costo DECIMAL(10,2) NOT NULL COMMENT 'Precio de compra del producto',
+    precio_venta DECIMAL(10,2) NOT NULL COMMENT 'Precio regular de venta',
+    precio_margen DECIMAL(5,2) DEFAULT NULL COMMENT 'Margen de ganancia estimado (%)',
+    precio_especial DECIMAL(10,2) DEFAULT NULL COMMENT 'Precio especial, si se aplica',
+
+    precio_justificacion VARCHAR(255) DEFAULT NULL COMMENT 'Motivo del precio especial (descuento, promoción, etc)',
+    precio_fecha_asignacion DATE NOT NULL DEFAULT CURRENT_DATE COMMENT 'Fecha en que se asignó este precio',
+    precio_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = histórico o inactivo',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (precio_producto_id) REFERENCES pro_productos(producto_id)
+) COMMENT='Precios por producto incluyendo costo, venta, y especiales';
+
+-- Promociones temporales como descuentos por temporada
+CREATE TABLE pro_promociones (
+    promo_id INT AUTO_INCREMENT PRIMARY KEY,
+    promo_producto_id INT NOT NULL COMMENT 'FK al producto promocionado',
+
+    promo_nombre VARCHAR(100) NOT NULL COMMENT 'Nombre de la promoción, ej: Black Friday',
+    promo_tipo ENUM('porcentaje', 'fijo') NOT NULL COMMENT 'Tipo de descuento aplicado',
+    promo_valor DECIMAL(10,2) NOT NULL COMMENT 'Valor del descuento, ej: 25.00 = 25% si es porcentaje',
+
+    promo_precio_original DECIMAL(10,2) COMMENT 'Precio antes del descuento (solo para mostrar)',
+    promo_precio_descuento DECIMAL(10,2) COMMENT 'Precio final con descuento',
+
+    promo_fecha_inicio DATE NOT NULL COMMENT 'Inicio de la promoción',
+    promo_fecha_fin DATE NOT NULL COMMENT 'Fin de la promoción',
+    promo_justificacion VARCHAR(255) COMMENT 'Motivo de la promoción',
+    promo_situacion INT DEFAULT 1 COMMENT '1 = activa, 0 = expirada o desactivada',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (promo_producto_id) REFERENCES pro_productos(producto_id)
+) COMMENT='Promociones temporales activadas sobre productos';
+
+-- Movimientos de inventario (entradas, salidas, ajustes)
+CREATE TABLE pro_movimientos (
+    mov_id INT AUTO_INCREMENT PRIMARY KEY,
+    mov_producto_id INT NOT NULL COMMENT 'FK al producto involucrado',
+    mov_tipo VARCHAR(50) NOT NULL COMMENT 'Tipo de movimiento: ingreso, egreso, ajuste, etc.',
+    mov_origen VARCHAR(100) COMMENT 'Fuente del movimiento: compra, importación, venta, etc.',
+    mov_cantidad INT NOT NULL COMMENT 'Cantidad afectada por el movimiento',
+    mov_fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha del movimiento',
+    mov_usuario_id INT NOT NULL COMMENT 'Usuario que realizó el movimiento',
+    mov_lote_id INT COMMENT 'FK al lote si aplica',
+    mov_observaciones VARCHAR(250) COMMENT 'Detalles u observaciones del movimiento',
+    mov_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = anulado',
+
+    FOREIGN KEY (mov_producto_id) REFERENCES pro_productos(producto_id),
+    FOREIGN KEY (mov_usuario_id) REFERENCES users(id), 
+    FOREIGN KEY (mov_lote_id) REFERENCES pro_lotes(lote_id)
+) COMMENT='Historial de movimientos de inventario';
+
+
+
+
 
 -- ========================
 -- EMPRESAS E IMPORTACIONES
@@ -194,33 +335,6 @@ CREATE TABLE pro_documentacion_lic_import (
 -- INVENTARIO 
 -- ========================
 
--- Catálogo de lotes/modelos
-CREATE TABLE pro_inventario_modelos (
-    modelo_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID del modelo/lote',
-    modelo_licencia INT NOT NULL COMMENT 'Licencia de importación asociada',
-    modelo_poliza INT NOT NULL COMMENT 'No. de póliza/factura de compra',
-    modelo_fecha_ingreso DATE NOT NULL COMMENT 'Fecha de ingreso del lote',
-    modelo_clase INT NOT NULL,
-    modelo_marca INT NOT NULL,
-    modelo_modelo INT NOT NULL,
-    modelo_calibre VARCHAR(50),
-    modelo_cantidad INT NOT NULL DEFAULT 0 COMMENT 'Cantidad total en este lote',
-    modelo_disponible INT NOT NULL DEFAULT 0 COMMENT 'Stock disponible',
-    modelo_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo',
-    FOREIGN KEY (modelo_licencia) REFERENCES pro_licencias_para_importacion(lipaimp_id),
-    FOREIGN KEY (modelo_clase) REFERENCES pro_clases_pistolas(clase_id),
-    FOREIGN KEY (modelo_marca) REFERENCES pro_marcas(marca_id),
-    FOREIGN KEY (modelo_modelo) REFERENCES pro_modelo(modelo_id)
-);
-
--- Armas individuales con serie
-CREATE TABLE pro_inventario_armas (
-    arma_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID correlativo',
-    arma_modelo_id INT NOT NULL COMMENT 'Referencia al lote o modelo',
-    arma_numero_serie VARCHAR(200) UNIQUE COMMENT 'Número de serie de la pistola',
-    arma_estado ENUM('disponible','vendida','reservada','baja') DEFAULT 'disponible',
-    FOREIGN KEY (arma_modelo_id) REFERENCES pro_inventario_modelos(modelo_id)
-);
 
 -- ========================
 -- CLIENTES Y VENTAS
@@ -252,12 +366,7 @@ CREATE TABLE pro_ventas (
 );   
 --  le agregue un campo    tambien agregue esta tabla para poder guardar las fotos de las armas   
  
- CREATE TABLE pro_modelo_fotos (
-    foto_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID de la foto',
-    modelo_id INT NOT NULL COMMENT 'Modelo al que pertenece',
-    foto_url VARCHAR(255) NOT NULL COMMENT 'Ruta de la imagen',
-    FOREIGN KEY (modelo_id) REFERENCES pro_inventario_modelos(modelo_id)
-); 
+ 
 
 
 CREATE TABLE pro_detalle_venta (
