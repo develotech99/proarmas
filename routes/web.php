@@ -15,10 +15,23 @@ use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
 use App\Models\ProModelo;
 
+
+// Rutas para licencias de importación
+
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
+Route::prefix('licencias-importacion')->name('licencias-importacion.')->group(function () {
+    Route::get('/', [LicenciaImportacionController::class, 'index'])->name('index');
+    Route::get('/crear', [LicenciaImportacionController::class, 'create'])->name('create');
+    Route::post('/', [LicenciaImportacionController::class, 'store'])->name('store');
+    Route::get('/{id}', [LicenciaImportacionController::class, 'show'])->name('show');
+    Route::get('/{id}/editar', [LicenciaImportacionController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [LicenciaImportacionController::class, 'update'])->name('update');
+    Route::delete('/{id}', [LicenciaImportacionController::class, 'destroy'])->name('destroy');
+    Route::patch('/{id}/cambiar-estado', [LicenciaImportacionController::class, 'cambiarEstado'])->name('cambiar-estado');
+});
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
