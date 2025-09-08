@@ -31,29 +31,35 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Clases de pistolas
-        Schema::create('pro_clases_pistolas', function (Blueprint $table) {
-            $table->id('clase_id')->comment('ID de clase de arma');
-            $table->string('clase_descripcion', 50)->nullable()->comment('pistola, carabina, etc.');
-            $table->integer('clase_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
-            $table->timestamps();
-        });
+        
+      // Tabla de marcas
+      Schema::create('pro_marcas', function (Blueprint $table) {
+        $table->id('marca_id')->autoIncrement()->primary()->comment('ID de marca');
+        $table->string('marca_descripcion', 50)->nullable()->comment('system defense, glock, brigade');
+        $table->integer('marca_situacion')->default(1)->comment('1 = activa, 0 = inactiva');
+        
+        // Índices
+        $table->index('marca_situacion');
+    });
 
-        // Marcas
-        Schema::create('pro_marcas', function (Blueprint $table) {
-            $table->id('marca_id')->comment('ID de marca');
-            $table->string('marca_descripcion', 50)->nullable()->comment('system defense, glock, brigade');
-            $table->integer('marca_situacion')->default(1)->comment('1 = activa, 0 = inactiva');
-            $table->timestamps();
-        });
-
-        // Modelos
-        Schema::create('pro_modelo', function (Blueprint $table) {
-            $table->id('modelo_id')->comment('ID de modelo');
-            $table->string('modelo_descripcion', 50)->nullable()->comment('c9, bm-f-9, sd15');
-            $table->integer('modelo_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
-            $table->timestamps();
-        });
+    // Tabla de modelos
+    Schema::create('pro_modelo', function (Blueprint $table) {
+        $table->id('modelo_id')->autoIncrement()->primary()->comment('ID de modelo');
+        $table->string('modelo_descripcion', 50)->nullable()->comment('c9, bm-f-9, sd15');
+        $table->integer('modelo_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
+        $table->integer('modelo_marca_id')->nullable();
+        
+        // Índices
+        $table->index('modelo_marca_id');
+        $table->index('modelo_situacion');
+        
+        // Clave foránea
+        $table->foreign('modelo_marca_id')
+              ->references('marca_id')
+              ->on('pro_marcas')
+              ->onDelete('set null');
+    });
+ 
 
         // Unidades de medida
         Schema::create('pro_unidades_medida', function (Blueprint $table) {
@@ -321,84 +327,246 @@ return new class extends Migration
 
         // ========================
         // NUEVAS TABLAS DE PRODUCTOS
-        // ========================
+        // =======================
 
-        // Lotes
-        Schema::create('pro_lotes', function (Blueprint $table) {
-            $table->id('lote_id');
-            $table->string('lote_codigo', 100)->unique()->comment('Ej: L2025-08-GLOCK-001');
-            $table->timestamp('lote_fecha')->useCurrent();
-            $table->string('lote_descripcion', 255)->nullable();
-            $table->integer('lote_situacion')->default(1);
-            $table->timestamps();
-        });
 
-        // Productos
+
+
+
+
+              // =========================================
+        // TABLAS DE INVENTARIO
+        // =========================================
+
+        // Tabla de productos
         Schema::create('pro_productos', function (Blueprint $table) {
-            $table->id('producto_id');
+            $table->id('producto_id')->autoIncrement()->primary();
             $table->string('producto_nombre', 100);
-            $table->string('producto_codigo_barra', 100)->unique()->nullable();
+            $table->string('producto_codigo_barra', 100)->unique()->nullable()->comment('si aplica');
             $table->unsignedBigInteger('producto_categoria_id');
             $table->unsignedBigInteger('producto_subcategoria_id');
             $table->unsignedBigInteger('producto_marca_id');
-            $table->unsignedBigInteger('producto_modelo_id')->nullable();
-            $table->unsignedBigInteger('producto_calibre_id')->nullable();
+            $table->unsignedBigInteger('producto_modelo_id')->nullable()->comment('NULL si no aplica');
+            $table->unsignedBigInteger('producto_calibre_id')->nullable()->comment('NULL si no aplica');
             $table->boolean('producto_requiere_serie')->default(false);
-            $table->boolean('producto_es_importado')->default(false);
-            $table->unsignedBigInteger('producto_id_licencia')->nullable();
-            $table->integer('producto_situacion')->default(1);
-            $table->timestamps();
-
-            $table->foreign('producto_categoria_id')->references('categoria_id')->on('pro_categorias');
-            $table->foreign('producto_subcategoria_id')->references('subcategoria_id')->on('pro_subcategorias');
-            $table->foreign('producto_marca_id')->references('marca_id')->on('pro_marcas');
-            $table->foreign('producto_modelo_id')->references('modelo_id')->on('pro_modelo');
-            $table->foreign('producto_calibre_id')->references('calibre_id')->on('pro_calibres');
-            $table->foreign('producto_id_licencia')->references('lipaimp_id')->on('pro_licencias_para_importacion');
+            $table->boolean('producto_es_importado')->default(false)->comment('true = importación, false = compra local');
+            $table->unsignedBigInteger('producto_id_licencia')->nullable()->comment('Si viene de importación, se guarda aquí el ID de la licencia');
+            $table->integer('producto_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
+            
+            // Índices para optimizar consultas
+            $table->index('producto_categoria_id');
+            $table->index('producto_subcategoria_id');
+            $table->index('producto_marca_id');
+            $table->index('producto_modelo_id');
+            $table->index('producto_calibre_id');
+            $table->index('producto_situacion');
+            $table->index(['producto_situacion', 'producto_categoria_id']);
+            $table->index('producto_requiere_serie');
+            
+            // Claves foráneas
+            $table->foreign('producto_categoria_id')
+                  ->references('categoria_id')
+                  ->on('pro_categorias')
+                  ->onDelete('restrict');
+                  
+            $table->foreign('producto_subcategoria_id')
+                  ->references('subcategoria_id')
+                  ->on('pro_subcategorias')
+                  ->onDelete('restrict');
+                  
+            $table->foreign('producto_marca_id')
+                  ->references('marca_id')
+                  ->on('pro_marcas')
+                  ->onDelete('restrict');
+                  
+            $table->foreign('producto_modelo_id')
+                  ->references('modelo_id')
+                  ->on('pro_modelo')
+                  ->onDelete('set null');
+                  
+            $table->foreign('producto_calibre_id')
+                  ->references('calibre_id')
+                  ->on('pro_calibres')
+                  ->onDelete('set null');
         });
 
-        // Series de productos
+        // Tabla de fotos de productos (CORREGIDA - foreign key apunta a foto_producto_id)
+        Schema::create('pro_productos_fotos', function (Blueprint $table) {
+            $table->id('foto_id')->autoIncrement()->primary();
+            $table->integer('foto_producto_id');
+            $table->string('foto_url', 255);
+            $table->boolean('foto_principal')->default(false);
+            $table->integer('foto_situacion')->default(1);
+            
+            // Índices
+            $table->index('foto_producto_id');
+            $table->index(['foto_producto_id', 'foto_situacion']);
+            $table->index('foto_principal');
+            
+            // Clave foránea CORREGIDA
+            $table->foreign('foto_producto_id')
+                  ->references('producto_id')
+                  ->on('pro_productos')
+                  ->onDelete('cascade');
+        });
+
+        // Tabla de series de productos
         Schema::create('pro_series_productos', function (Blueprint $table) {
-            $table->id('serie_id');
+            $table->id('serie_id')->autoIncrement()->primary();
             $table->unsignedBigInteger('serie_producto_id');
             $table->string('serie_numero_serie', 200)->unique();
-            $table->enum('serie_estado', ['disponible','reservado','vendido','baja'])->default('disponible');
+            $table->enum('serie_estado', ['disponible', 'reservado', 'vendido', 'baja'])->default('disponible');
             $table->timestamp('serie_fecha_ingreso')->useCurrent();
             $table->integer('serie_situacion')->default(1);
-            $table->timestamps();
-
-            $table->foreign('serie_producto_id')->references('producto_id')->on('pro_productos');
+            
+            // Índices para optimizar búsquedas
+            $table->index('serie_producto_id');
+            $table->index('serie_estado');
+            $table->index(['serie_producto_id', 'serie_estado']);
+            $table->index(['serie_estado', 'serie_situacion']);
+            $table->index('serie_numero_serie');
+            $table->index('serie_fecha_ingreso');
+            
+            // Clave foránea
+            $table->foreign('serie_producto_id')
+                  ->references('producto_id')
+                  ->on('pro_productos')
+                  ->onDelete('cascade');
         });
 
-        // Movimientos
+        // Tabla de lotes
+        Schema::create('pro_lotes', function (Blueprint $table) {
+            $table->id('lote_id')->autoIncrement()->primary();
+            $table->string('lote_codigo', 100)->unique()->comment("Ej: 'L2025-08-GLOCK-001'");
+            $table->timestamp('lote_fecha')->useCurrent();
+            $table->string('lote_descripcion', 255)->nullable();
+            $table->integer('lote_situacion')->default(1);
+            
+            // Índices
+            $table->index('lote_situacion');
+            $table->index('lote_fecha');
+            $table->index('lote_codigo');
+        });
+
+
+        // Tabla de movimientos de inventario (CORREGIDA - mov_tipo con tipo de dato)
         Schema::create('pro_movimientos', function (Blueprint $table) {
-            $table->id('mov_id');
+            $table->id('mov_id')->autoIncrement()->primary();
             $table->unsignedBigInteger('mov_producto_id');
-            $table->string('mov_tipo', 50)->comment('ingreso, egreso, ajuste, etc.');
+            $table->string('mov_tipo', 50)->comment('ingreso, egreso, baja, importación, ajuste');
             $table->string('mov_origen', 100)->nullable()->comment('importación, ajuste, venta, compra local, etc.');
             $table->integer('mov_cantidad');
             $table->timestamp('mov_fecha')->useCurrent();
             $table->unsignedBigInteger('mov_usuario_id');
-            $table->unsignedBigInteger('mov_lote_id')->nullable();
+            $table->unsignedBigInteger('mov_lote_id')->nullable()->comment('NULL si no aplica');
             $table->string('mov_observaciones', 250)->nullable();
             $table->integer('mov_situacion')->default(1);
-            $table->timestamps();
-
-            $table->foreign('mov_producto_id')->references('producto_id')->on('pro_productos');
-            $table->foreign('mov_lote_id')->references('lote_id')->on('pro_lotes');
+            
+            // Índices para reportes y consultas frecuentes
+            $table->index('mov_producto_id');
+            $table->index('mov_tipo');
+            $table->index('mov_fecha');
+            $table->index('mov_usuario_id');
+            $table->index('mov_lote_id');
+            $table->index('mov_situacion');
+            $table->index(['mov_producto_id', 'mov_tipo']);
+            $table->index(['mov_fecha', 'mov_tipo']);
+            $table->index(['mov_producto_id', 'mov_fecha']);
+            $table->index(['mov_situacion', 'mov_tipo']);
+            $table->index(['mov_fecha', 'mov_situacion']);
+            
+            // Claves foráneas
+            $table->foreign('mov_producto_id')
+                  ->references('producto_id')
+                  ->on('pro_productos')
+                  ->onDelete('cascade');
+                  
+            $table->foreign('mov_lote_id')
+                  ->references('lote_id')
+                  ->on('pro_lotes')
+                  ->onDelete('set null');
         });
 
-        // Fotos de productos
-        Schema::create('pro_productos_fotos', function (Blueprint $table) {
-            $table->id('foto_id');
-            $table->unsignedBigInteger('foto_producto_id');
-            $table->string('foto_url', 255);
-            $table->boolean('foto_principal')->default(false);
-            $table->integer('foto_situacion')->default(1);
-            $table->timestamps();
 
-            $table->foreign('foto_producto_id')->references('producto_id')->on('pro_productos');
+        // Tabla de precios base y especiales
+        Schema::create('pro_precios', function (Blueprint $table) {
+            $table->id('precio_id')->autoIncrement()->primary();
+            $table->unsignedBigInteger('precio_producto_id')->comment('FK al producto');
+            $table->decimal('precio_costo', 10, 2)->comment('Precio de compra del producto');
+            $table->decimal('precio_venta', 10, 2)->comment('Precio regular de venta');
+            $table->decimal('precio_margen', 5, 2)->nullable()->comment('Margen de ganancia estimado (%)');
+            $table->decimal('precio_especial', 10, 2)->nullable()->comment('Precio especial, si se aplica');
+            $table->string('precio_justificacion', 255)->nullable()->comment('Motivo del precio especial (descuento, promoción, etc)');
+            $table->date('precio_fecha_asignacion')->default(DB::raw('CURRENT_DATE'))->comment('Fecha en que se asignó este precio');
+            $table->integer('precio_situacion')->default(1)->comment('1 = activo, 0 = histórico o inactivo');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            
+            // Índices
+            $table->index('precio_producto_id');
+            $table->index(['precio_producto_id', 'precio_situacion']);
+            $table->index('precio_fecha_asignacion');
+            $table->index('precio_situacion');
+            
+            // Clave foránea
+            $table->foreign('precio_producto_id')
+                  ->references('producto_id')
+                  ->on('pro_productos')
+                  ->onDelete('cascade');
         });
+
+        // Tabla de promociones temporales
+        Schema::create('pro_promociones', function (Blueprint $table) {
+            $table->id('promo_id')->autoIncrement()->primary();
+            $table->unsignedBigInteger('promo_producto_id')->comment('FK al producto promocionado');
+            $table->string('promo_nombre', 100)->comment('Nombre de la promoción, ej: Black Friday');
+            $table->enum('promo_tipo', ['porcentaje', 'fijo'])->comment('Tipo de descuento aplicado');
+            $table->decimal('promo_valor', 10, 2)->comment('Valor del descuento, ej: 25.00 = 25% si es porcentaje');
+            $table->decimal('promo_precio_original', 10, 2)->nullable()->comment('Precio antes del descuento (solo para mostrar)');
+            $table->decimal('promo_precio_descuento', 10, 2)->nullable()->comment('Precio final con descuento');
+            $table->date('promo_fecha_inicio')->comment('Inicio de la promoción');
+            $table->date('promo_fecha_fin')->comment('Fin de la promoción');
+            $table->string('promo_justificacion', 255)->nullable()->comment('Motivo de la promoción');
+            $table->integer('promo_situacion')->default(1)->comment('1 = activa, 0 = expirada o desactivada');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            
+            // Índices
+            $table->index('promo_producto_id');
+            $table->index(['promo_fecha_inicio', 'promo_fecha_fin']);
+            $table->index(['promo_situacion', 'promo_fecha_inicio']);
+            $table->index('promo_situacion');
+            $table->index('promo_tipo');
+            
+            // Clave foránea
+            $table->foreign('promo_producto_id')
+                  ->references('producto_id')
+                  ->on('pro_productos')
+                  ->onDelete('cascade');
+        });
+
+        // Tabla para relacionar empresas de importación con licencias (si no existe)
+        if (!Schema::hasTable('pro_empresas_de_importacion')) {
+            Schema::create('pro_empresas_de_importacion', function (Blueprint $table) {
+                $table->id('empresaimp_id')->autoIncrement()->primary()->comment('ID empresa importadora');
+                $table->integer('empresaimp_pais')->comment('ID del país asociado');
+                $table->string('empresaimp_descripcion', 50)->nullable()->comment('tipo: empresa matriz o logística');
+                $table->integer('empresaimp_situacion')->default(1)->comment('1 = activa, 0 = inactiva');
+                
+                // Índices
+                $table->index('empresaimp_pais');
+                $table->index('empresaimp_situacion');
+                
+                // Clave foránea (si existe la tabla de países)
+                if (Schema::hasTable('pro_paises')) {
+                    $table->foreign('empresaimp_pais')
+                          ->references('pais_id')
+                          ->on('pro_paises')
+                          ->onDelete('restrict');
+                }
+            });
+        }
+
     }
 
     public function down()
@@ -432,5 +600,7 @@ return new class extends Migration
         Schema::dropIfExists('pro_clases_pistolas');
         Schema::dropIfExists('pro_paises');
         Schema::dropIfExists('pro_metodos_pago');
+        Schema::dropIfExists('pro_promociones');
+        Schema::dropIfExists('pro_precios');
     }
 };
