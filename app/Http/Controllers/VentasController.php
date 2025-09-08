@@ -17,11 +17,11 @@ class VentasController extends Controller
      * Display a listing of the resource.
      */
 
-      public function index()
-    {
+    //   public function index()
+    // {
    
-        return view('ventas.index');
-    }
+    //     return view('ventas.index');
+    // }
 
     public function index()
     {
