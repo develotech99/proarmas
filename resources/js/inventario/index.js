@@ -126,7 +126,17 @@ async onTabChange(tabId) {
     }
 }
 
-   
+   /**
+ * Método público para cambiar pestañas desde HTML
+ */
+switchToTab(tabId) {
+    const button = document.querySelector(`[data-tab="${tabId}"]`);
+    if (button) {
+        this.switchTab(tabId, button);
+    } else {
+        console.warn(`No se encontró botón para la pestaña: ${tabId}`);
+    }
+}
 
     /**
      * CARGA DE DATOS REALES DEL BACKEND
