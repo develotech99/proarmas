@@ -1,6 +1,6 @@
 <?php
 
-// MIGRACIÓN COMPLETA DEL SISTEMA
+// MIGRACIÓN COMPLETA DEL SISTEMA CORREGIDA
 // Archivo: database/migrations/2024_01_01_000001_create_sistema_armas_tables.php
 
 use Illuminate\Database\Migrations\Migration;
@@ -55,6 +55,50 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // Unidades de medida
+        Schema::create('pro_unidades_medida', function (Blueprint $table) {
+            $table->id('unidad_id');
+            $table->string('unidad_nombre', 50);
+            $table->string('unidad_abreviacion', 10);
+            $table->string('unidad_tipo', 20)->default('longitud');
+            $table->integer('unidad_situacion')->default(1);
+            $table->timestamps();
+        });
+
+        // Calibres
+        Schema::create('pro_calibres', function (Blueprint $table) {
+            $table->id('calibre_id');
+            $table->string('calibre_nombre', 20);
+            $table->unsignedBigInteger('calibre_unidad_id');
+            $table->decimal('calibre_equivalente_mm', 6, 2)->nullable();
+            $table->integer('calibre_situacion')->default(1);
+            $table->timestamps();
+
+            $table->foreign('calibre_unidad_id')->references('unidad_id')->on('pro_unidades_medida');
+        });
+
+        // Categorías
+        Schema::create('pro_categorias', function (Blueprint $table) {
+            $table->id('categoria_id');
+            $table->string('categoria_nombre', 100);
+            $table->integer('categoria_situacion')->default(1);
+            $table->timestamps();
+        });
+
+        // Subcategorías
+        Schema::create('pro_subcategorias', function (Blueprint $table) {
+            $table->id('subcategoria_id');
+            $table->string('subcategoria_nombre', 100);
+            $table->unsignedBigInteger('subcategoria_idcategoria');
+            $table->integer('subcategoria_situacion')->default(1);
+            $table->timestamps();
+
+            $table->foreign('subcategoria_idcategoria')
+                  ->references('categoria_id')
+                  ->on('pro_categorias')
+                  ->onDelete('cascade');
+        });
+
         // ========================
         // EMPRESAS E IMPORTACIONES
         // ========================
@@ -79,6 +123,7 @@ return new class extends Migration
             $table->unsignedBigInteger('lipaimp_clase')->nullable()->comment('Clase de arma');
             $table->unsignedBigInteger('lipaimp_marca')->nullable()->comment('Marca de arma');
             $table->unsignedBigInteger('lipaimp_modelo')->nullable()->comment('Modelo de arma');
+            $table->unsignedBigInteger('lipaimp_calibre')->nullable()->comment('Calibre de arma');
             $table->date('lipaimp_fecha_vencimiento')->nullable()->comment('Fecha de vencimiento de la licencia');
             $table->integer('lipaimp_situacion')->default(1)->comment('1 = activa, 0 = inactiva');
             $table->timestamps();
@@ -87,6 +132,7 @@ return new class extends Migration
             $table->foreign('lipaimp_clase')->references('clase_id')->on('pro_clases_pistolas');
             $table->foreign('lipaimp_marca')->references('marca_id')->on('pro_marcas');
             $table->foreign('lipaimp_modelo')->references('modelo_id')->on('pro_modelo');
+            $table->foreign('lipaimp_calibre')->references('calibre_id')->on('pro_calibres');
         });
 
         // Digecam
@@ -104,16 +150,16 @@ return new class extends Migration
         // INVENTARIO 
         // ========================
 
-        // Inventario modelos
+        // Inventario modelos (CORREGIDO: cambio de modelo_id a inv_modelo_id)
         Schema::create('pro_inventario_modelos', function (Blueprint $table) {
-            $table->id('modelo_id')->comment('ID del modelo/lote');
+            $table->id('inv_modelo_id')->comment('ID del inventario de modelo/lote');
             $table->unsignedBigInteger('modelo_licencia')->comment('Licencia de importación asociada');
             $table->integer('modelo_poliza')->comment('No. de póliza/factura de compra');
             $table->date('modelo_fecha_ingreso')->comment('Fecha de ingreso del lote');
             $table->unsignedBigInteger('modelo_clase');
             $table->unsignedBigInteger('modelo_marca');
             $table->unsignedBigInteger('modelo_modelo');
-            $table->string('modelo_calibre', 50)->nullable();
+            $table->unsignedBigInteger('modelo_calibre')->nullable();
             $table->integer('modelo_cantidad')->default(0)->comment('Cantidad total en este lote');
             $table->integer('modelo_disponible')->default(0)->comment('Stock disponible');
             $table->integer('modelo_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
@@ -123,9 +169,10 @@ return new class extends Migration
             $table->foreign('modelo_clase')->references('clase_id')->on('pro_clases_pistolas');
             $table->foreign('modelo_marca')->references('marca_id')->on('pro_marcas');
             $table->foreign('modelo_modelo')->references('modelo_id')->on('pro_modelo');
+            $table->foreign('modelo_calibre')->references('calibre_id')->on('pro_calibres');
         });
 
-        // Inventario armas
+        // Inventario armas (CORREGIDO: referencia cambiada a inv_modelo_id)
         Schema::create('pro_inventario_armas', function (Blueprint $table) {
             $table->id('arma_id')->comment('ID correlativo');
             $table->unsignedBigInteger('arma_modelo_id')->comment('Referencia al lote o modelo');
@@ -133,7 +180,26 @@ return new class extends Migration
             $table->enum('arma_estado', ['disponible','vendida','reservada','baja'])->default('disponible');
             $table->timestamps();
             
-            $table->foreign('arma_modelo_id')->references('modelo_id')->on('pro_inventario_modelos');
+            $table->foreign('arma_modelo_id')->references('inv_modelo_id')->on('pro_inventario_modelos');
+        });
+
+        // Armas licenciadas
+        Schema::create('pro_armas_licenciadas', function (Blueprint $table) {
+            $table->id('arma_lic_id')->comment('ID arma licenciada');
+            $table->unsignedBigInteger('arma_licencia_id');
+            $table->unsignedBigInteger('arma_clase_id');
+            $table->unsignedBigInteger('arma_marca_id');
+            $table->unsignedBigInteger('arma_modelo_id');
+            $table->unsignedBigInteger('arma_calibre_id');
+            $table->integer('arma_cantidad')->default(1);
+            $table->integer('arma_situacion')->default(1);
+            $table->timestamps();
+
+            $table->foreign('arma_licencia_id')->references('lipaimp_id')->on('pro_licencias_para_importacion');
+            $table->foreign('arma_clase_id')->references('clase_id')->on('pro_clases_pistolas');
+            $table->foreign('arma_marca_id')->references('marca_id')->on('pro_marcas');
+            $table->foreign('arma_modelo_id')->references('modelo_id')->on('pro_modelo');
+            $table->foreign('arma_calibre_id')->references('calibre_id')->on('pro_calibres');
         });
 
         // ========================
@@ -166,7 +232,7 @@ return new class extends Migration
             $table->foreign('cliente_id')->references('cliente_id')->on('pro_clientes');
         });
 
-        // Detalle venta
+        // Detalle venta (CORREGIDO: referencia cambiada a inv_modelo_id)
         Schema::create('pro_detalle_venta', function (Blueprint $table) {
             $table->id('detalle_id');
             $table->unsignedBigInteger('venta_id');
@@ -177,7 +243,7 @@ return new class extends Migration
             $table->timestamps();
             
             $table->foreign('venta_id')->references('venta_id')->on('pro_ventas');
-            $table->foreign('modelo_id')->references('modelo_id')->on('pro_inventario_modelos');
+            $table->foreign('modelo_id')->references('inv_modelo_id')->on('pro_inventario_modelos');
             $table->foreign('arma_id')->references('arma_id')->on('pro_inventario_armas');
         });
 
@@ -216,7 +282,7 @@ return new class extends Migration
 
         // Pagos licencias
         Schema::create('pro_pagos_licencias', function (Blueprint $table) {
-            $table->id('pago_id');
+            $table->id('pago_lic_id')->comment('ID pago licencia');
             $table->unsignedBigInteger('pago_licencia_id');
             $table->unsignedBigInteger('pago_empresa_id');
             $table->date('pago_fecha');
@@ -239,7 +305,7 @@ return new class extends Migration
             $table->integer('comprob_situacion')->default(1);
             $table->timestamps();
             
-            $table->foreign('comprob_pagos_licencia')->references('pago_id')->on('pro_pagos_licencias');
+            $table->foreign('comprob_pagos_licencia')->references('pago_lic_id')->on('pro_pagos_licencias');
         });
 
         // Documentación licencia import
@@ -252,23 +318,115 @@ return new class extends Migration
             
             $table->foreign('doclicimport_num_lic')->references('lipaimp_id')->on('pro_licencias_para_importacion');
         });
+
+        // ========================
+        // NUEVAS TABLAS DE PRODUCTOS
+        // ========================
+
+        // Lotes
+        Schema::create('pro_lotes', function (Blueprint $table) {
+            $table->id('lote_id');
+            $table->string('lote_codigo', 100)->unique()->comment('Ej: L2025-08-GLOCK-001');
+            $table->timestamp('lote_fecha')->useCurrent();
+            $table->string('lote_descripcion', 255)->nullable();
+            $table->integer('lote_situacion')->default(1);
+            $table->timestamps();
+        });
+
+        // Productos
+        Schema::create('pro_productos', function (Blueprint $table) {
+            $table->id('producto_id');
+            $table->string('producto_nombre', 100);
+            $table->string('producto_codigo_barra', 100)->unique()->nullable();
+            $table->unsignedBigInteger('producto_categoria_id');
+            $table->unsignedBigInteger('producto_subcategoria_id');
+            $table->unsignedBigInteger('producto_marca_id');
+            $table->unsignedBigInteger('producto_modelo_id')->nullable();
+            $table->unsignedBigInteger('producto_calibre_id')->nullable();
+            $table->boolean('producto_requiere_serie')->default(false);
+            $table->boolean('producto_es_importado')->default(false);
+            $table->unsignedBigInteger('producto_id_licencia')->nullable();
+            $table->integer('producto_situacion')->default(1);
+            $table->timestamps();
+
+            $table->foreign('producto_categoria_id')->references('categoria_id')->on('pro_categorias');
+            $table->foreign('producto_subcategoria_id')->references('subcategoria_id')->on('pro_subcategorias');
+            $table->foreign('producto_marca_id')->references('marca_id')->on('pro_marcas');
+            $table->foreign('producto_modelo_id')->references('modelo_id')->on('pro_modelo');
+            $table->foreign('producto_calibre_id')->references('calibre_id')->on('pro_calibres');
+            $table->foreign('producto_id_licencia')->references('lipaimp_id')->on('pro_licencias_para_importacion');
+        });
+
+        // Series de productos
+        Schema::create('pro_series_productos', function (Blueprint $table) {
+            $table->id('serie_id');
+            $table->unsignedBigInteger('serie_producto_id');
+            $table->string('serie_numero_serie', 200)->unique();
+            $table->enum('serie_estado', ['disponible','reservado','vendido','baja'])->default('disponible');
+            $table->timestamp('serie_fecha_ingreso')->useCurrent();
+            $table->integer('serie_situacion')->default(1);
+            $table->timestamps();
+
+            $table->foreign('serie_producto_id')->references('producto_id')->on('pro_productos');
+        });
+
+        // Movimientos
+        Schema::create('pro_movimientos', function (Blueprint $table) {
+            $table->id('mov_id');
+            $table->unsignedBigInteger('mov_producto_id');
+            $table->string('mov_tipo', 50)->comment('ingreso, egreso, ajuste, etc.');
+            $table->string('mov_origen', 100)->nullable()->comment('importación, ajuste, venta, compra local, etc.');
+            $table->integer('mov_cantidad');
+            $table->timestamp('mov_fecha')->useCurrent();
+            $table->unsignedBigInteger('mov_usuario_id');
+            $table->unsignedBigInteger('mov_lote_id')->nullable();
+            $table->string('mov_observaciones', 250)->nullable();
+            $table->integer('mov_situacion')->default(1);
+            $table->timestamps();
+
+            $table->foreign('mov_producto_id')->references('producto_id')->on('pro_productos');
+            $table->foreign('mov_lote_id')->references('lote_id')->on('pro_lotes');
+        });
+
+        // Fotos de productos
+        Schema::create('pro_productos_fotos', function (Blueprint $table) {
+            $table->id('foto_id');
+            $table->unsignedBigInteger('foto_producto_id');
+            $table->string('foto_url', 255);
+            $table->boolean('foto_principal')->default(false);
+            $table->integer('foto_situacion')->default(1);
+            $table->timestamps();
+
+            $table->foreign('foto_producto_id')->references('producto_id')->on('pro_productos');
+        });
     }
 
     public function down()
     {
-        Schema::dropIfExists('pro_documentacion_lic_import');
+        // Eliminar en orden inverso (dependencias primero)
+        Schema::dropIfExists('pro_productos_fotos');
+        Schema::dropIfExists('pro_movimientos');
+        Schema::dropIfExists('pro_series_productos');
+        Schema::dropIfExists('pro_productos');
+        Schema::dropIfExists('pro_lotes');
         Schema::dropIfExists('pro_comprobantes_pago');
         Schema::dropIfExists('pro_pagos_licencias');
+        Schema::dropIfExists('pro_documentacion_lic_import');
         Schema::dropIfExists('pro_comprobantes_pago_ventas');
         Schema::dropIfExists('pro_pagos');
         Schema::dropIfExists('pro_detalle_venta');
         Schema::dropIfExists('pro_ventas');
         Schema::dropIfExists('pro_clientes');
+        Schema::dropIfExists('pro_armas_licenciadas');
         Schema::dropIfExists('pro_inventario_armas');
         Schema::dropIfExists('pro_inventario_modelos');
         Schema::dropIfExists('pro_digecam');
         Schema::dropIfExists('pro_licencias_para_importacion');
         Schema::dropIfExists('pro_empresas_de_importacion');
+        Schema::dropIfExists('pro_subcategorias');
+        Schema::dropIfExists('pro_categorias');
+        Schema::dropIfExists('pro_calibres');
+        Schema::dropIfExists('pro_unidades_medida');
         Schema::dropIfExists('pro_modelo');
         Schema::dropIfExists('pro_marcas');
         Schema::dropIfExists('pro_clases_pistolas');

@@ -11,14 +11,12 @@ class EmpresaImportacion extends Model
 
     protected $table = 'pro_empresas_de_importacion';
     protected $primaryKey = 'empresaimp_id';
-    public $timestamps = true;
 
     protected $fillable = [
-        'empresaimp_pais',
         'empresaimp_descripcion',
-        'empresaimp_situacion',
+        'empresaimp_pais',
+        'empresaimp_situacion'
     ];
-
     public function scopeActivos($query)
 {
     return $query->where('empresaimp_situacion', 1);
