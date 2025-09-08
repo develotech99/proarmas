@@ -332,12 +332,6 @@ return new class extends Migration
         // ========================
         // NUEVAS TABLAS DE PRODUCTOS
         // =======================
-
-
-
-
-
-
               // =========================================
         // TABLAS DE INVENTARIO
         // =========================================
