@@ -1,106 +1,111 @@
 <x-guest-layout>
-    <div class="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md w-full space-y-8">
-            <!-- Header -->
-            <div class="text-center">
-                <div class="mx-auto w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center mb-6">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 4h.01M9 12h.01M9 16h.01M13 12h.01M13 16h.01M13 8h.01M17 12h.01M17 16h.01"></path>
-                    </svg>
-                </div>
-                <h1 class="text-2xl font-bold text-slate-900 mb-2">Iniciar Sesión</h1>
-                <p class="text-slate-600">Accede al sistema de inventario</p>
-            </div>
+    <div
+        class="relative w-full max-w-md mx-auto
+               rounded-2xl bg-white/10 backdrop-blur-xl p-8
+               border border-orange-500/50
+               shadow-[0_20px_70px_-20px_rgba(255,120,40,0.45),0_40px_120px_-30px_rgba(0,0,0,0.6)]">
 
-            <!-- Login Form -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-                <!-- Session Status -->
-                <x-auth-session-status class="mb-4" :status="session('status')" />
-
-                <form method="POST" action="{{ route('login') }}" class="space-y-6">
-                    @csrf
-
-                    <!-- Email Address -->
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-slate-700 mb-2">
-                            Correo Electrónico
-                        </label>
-                        <input id="email" 
-                               type="email" 
-                               name="email" 
-                               value="{{ old('email') }}" 
-                               required 
-                               autofocus 
-                               autocomplete="username"
-                               class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white text-slate-900 placeholder-slate-400">
-                        @error('email')
-                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <!-- Password -->
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-slate-700 mb-2">
-                            Contraseña
-                        </label>
-                        <input id="password" 
-                               type="password" 
-                               name="password" 
-                               required 
-                               autocomplete="current-password"
-                               class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white text-slate-900 placeholder-slate-400">
-                        @error('password')
-                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <!-- Remember Me -->
-                    <div class="flex items-center justify-between">
-                        <label for="remember_me" class="flex items-center">
-                            <input id="remember_me" 
-                                   type="checkbox" 
-                                   name="remember"
-                                   class="w-4 h-4 text-slate-600 bg-white border-slate-300 rounded focus:ring-slate-500 focus:ring-2">
-                            <span class="ml-2 text-sm text-slate-600">Recordarme</span>
-                        </label>
-
-                        @if (Route::has('password.request'))
-                            <a href="{{ route('password.request') }}" 
-                               class="text-sm text-slate-600 hover:text-slate-800 transition-colors">
-                                ¿Olvidaste tu contraseña?
-                            </a>
-                        @endif
-                    </div>
-
-                    <!-- Submit Button -->
-                    <button type="submit" 
-                            class="w-full bg-slate-800 text-white py-3 px-4 rounded-lg font-medium hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors duration-200">
-                        Ingresar al Sistema
-                    </button>
-                </form>
-            </div>
-
-            <!-- Register Link
-            @if (Route::has('register'))
-                <div class="text-center">
-                    <p class="text-sm text-slate-600">
-                        ¿Nuevo empleado? 
-                        <a href="{{ route('register') }}" class="font-medium text-slate-800 hover:text-slate-600 transition-colors">
-                            Solicitar registro
-                        </a>
-                    </p>
-                </div>
-            @endif -->
-
-            <!-- Back to Home -->
-            <div class="text-center">
-                <a href="{{ url('/') }}" class="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 transition-colors">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                    Volver al inicio
-                </a>
-            </div>
+        {{-- LOGO PRINCIPAL --}}
+        <div class="text-center mb-6">
+            <img src="{{ asset('images/pro_armas.png') }}" alt="ProArmas"
+                class="mx-auto mb-4 h-36 w-36 rounded-xl bg-black/40 p-2
+                        ring-2 ring-orange-500/70
+                        shadow-[0_0_55px_rgba(255,115,0,0.55)]">
+            <h1 class="text-2xl font-extrabold tracking-tight text-white">ProArmas &amp; Municiones</h1>
+            <p class="text-slate-300/85 text-sm">Ingreso al Sistema de Inventario</p>
         </div>
+
+        {{-- Status --}}
+        <x-auth-session-status class="mb-4" :status="session('status')" />
+
+        {{-- FORMULARIO --}}
+        <form method="POST" action="{{ route('login') }}" class="space-y-6">
+            @csrf
+
+            {{-- Email --}}
+            <div>
+                <label for="email" class="block text-sm font-medium text-slate-100 mb-2">Correo Electrónico</label>
+                <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus
+                    autocomplete="username"
+                    class="w-full rounded-lg border border-white/25 bg-black/30 px-4 py-3 text-white
+                              placeholder-white/60 outline-none transition
+                              focus:border-orange-500 focus:ring-2 focus:ring-orange-500/60">
+                @error('email')
+                    <p class="mt-2 text-sm text-red-400">{{ $message }}</p>
+                @enderror
+            </div>
+            {{-- Password --}}
+            <div>
+                <div class="mb-2 flex items-center justify-between">
+                    <label for="password" class="block text-sm font-medium text-slate-100">Contraseña</label>
+                    @if (Route::has('password.request'))
+                        <a href="{{ route('password.request') }}"
+                            class="text-xs font-medium text-orange-400 hover:text-orange-300">¿Olvidaste tu
+                            contraseña?</a>
+                    @endif
+                </div>
+
+                {{-- Campo con toggle --}}
+                <div x-data="{ show: false }" class="relative">
+                    <input :type="show ? 'text' : 'password'" id="password" name="password" required
+                        autocomplete="current-password"
+                        class="w-full rounded-lg border border-white/25 bg-black/30 px-4 py-3 pr-10 text-white
+                  placeholder-white/60 outline-none transition
+                  focus:border-orange-500 focus:ring-2 focus:ring-orange-500/60">
+
+                    <button type="button" @click="show = !show"
+                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white focus:outline-none"
+                        :aria-pressed="show.toString()" :title="show ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                        aria-label="Alternar visibilidad de contraseña">
+                        {{-- ojo abierto --}}
+                        <svg x-show="!show" x-cloak xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" x-transition.opacity.duration.100>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.065 7-9.542 7S3.732 16.057 2.458 12z" />
+                        </svg>
+                        {{-- ojo tachado --}}
+                        <svg x-show="show" x-cloak xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" x-transition.opacity.duration.100>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.956 9.956 0 012.61-4.33" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6.228 6.228A9.956 9.956 0 0112 5c4.477 0 8.268 2.943 9.542 7a9.956 9.956 0 01-4.478 5.568" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 00-4.243-2.829M9.88 9.88A3 3 0 0012 15a3 3 0 002.12-.879" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
+                        </svg>
+                    </button>
+                </div>
+
+                @error('password')
+                    <p class="mt-2 text-sm text-red-400">{{ $message }}</p>
+                @enderror
+            </div>
+
+
+            {{-- Remember + Volver --}}
+            <div class="flex items-center justify-between">
+                <label for="remember_me" class="flex items-center gap-2">
+                    <input id="remember_me" type="checkbox" name="remember"
+                        class="h-4 w-4 rounded border-white/20 bg-white/10 text-orange-500 focus:ring-orange-500/50">
+                    <span class="text-sm text-slate-200">Recordarme</span>
+                </label>
+            </div>
+
+            {{-- Botón --}}
+            <button type="submit"
+                class="relative inline-flex w-full items-center justify-center gap-2 rounded-lg
+                           bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-3 font-semibold text-black
+                           shadow-lg hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-orange-400/70">
+                <span class="absolute inset-0 -z-10 rounded-lg bg-orange-500/40 blur-md"></span>
+                Ingresar al Sistema
+            </button>
+
+            <p class="text-center text-xs text-slate-400 mt-2">
+                Acceso restringido. Intentos no autorizados serán registrados.
+            </p>
+        </form>
     </div>
 </x-guest-layout>
