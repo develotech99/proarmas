@@ -42,20 +42,12 @@ Route::get('/dashboard', function () {
 
 
 Route::resource('proempresas', ProEmpresaDeImportacionController::class);
-
+Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
 
 
 
 Route::middleware('auth')->group(function () {
-    Route::prefix('prolicencias')->name('prolicencias.')->group(function () {
-        Route::get('/', [ProLicenciaParaImportacionController::class, 'index'])->name('index');
-        Route::get('create', [ProLicenciaParaImportacionController::class, 'create'])->name('create');
-        Route::post('/', [ProLicenciaParaImportacionController::class, 'store'])->name('store');
-        Route::get('{id}', [ProLicenciaParaImportacionController::class, 'show'])->name('show');
-        Route::get('{id}/edit', [ProLicenciaParaImportacionController::class, 'edit'])->name('edit');
-        Route::put('{id}', [ProLicenciaParaImportacionController::class, 'update'])->name('update');
-        Route::delete('{id}', [ProLicenciaParaImportacionController::class, 'destroy'])->name('destroy');
-    });
+
     
     
     Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
