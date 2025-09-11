@@ -25,30 +25,12 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::prefix('licencias-importacion')->name('licencias-importacion.')->group(function () {
-    Route::get('/', [LicenciaImportacionController::class, 'index'])->name('index');
-    Route::get('/crear', [LicenciaImportacionController::class, 'create'])->name('create');
-    Route::post('/', [LicenciaImportacionController::class, 'store'])->name('store');
-    Route::get('/{id}', [LicenciaImportacionController::class, 'show'])->name('show');
-    Route::get('/{id}/editar', [LicenciaImportacionController::class, 'edit'])->name('edit');
-    Route::put('/{id}', [LicenciaImportacionController::class, 'update'])->name('update');
-    Route::delete('/{id}', [LicenciaImportacionController::class, 'destroy'])->name('destroy');
-    Route::patch('/{id}/cambiar-estado', [LicenciaImportacionController::class, 'cambiarEstado'])->name('cambiar-estado');
-});
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-
-
-Route::resource('proempresas', ProEmpresaDeImportacionController::class);
-Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
-
-
-
 Route::middleware('auth')->group(function () {
+    Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
-    
+    Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
+      Route::redirect('/dashboard', '/prolicencias')->name('dashboard');
+
     
     Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
     Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');

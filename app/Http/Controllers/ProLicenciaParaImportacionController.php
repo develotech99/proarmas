@@ -2,202 +2,312 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProLicenciaParaImportacion;
-use App\Models\ProEmpresaDeImportacion;
-use App\Models\ProModelo;
-
+use App\Models\ProLicenciaParaImportacion as Licencia;
+use App\Models\ProArmaLicenciada as Arma;
+use App\Models\ProModelo; // 👈 Agregar este import
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class ProLicenciaParaImportacionController extends Controller
 {
+    /** INDEX: lista licencias con sus armas (resumen) o render vista */
     public function index(Request $request)
     {
-        $query = ProLicenciaParaImportacion::with(['empresa', 'modelo']);
+        $licencias = Licencia::query()
+            // ->with([
+            //     'armas',
+            //     'armas.subcategoria:subcategoria_id,subcategoria_nombre',
+            //     'armas.modelo:modelo_id,modelo_descripcion', // 👈 cambiar modelo → modelo
+            //     'armas.empresa:empresaimp_id,empresaimp_descripcion',
+            // ])
 
-        if ($request->filled('descripcion')) {
-            $query->where('lipaimp_descripcion', 'like', '%' . $request->descripcion . '%');
-        }
+->with([
+  'armas',
+  'armas.subcategoria:subcategoria_id,subcategoria_nombre',
+  'armas.modelo:modelo_id,modelo_descripcion,modelo_marca_id', // <-- agrega la FK
+  'armas.modelo.marca:marca_id,marca_descripcion',
+   'armas.calibre:calibre_id,calibre_nombre', 
+  'armas.empresa:empresaimp_id,empresaimp_descripcion',
+])
 
-        if ($request->filled('situacion')) {
-            $query->where('lipaimp_situacion', $request->situacion);
-        }
 
-        if ($request->filled('empresa')) {
-            $query->where('lipaimp_empresa', $request->empresa);
-        }
+            ->orderByDesc('lipaimp_id')
+            ->paginate(15, [
+                'lipaimp_id','lipaimp_poliza','lipaimp_descripcion',
+                'lipaimp_fecha_emision','lipaimp_fecha_vencimiento',
+                'lipaimp_situacion','created_at','updated_at'
+            ]);
 
-        if ($request->filled('modelo')) {
-            $query->where('lipaimp_modelo', $request->modelo);
-        }
+        // catálogos
+        $subcategorias = \DB::table('pro_subcategorias')
+            ->select('subcategoria_id','subcategoria_nombre')
+            ->orderBy('subcategoria_nombre')->get();
 
-        $licencias = $query->paginate(10)->withQueryString();
+      $modelosSelect = ProModelo::where('modelo_situacion', 1)
+    ->orderBy('modelo_descripcion')
+    ->get(['modelo_id','modelo_descripcion']);
 
-        $empresas = ProEmpresaDeImportacion::orderBy('empresaimp_descripcion')->get(['empresaimp_id', 'empresaimp_descripcion']);
-        $modelos = ProModelo::orderBy('modelo_descripcion')->get(['modelo_id', 'modelo_descripcion']);
-      
+        $empresas = \DB::table('pro_empresas_de_importacion')
+            ->select('empresaimp_id','empresaimp_descripcion')
+            ->orderBy('empresaimp_descripcion')->get();
 
-        return view('prolicencias.index', compact('licencias', 'empresas', 'modelos'));
+        return view('prolicencias.index', compact('licencias','subcategorias','modelosSelect','empresas'));
     }
 
-    public function create()
-    {
-        $empresas = ProEmpresaDeImportacion::all();
-        $modelos = ProModelo::all();
-    
-        
-        return view('prolicencias.index', compact('empresas', 'modelos'));
-    }
-
+    /** STORE: crea licencia + armas (array) */
     public function store(Request $request)
     {
-         \Log::debug('Datos recibidos ANTES de validar:', $request->all());
-        $validated = $request->validate([
-            'lipaimp_modelo' => 'required|exists:pro_modelo,modelo_id',
-            'lipaimp_largo_canon' => 'required|numeric',
-            'lipaimp_poliza' => 'nullable|integer',
-            'lipaimp_numero_licencia' => 'nullable|string|max:50|unique:pro_licencias_para_importacion,lipaimp_numero_licencia',
-            'lipaimp_descripcion' => 'nullable|string|max:255',
-            'lipaimp_empresa' => 'required|exists:pro_empresas_de_importacion,empresaimp_id',
-            'lipaimp_fecha_emision' => 'nullable|date',
-            'lipaimp_fecha_vencimiento' => 'nullable|date',
-            'lipaimp_observaciones' => 'nullable|string',
-            'lipaimp_situacion' => 'required|integer|in:1,2,3,4,5',
-            'lipaimp_cantidad_armas' => 'required|integer',
-        ]);
+        try {
+            // Normaliza aliases de armas y valida
+            [$licData, $armasData] = $this->validateCompound($request);
 
-        $licencia = ProLicenciaParaImportacion::create($validated);
+            // (OPCIONAL) Debug rápido: ?debug=1 devuelve lo recibido sin escribir en DB
+            if ($request->boolean('debug')) {
+                return response()->json([
+                    'debug'   => true,
+                    'licencia'=> $licData,
+                    'armas'   => $armasData,
+                ], 200);
+            }
 
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => '¡Licencia creada exitosamente!',
-                'licencia' => $licencia->load(['empresa', 'modelo'])
-            ]);
+            $licencia = DB::transaction(function () use ($licData, $armasData) {
+                // Crea/actualiza licencia por PK manual (si ya existe, puedes usar updateOrCreate)
+                $lic = Licencia::create($licData);
+
+                // Inserta armas
+                $prepared = $this->prepareArmas($armasData, (int)$lic->lipaimp_id);
+                if (!empty($prepared)) {
+                    Arma::insert($prepared);
+                }
+
+                return $lic;
+            });
+
+            return $this->jsonOrRedirect(
+                $request,
+                ['licencia' => $licencia->load('armas'), 'message' => 'Creado'],
+                201,
+                back()->with('success', 'Licencia y armas creadas correctamente')
+            );
+
+        } catch (Throwable $e) {
+            return $this->handleException($request, $e, 'Error al crear la licencia/armas');
         }
-
-        return redirect()->route('prolicencias.index')->with('success', '¡Licencia creada exitosamente!');
     }
 
-    public function show($id)
+    /** SHOW: una licencia con sus armas (útil para modal de edición) */
+    public function show(Request $request, int $id)
     {
-        $licencia = ProLicenciaParaImportacion::with(['empresa', 'modelo'])->findOrFail($id);
-
-        if (request()->ajax()) {
-            return response()->json([
-                'success' => true,
-                'licencia' => $licencia
-            ]);
-        }
-
-        return view('prolicencias.index', compact('licencia'));
+        $licencia = Licencia::with('armas')->findOrFail($id);
+        return response()->json(['licencia' => $licencia]);
     }
 
-    public function edit($id)
-    {
-        $licencia = ProLicenciaParaImportacion::findOrFail($id);
-        $empresas = ProEmpresaDeImportacion::all();
-        $modelos = ProModelo::all();
-
-
-        if (request()->ajax()) {
-            return response()->json([
-                'success' => true,
-                'licencia' => $licencia,
-                'empresas' => $empresas,
-                'modelos' => $modelos,
-              
-            ]);
-        }
-
-        return view('prolicencias.index', compact('licencia', 'empresas', 'modelos'));
-    }
-
-    public function update(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'lipaimp_modelo' => 'required|exists:pro_modelo,modelo_id',
-            'lipaimp_largo_canon' => 'required|numeric',
-            'lipaimp_poliza' => 'nullable|integer',
-            'lipaimp_numero_licencia' => 'nullable|string|max:50|unique:pro_licencias_para_importacion,lipaimp_numero_licencia,' . $id . ',lipaimp_id',
-            'lipaimp_descripcion' => 'nullable|string|max:255',
-            'lipaimp_empresa' => 'required|exists:pro_empresas_de_importacion,empresaimp_id',
-            'lipaimp_fecha_emision' => 'nullable|date',
-            'lipaimp_fecha_vencimiento' => 'nullable|date',
-            'lipaimp_observaciones' => 'nullable|string',
-            'lipaimp_situacion' => 'required|integer|in:1,2,3,4,5',
-            'lipaimp_cantidad_armas' => 'required|integer',
-        ]);
-
-        $licencia = ProLicenciaParaImportacion::findOrFail($id);
-        $licencia->update($validated);
-
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => '¡Licencia actualizada exitosamente!',
-                'licencia' => $licencia->load(['empresa', 'modelo'])
-            ]);
-        }
-
-        return redirect()->route('prolicencias.index')->with('success', '¡Licencia actualizada exitosamente!');
-    }
-
-    public function destroy($id)
+    /** UPDATE: actualiza licencia + sincroniza armas (upsert + delete) */
+    public function update(Request $request, int $id)
     {
         try {
-            $licencia = ProLicenciaParaImportacion::findOrFail($id);
-            $licencia->delete();
+            $licencia = Licencia::findOrFail($id);
+            [$licData, $armasData] = $this->validateCompound($request, $licencia->lipaimp_id);
 
-            if (request()->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => '¡Licencia eliminada exitosamente!'
-                ]);
-            }
+            DB::transaction(function () use ($licencia, $licData, $armasData) {
+                // 1) Actualizar licencia
+                if (!empty($licData)) {
+                    $licencia->fill($licData)->save();
+                }
 
-            return redirect()->route('prolicencias.index')->with('success', '¡Licencia eliminada exitosamente!');
-        } catch (\Exception $e) {
-            if (request()->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error al eliminar la licencia: ' . $e->getMessage()
-                ], 500);
-            }
+                // 2) Sincronizar armas
+                $incoming   = collect($armasData);
+                $existing   = $licencia->armas()->get(['arma_lic_id']);
+                $incomingIds= $incoming->pluck('arma_lic_id')->filter()->map(fn($v)=>(int)$v)->all();
+                $toDelete   = $existing->pluck('arma_lic_id')->reject(fn($id) => in_array($id, $incomingIds))->all();
 
-            return redirect()->route('prolicencias.index')->with('error', 'Error al eliminar la licencia.');
-        }
-    }
+                if (!empty($toDelete)) {
+                    Arma::whereIn('arma_lic_id', $toDelete)->delete();
+                }
 
-    public function getLicencias(Request $request)
-    {
-        $query = ProLicenciaParaImportacion::with(['empresa', 'modelo']);
+                foreach ($incoming as $row) {
+                    $row = $this->prepareUnaArma($row, (int)$licencia->lipaimp_id);
 
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('lipaimp_descripcion', 'like', "%{$search}%")
-                  ->orWhere('lipaimp_numero_licencia', 'like', "%{$search}%");
+                    if (!empty($row['arma_lic_id'])) {
+                        $armaId = (int)$row['arma_lic_id'];
+                        unset($row['arma_lic_id'], $row['arma_num_licencia']); // no cambiar FK ni PK en update
+                        Arma::where('arma_lic_id', $armaId)->update($row);
+                    } else {
+                        Arma::create($row);
+                    }
+                }
             });
+
+            return $this->jsonOrRedirect(
+                $request,
+                ['licencia' => $licencia->fresh()->load('armas'), 'message' => 'Actualizado'],
+                200,
+                back()->with('success', 'Licencia y armas actualizadas correctamente')
+            );
+
+        } catch (Throwable $e) {
+            return $this->handleException($request, $e, 'Error al actualizar la licencia/armas');
         }
-
-        if ($request->filled('empresa')) {
-            $query->where('lipaimp_empresa', $request->empresa);
-        }
-
-        if ($request->filled('modelo')) {
-            $query->where('lipaimp_modelo', $request->modelo);
-        }
-
-        if ($request->filled('estado')) {
-            $query->where('lipaimp_situacion', $request->estado);
-        }
-
-        $licencias = $query->get();
-
-        return response()->json([
-            'success' => true,
-            'licencias' => $licencias
-        ]);
     }
-    
+
+    /** DESTROY: borra licencia (armas se borran por FK CASCADE) */
+    public function destroy(Request $request, int $id)
+    {
+        try {
+            $licencia = Licencia::findOrFail($id);
+
+            DB::transaction(function () use ($licencia) {
+                $licencia->delete();
+            });
+
+            return $this->jsonOrRedirect(
+                $request,
+                ['ok' => true, 'message' => 'Eliminado'],
+                200,
+                back()->with('success', 'Licencia eliminada correctamente')
+            );
+
+        } catch (Throwable $e) {
+            return $this->handleException($request, $e, 'No se pudo eliminar la licencia');
+        }
+    }
+
+    /* ===================== VALIDACIÓN COMPUESTA ===================== */
+
+    /**
+     * Normaliza aliases de armas -> nombres canónicos y valida
+     * En update, puedes pasar $ignoreId si tuvieras reglas unique sobre lipaimp_id (no parece el caso).
+     */
+    private function validateCompound(Request $request, ?int $ignoreId = null): array
+    {
+        // Detecta si es CREATE (no hay $ignoreId / o ruta Store) o UPDATE
+        $isUpdate = $ignoreId !== null;
+
+        // 1) Normaliza armas (tu bloque actual)...
+        $armas = collect($request->input('armas', []))->map(function ($a) use ($request) {
+            $a = is_array($a) ? $a : [];
+            $numLic = $a['arma_num_licencia']
+                ?? $a['arma_licencia_id']
+                ?? $request->input('lipaimp_id');
+
+            return [
+                'arma_lic_id'       => $a['arma_lic_id'] ?? null,
+                'arma_num_licencia' => $numLic !== null ? (int)$numLic : null,
+                'arma_sub_cat'      => isset($a['arma_sub_cat']) ? (int)$a['arma_sub_cat']
+                                            : (isset($a['arma_subcate_id']) ? (int)$a['arma_subcate_id']
+                                            : (isset($a['arma_subcategoria_id']) ? (int)$a['arma_subcategoria_id']
+                                            : (isset($a['subcategoria_id']) ? (int)$a['subcategoria_id'] : null))),
+                'arma_modelo'       => isset($a['arma_modelo']) ? (int)$a['arma_modelo']
+                                            : (isset($a['arma_modelo_id']) ? (int)$a['arma_modelo_id']
+                                            : (isset($a['modelo_id']) ? (int)$a['modelo_id'] : null)),
+                'arma_empresa'      => isset($a['arma_empresa']) ? (int)$a['arma_empresa']
+                                            : (isset($a['arma_empresa_id']) ? (int)$a['arma_empresa_id']
+                                            : (isset($a['empresaimp_id']) ? (int)$a['empresaimp_id']
+                                            : (isset($a['empresa_id']) ? (int)$a['empresa_id'] : null))),
+                'arma_largo_canon'  => isset($a['arma_largo_canon']) ? (float)$a['arma_largo_canon']
+                                            : (isset($a['largo_canon']) ? (float)$a['largo_canon'] : null),
+                'arma_cantidad'     => isset($a['arma_cantidad']) ? (int)$a['arma_cantidad'] : null,
+            ];
+        })->all();
+
+        $request->merge(['armas' => $armas]);
+
+        // 2) Reglas base
+        $rules = [
+            'lipaimp_id'                => ['required','integer'],
+            'armas'                     => ['required','array','min:1'],
+            'armas.*.arma_sub_cat'      => ['required','integer','exists:pro_subcategorias,subcategoria_id'],
+            'armas.*.arma_modelo'       => ['required','integer','exists:pro_modelo,modelo_id'], // ajusta si tu tabla es pro_modelos
+            'armas.*.arma_empresa'      => ['required','integer','exists:pro_empresas_de_importacion,empresaimp_id'],
+            'armas.*.arma_largo_canon'  => ['required','numeric','min:0'],
+            'armas.*.arma_cantidad'     => ['required','integer','min:1'],
+        ];
+
+        // 3) Regla especial para arma_num_licencia
+        if ($isUpdate) {
+            // En UPDATE, la licencia ya existe → sí podemos usar exists
+            $rules['armas.*.arma_num_licencia'] = ['required','integer','exists:pro_licencias_para_importacion,lipaimp_id'];
+        } else {
+            // En CREATE, aún no existe → valida igualdad con lipaimp_id
+            $rules['armas.*.arma_num_licencia'] = ['required','integer','in:'.$request->input('lipaimp_id')];
+        }
+
+        $validated = validator($request->all(), $rules)->validate();
+
+        // 4) Separa licencia y armas
+        $licData = $request->only([
+            'lipaimp_id',
+            'lipaimp_poliza',
+            'lipaimp_descripcion',
+            'lipaimp_fecha_emision',
+            'lipaimp_fecha_vencimiento',
+            'lipaimp_observaciones',
+            'lipaimp_situacion',
+        ]);
+        if (isset($licData['lipaimp_id'])) $licData['lipaimp_id'] = (int)$licData['lipaimp_id'];
+        if (isset($licData['lipaimp_poliza']) && $licData['lipaimp_poliza']!=='') $licData['lipaimp_poliza'] = (int)$licData['lipaimp_poliza'];
+        if (isset($licData['lipaimp_situacion']) && $licData['lipaimp_situacion']!=='') $licData['lipaimp_situacion'] = (int)$licData['lipaimp_situacion'];
+
+        $armasData = $validated['armas'];
+        return [$licData, $armasData];
+    }
+
+    /** Prepara arreglo de armas para insert masivo */
+    protected function prepareArmas(array $armas, int $licenciaId): array
+    {
+        $out = [];
+        foreach ($armas as $row) {
+            $out[] = $this->prepareUnaArma($row, $licenciaId, /*forBulk*/ true);
+        }
+        // filtra nulos/filas incompletas por seguridad
+        return array_values(array_filter($out));
+    }
+
+    /** Normaliza/calcula una fila de arma -> campos EXACTOS de tu tabla */
+    protected function prepareUnaArma(array $row, int $licenciaId, bool $forBulk = false): array
+    {
+        $payload = [
+            'arma_num_licencia' => $row['arma_num_licencia'] ?? $licenciaId,
+            'arma_sub_cat'      => (int)$row['arma_sub_cat'],
+            'arma_modelo'       => (int)$row['arma_modelo'],
+            'arma_empresa'      => (int)$row['arma_empresa'],
+            'arma_largo_canon'  => (float)$row['arma_largo_canon'],
+            'arma_cantidad'     => (int)($row['arma_cantidad'] ?? 1),
+        ];
+
+        // En update individual podemos necesitar el id
+        if (!$forBulk && !empty($row['arma_lic_id'])) {
+            $payload['arma_lic_id'] = (int)$row['arma_lic_id'];
+        }
+
+        return $payload;
+    }
+
+    /* ===================== HELPERS ===================== */
+
+    protected function wantsJson(Request $request): bool
+    {
+        return $request->wantsJson() || $request->ajax();
+    }
+
+    protected function jsonOrRedirect(Request $request, array $payload, int $status, $redirect)
+    {
+        if ($this->wantsJson($request)) {
+            return response()->json($payload, $status);
+        }
+        return $redirect;
+    }
+
+    protected function handleException(Request $request, Throwable $e, string $friendlyMessage)
+    {
+        // Log::error($e); // si quieres logear
+        if ($this->wantsJson($request)) {
+            return response()->json([
+                'message' => $friendlyMessage,
+                'detalle' => $e->getMessage(),
+            ], 422);
+        }
+        return back()->with('error', $friendlyMessage)->with('detalle', $e->getMessage());
+    }
 }
