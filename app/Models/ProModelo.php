@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Models\Marcas;
 class ProModelo extends Model
 {
-    protected $table = 'pro_modelo';
+      protected $table = 'pro_modelo';     // o 'pro_modelos' si fuera plural
     protected $primaryKey = 'modelo_id';
+    public $timestamps = false;
 
     protected $fillable = [
         'modelo_descripcion',
@@ -21,11 +22,10 @@ class ProModelo extends Model
     ];
 
     // Relaciones
-    public function marca()
-    {
-        return $this->belongsTo(Marcas::class, 'modelo_marca_id', 'marca_id');
-    }
-
+public function marca()
+{
+    return $this->belongsTo(Marcas::class, 'modelo_marca_id', 'marca_id');
+}
     // Scopes
     public function scopeActivos($query)
     {

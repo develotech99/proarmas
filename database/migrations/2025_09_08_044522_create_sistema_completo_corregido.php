@@ -120,42 +120,71 @@ return new class extends Migration
             $table->foreign('empresaimp_pais')->references('pais_id')->on('pro_paises');
         });
 
+
         // Licencias para importación
           // Tabla de licencias de importación (si no existe)
           if (!Schema::hasTable('pro_licencias_para_importacion')) {
             Schema::create('pro_licencias_para_importacion', function (Blueprint $table) {
-                $table->id('lipaimp_id')->autoIncrement()->primary();
-                $table->integer('lipaimp_poliza')->nullable();
-                $table->string('lipaimp_descripcion', 100)->nullable();
-                $table->unsignedBigInteger('lipaimp_empresa');
-                $table->date('lipaimp_fecha_vencimiento')->nullable();
-                $table->integer('lipaimp_situacion')->default(1)->comment('1 pendiente, 2 autorizado, 3 rechazado');
-                
-                // Índices
-                $table->index('lipaimp_empresa');
-                $table->index('lipaimp_situacion');
-                $table->index('lipaimp_fecha_vencimiento');
-                
-                // Clave foránea
-                $table->foreign('lipaimp_empresa')
-                      ->references('empresaimp_id')
-                      ->on('pro_empresas_de_importacion')
-                      ->onDelete('restrict');
-            });
-        }
-    
+            $table->engine = 'InnoDB';
 
-        // Digecam
-        Schema::create('pro_digecam', function (Blueprint $table) {
-            $table->id('digecam_id')->comment('ID digecam');
-            $table->unsignedBigInteger('digecam_licencia_import')->comment('Licencia asociada');
-            $table->string('digecam_autorizacion', 50)->default('no aprobada')->comment('Estado autorización');
-            $table->integer('digecam_situacion')->default(1)->comment('1 = activa, 0 = inactiva');
+            $table->unsignedBigInteger('lipaimp_id')->comment('Número de licencia');
+            $table->integer('lipaimp_poliza')->nullable()->comment('Número de póliza de la licencia');
+            $table->string('lipaimp_descripcion', 255)->nullable()->comment('Descripción general del lote de armas');
+            $table->date('lipaimp_fecha_emision')->nullable()->comment('Fecha de emisión de la licencia');
+            $table->date('lipaimp_fecha_vencimiento')->nullable()->comment('Fecha de vencimiento');
+            $table->text('lipaimp_observaciones')->nullable()->comment('Observaciones adicionales');
+            $table->integer('lipaimp_situacion')->default(1)->comment('1 pendiente, 2 autorizado, 3 rechazado, 4 en tránsito, 5 recibido');
             $table->timestamps();
-            
-            $table->foreign('digecam_licencia_import')->references('lipaimp_id')->on('pro_licencias_para_importacion');
+
+            $table->primary('lipaimp_id');
+        });
+        }
+
+
+        Schema::create('pro_armas_licenciadas', function (Blueprint $table) {
+            // Opcionales (MySQL)
+            $table->engine = 'InnoDB';
+            $table->collation = 'utf8mb4_0900_ai_ci';
+
+            $table->bigIncrements('arma_lic_id')->comment('ID arma licenciada');
+
+            $table->unsignedBigInteger('arma_num_licencia'); // FK → pro_licencias_para_importacion.lipaimp_id
+            $table->unsignedBigInteger('arma_sub_cat')->comment('subcategoria'); // FK → pro_subcategorias.subcategoria_id
+            $table->unsignedBigInteger('arma_modelo')->comment('modelo'); // FK → pro_modelo.modelo_id
+            $table->unsignedBigInteger('arma_empresa')->comment('empresa'); // FK → pro_empresas_de_importacion.empresaimp_id
+            $table ->unsignedBigInteger('arma_calibre')->comment( 'Calibre del arma');
+            $table->decimal('arma_largo_canon', 10, 2)->comment('largo del canon');
+            $table->integer('arma_cantidad')->default(1)->comment('Cantidad de este tipo de arma');
+
+            // Índices
+            $table->index('arma_num_licencia', 'idx_arma_num_licencia');
+            $table->index('arma_sub_cat', 'idx_arma_sub_cat');
+            $table->index('arma_modelo', 'idx_arma_modelo');
+            $table->index('arma_empresa', 'idx_arma_empresa');
+
+            // Llaves foráneas (nombres iguales a tu DDL)
+            $table->foreign('arma_empresa', 'fk_arlic_empresa')
+                  ->references('empresaimp_id')->on('pro_empresas_de_importacion')
+                  ->onDelete('restrict');
+
+            $table->foreign('arma_num_licencia', 'fk_arlic_lic')
+                  ->references('lipaimp_id')->on('pro_licencias_para_importacion')
+                  ->onDelete('cascade');
+
+            $table->foreign('arma_modelo', 'fk_arlic_modelo')
+                  ->references('modelo_id')->on('pro_modelo')
+                  ->onDelete('restrict');
+
+            $table->foreign('arma_sub_cat', 'fk_arlic_sub')
+                  ->references('subcategoria_id')->on('pro_subcategorias')
+                  ->onDelete('restrict');
+                        $table->foreign('arma_calibre', 'fkarma_calibre')
+                  ->references('calibre_id')->on('pro_calibres')
+                  ->onDelete('restrict');
         });
 
+
+     
         // ========================
         // INVENTARIO 
         // ========================
@@ -192,25 +221,7 @@ return new class extends Migration
         });
 
         // Armas licenciadas
-        Schema::create('pro_armas_licenciadas', function (Blueprint $table) {
-            $table->id('arma_lic_id')->comment('ID arma licenciada');
-            $table->unsignedBigInteger('arma_licencia_id');
-            $table->unsignedBigInteger('arma_cate_id');
-            $table->unsignedBigInteger('arma_subcate_id');
-            $table->unsignedBigInteger('arma_marca_id');
-            $table->unsignedBigInteger('arma_modelo_id');
-            $table->unsignedBigInteger('arma_calibre_id');
-            $table->integer('arma_cantidad')->default(1);
-            $table->integer('arma_situacion')->default(1);
-            $table->timestamps();
-
-            $table->foreign('arma_licencia_id')->references('lipaimp_id')->on('pro_licencias_para_importacion');
-            $table->foreign('arma_cate_id')->references('categoria_id')->on('pro_categorias');
-            $table->foreign('arma_subcate_id')->references('subcategoria_id')->on('pro_subcategorias');
-            $table->foreign('arma_marca_id')->references('marca_id')->on('pro_marcas');
-            $table->foreign('arma_modelo_id')->references('modelo_id')->on('pro_modelo');
-            $table->foreign('arma_calibre_id')->references('calibre_id')->on('pro_calibres');
-        });
+     
 
         // ========================
         // CLIENTES Y VENTAS
