@@ -191,7 +191,8 @@ Route::middleware('auth')->group(function () {
     // Modelos por marca (AJAX)
     Route::get('/marcas/{marca}/modelos', [InventarioController::class, 'getModelosPorMarca'])
           ->name('marcas.modelos');
-    
+   
+    Route::get('paises/activos', [InventarioController::class, 'getPaisesActivos']);
     // Calibres activos (AJAX)
     Route::get('/calibres/activos', [InventarioController::class, 'getCalibresActivos'])
           ->name('calibres.activos');

@@ -312,14 +312,50 @@
                             </select>
                         </div>
 
-                        <!-- Código de barra -->
+
+                        <!-- País de fabricación -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">País de fabricación</label>
+                            <select id="producto_madein"
+                                    name="producto_madein"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">Seleccionar país</option>
+                            </select>
+                        </div>
+
+                        <!-- Código de barra (ya existente) -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Código de barra</label>
                             <input type="text" 
-                                   id="producto_codigo_barra"
-                                   name="producto_codigo_barra"
-                                   placeholder="Opcional"
-                                   class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                id="producto_codigo_barra"
+                                name="producto_codigo_barra"
+                                placeholder="Opcional"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+
+                        <!-- Stock mínimo y máximo -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock mínimo <small class="text-gray-500">(para alertas)</small></label>
+                            <input type="number" 
+                                id="producto_stock_minimo"
+                                name="producto_stock_minimo"
+                                min="0"
+                                value="0"
+                                placeholder="Ej: 5"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <small class="text-xs text-gray-500 dark:text-gray-400">Se generará alerta cuando el stock esté por debajo de este número</small>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock máximo <small class="text-gray-500">(recomendado)</small></label>
+                            <input type="number" 
+                                id="producto_stock_maximo"
+                                name="producto_stock_maximo"
+                                min="0"
+                                value="0"
+                                placeholder="Ej: 50"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <small class="text-xs text-gray-500 dark:text-gray-400">Stock máximo recomendado para reportes</small>
                         </div>
 
                         <!-- Requiere serie -->

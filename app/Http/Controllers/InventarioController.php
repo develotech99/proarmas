@@ -202,6 +202,30 @@ public function getProductosStock(Request $request): JsonResponse
     }
 
     /**
+ * Obtener países activos
+ */
+public function getPaisesActivos(): JsonResponse
+{
+    try {
+        $paises = DB::table('pro_paises')
+            ->where('pais_situacion', 1)
+            ->orderBy('pais_descripcion')
+            ->get(['pais_id', 'pais_descripcion']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $paises
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar países'
+        ], 500);
+    }
+}
+
+    /**
      * Registrar nuevo producto
      */
    

@@ -99,6 +99,7 @@ class InventarioManager {
                 this.loadProductos(),
                 this.loadCategorias(),
                 this.loadMarcas(),
+                this.loadPaises(), 
                 this.loadCalibres(),
                 this.loadStats(),
                 this.loadAlertas()
@@ -654,6 +655,18 @@ async loadProductos() {
 
             return matchSearch && matchCategoria && matchStock;
         });
+    }
+
+    async loadPaises() {
+        try {
+            const response = await fetch('/paises/activos');
+            if (response.ok) {
+                const data = await response.json();
+                this.populateSelect('producto_madein', data.data || [], 'pais_id', 'pais_descripcion');
+            }
+        } catch (error) {
+            console.error('Error cargando países:', error);
+        }
     }
 
 /**
