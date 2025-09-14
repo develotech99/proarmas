@@ -347,85 +347,111 @@ return new class extends Migration
         // TABLAS DE INVENTARIO
         // =========================================================
         
-                // Tabla principal de productos
-                Schema::create('pro_productos', function (Blueprint $table) {
-                    $table->id('producto_id');
-                    $table->string('producto_nombre', 100);
-                    $table->text('producto_descripcion')->nullable()->comment('Descripción detallada del producto');
-                    $table->string('pro_codigo_sku', 100)->unique()->comment('SKU único autogenerado');
-                    $table->string('producto_codigo_barra', 100)->unique()->nullable()->comment('Código de barra si aplica');
-                    $table->unsignedBigInteger('producto_categoria_id');
-                    $table->unsignedBigInteger('producto_subcategoria_id');
-                    $table->unsignedBigInteger('producto_marca_id');
-                    $table->unsignedBigInteger('producto_modelo_id')->nullable()->comment('NULL si no aplica');
-                    $table->unsignedBigInteger('producto_calibre_id')->nullable()->comment('NULL si no aplica');
-                    $table->unsignedBigInteger('producto_madein')->nullable()->comment('País de fabricación');
-                    $table->boolean('producto_requiere_serie')->default(false);
-                    $table->boolean('producto_es_importado')->default(false)->comment('TRUE si el producto es de importación');
-                    $table->unsignedBigInteger('producto_id_licencia')->nullable()->comment('FK a licencia de importación, si aplica');
-                    $table->integer('producto_stock_minimo')->default(0)->comment('Alerta de stock mínimo');
-                    $table->integer('producto_stock_maximo')->default(0)->comment('Stock máximo recomendado');
-                    $table->integer('producto_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
-                    $table->timestamps();
-                    
-                    // Índices para optimizar consultas
-                    $table->index('producto_categoria_id');
-                    $table->index('producto_subcategoria_id');
-                    $table->index('producto_marca_id');
-                    $table->index('producto_modelo_id');
-                    $table->index('producto_calibre_id');
-                    $table->index('producto_situacion');
-                    $table->index('producto_codigo_barra');
-                    $table->index('pro_codigo_sku');
-                    $table->index(['producto_situacion', 'producto_categoria_id']);
-                    $table->index('producto_requiere_serie');
-                    
-                    // Claves foráneas
-                    $table->foreign('producto_categoria_id')
-                          ->references('categoria_id')
-                          ->on('pro_categorias')
-                          ->onDelete('restrict');
-                          
-                    $table->foreign('producto_subcategoria_id')
-                          ->references('subcategoria_id')
-                          ->on('pro_subcategorias')
-                          ->onDelete('restrict');
-                          
-                    $table->foreign('producto_marca_id')
-                          ->references('marca_id')
-                          ->on('pro_marcas')
-                          ->onDelete('restrict');
-                          
-                    $table->foreign('producto_modelo_id')
-                          ->references('modelo_id')
-                          ->on('pro_modelo')
-                          ->onDelete('set null');
-                          
-                    $table->foreign('producto_calibre_id')
-                          ->references('calibre_id')
-                          ->on('pro_calibres')
-                          ->onDelete('set null');
+        Schema::create('pro_productos', function (Blueprint $table) {
+            $table->id('producto_id');
+            $table->string('producto_nombre', 100);
+            $table->text('producto_descripcion')->nullable()->comment('Descripción detallada del producto');
+            $table->string('pro_codigo_sku', 100)->unique()->comment('SKU único autogenerado');
+            $table->string('producto_codigo_barra', 100)->unique()->nullable()->comment('Código de barra si aplica');
+            $table->unsignedBigInteger('producto_categoria_id');
+            $table->unsignedBigInteger('producto_subcategoria_id');
+            $table->unsignedBigInteger('producto_marca_id');
+            $table->unsignedBigInteger('producto_modelo_id')->nullable()->comment('NULL si no aplica');
+            $table->unsignedBigInteger('producto_calibre_id')->nullable()->comment('NULL si no aplica');
+            $table->unsignedBigInteger('producto_madein')->nullable()->comment('País de fabricación');
+            $table->boolean('producto_requiere_serie')->default(false);
+            // REMOVIDO: producto_es_importado
+            // REMOVIDO: producto_id_licencia
+            $table->integer('producto_stock_minimo')->default(0)->comment('Alerta de stock mínimo');
+            $table->integer('producto_stock_maximo')->default(0)->comment('Stock máximo recomendado');
+            $table->integer('producto_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
+            $table->timestamps();
+            
+            // Índices para optimizar consultas
+            $table->index('producto_categoria_id');
+            $table->index('producto_subcategoria_id');
+            $table->index('producto_marca_id');
+            $table->index('producto_modelo_id');
+            $table->index('producto_calibre_id');
+            $table->index('producto_situacion');
+            $table->index('producto_codigo_barra');
+            $table->index('pro_codigo_sku');
+            $table->index(['producto_situacion', 'producto_categoria_id']);
+            $table->index('producto_requiere_serie');
+            
+            // Claves foráneas
+            $table->foreign('producto_categoria_id')
+                  ->references('categoria_id')
+                  ->on('pro_categorias')
+                  ->onDelete('restrict');
+                  
+            $table->foreign('producto_subcategoria_id')
+                  ->references('subcategoria_id')
+                  ->on('pro_subcategorias')
+                  ->onDelete('restrict');
+                  
+            $table->foreign('producto_marca_id')
+                  ->references('marca_id')
+                  ->on('pro_marcas')
+                  ->onDelete('restrict');
+                  
+            $table->foreign('producto_modelo_id')
+                  ->references('modelo_id')
+                  ->on('pro_modelo')
+                  ->onDelete('set null');
+                  
+            $table->foreign('producto_calibre_id')
+                  ->references('calibre_id')
+                  ->on('pro_calibres')
+                  ->onDelete('set null');
         
-                    // FK a países si la tabla existe
-                    if (Schema::hasTable('pro_paises')) {
-                        $table->foreign('producto_madein')
-                              ->references('pais_id')
-                              ->on('pro_paises')
-                              ->onDelete('set null');
-                    }
+            // FK a países si la tabla existe
+            if (Schema::hasTable('pro_paises')) {
+                $table->foreign('producto_madein')
+                      ->references('pais_id')
+                      ->on('pro_paises')
+                      ->onDelete('set null');
+            }
         
-                    // FK a licencias si la tabla existe
-                    if (Schema::hasTable('pro_licencias_para_importacion')) {
-                        $table->foreign('producto_id_licencia')
-                              ->references('lipaimp_id')
-                              ->on('pro_licencias_para_importacion')
-                              ->onDelete('set null');
-                    }
+            // Validaciones
+            $table->check('producto_stock_minimo >= 0');
+            $table->check('producto_stock_maximo >= 0');
+        });
         
-                    // Validaciones
-                    $table->check('producto_stock_minimo >= 0');
-                    $table->check('producto_stock_maximo >= 0');
-                });
+        // ========================
+        // NUEVA TABLA: ASIGNACIÓN LICENCIA-PRODUCTO
+        // ========================
+        Schema::create('pro_licencia_asignacion_producto', function (Blueprint $table) {
+            $table->id('asignacion_id');
+            $table->unsignedBigInteger('asignacion_producto_id')->comment('FK al producto del inventario');
+            $table->unsignedBigInteger('asignacion_licencia_id')->comment('FK a la licencia de importación');
+            $table->integer('asignacion_cantidad')->comment('Cantidad de este producto en esta licencia');
+            $table->integer('asignacion_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
+            $table->timestamps();
+        
+            // Índices
+            $table->index('asignacion_producto_id');
+            $table->index('asignacion_licencia_id');
+            $table->index('asignacion_situacion');
+            
+            // Foreign Keys
+            $table->foreign('asignacion_producto_id')
+                  ->references('producto_id')
+                  ->on('pro_productos')
+                  ->onDelete('cascade');
+                  
+            $table->foreign('asignacion_licencia_id')
+                  ->references('lipaimp_id')
+                  ->on('pro_licencias_para_importacion')
+                  ->onDelete('cascade');
+            
+            // Validaciones
+            $table->check('asignacion_cantidad > 0');
+            
+            // Constraint único: un producto no puede estar duplicado en la misma licencia
+            $table->unique(['asignacion_producto_id', 'asignacion_licencia_id'], 'unique_producto_licencia');
+        });
+        
         
                 // Tabla de fotos de productos
                 Schema::create('pro_productos_fotos', function (Blueprint $table) {
@@ -455,28 +481,29 @@ return new class extends Migration
                 Schema::create('pro_series_productos', function (Blueprint $table) {
                     $table->id('serie_id');
                     $table->unsignedBigInteger('serie_producto_id');
+                    $table->unsignedBigInteger('serie_asignacion_id')->nullable()->comment('FK a la asignación licencia-producto si aplica');
                     $table->string('serie_numero_serie', 200)->unique();
-                    $table->string('serie_estado', 25)->default('disponible')->comment('disponible, reservado, vendido, baja');
+                    $table->string('serie_estado', 25)->default('disponible');
                     $table->timestamp('serie_fecha_ingreso')->useCurrent();
-                    $table->string('serie_observaciones', 255)->nullable()->comment('Observaciones específicas de esta serie');
-                    $table->integer('serie_situacion')->default(1)->comment('1 = activo, 0 = eliminado');
+                    $table->string('serie_observaciones', 255)->nullable();
+                    $table->integer('serie_situacion')->default(1);
                     $table->timestamps();
                     
-                    // Índices para optimizar búsquedas
                     $table->index('serie_producto_id');
+                    $table->index('serie_asignacion_id');
                     $table->index('serie_estado');
                     $table->index('serie_numero_serie');
-                    $table->index(['serie_producto_id', 'serie_estado']);
-                    $table->index(['serie_estado', 'serie_situacion']);
-                    $table->index('serie_fecha_ingreso');
                     
-                    // Clave foránea
                     $table->foreign('serie_producto_id')
                           ->references('producto_id')
                           ->on('pro_productos')
                           ->onDelete('cascade');
+                          
+                    $table->foreign('serie_asignacion_id')
+                          ->references('asignacion_id')
+                          ->on('pro_licencia_asignacion_producto')
+                          ->onDelete('set null');
                 });
-        
                 // Tabla de lotes de productos
                 Schema::create('pro_lotes', function (Blueprint $table) {
                     $table->id('lote_id');

@@ -656,9 +656,104 @@ async loadProductos() {
         });
     }
 
-    /**
-     * Renderizar productos
-     */
+/**
+ * Eliminar producto (con validaciones completas)
+ */
+async eliminarProducto(productoId) {
+    // Obtener información del producto primero
+    const producto = this.productos.find(p => p.producto_id === productoId);
+    if (!producto) {
+        this.showAlert('error', 'Error', 'Producto no encontrado');
+        return;
+    }
+
+    // Advertencia adicional si tiene stock
+    const tieneStock = (producto.stock_cantidad_total || 0) > 0;
+    const tieneSeries = producto.producto_requiere_serie;
+
+    let mensajeAdvertencia = 'Esta acción eliminará el producto permanentemente.';
+    if (tieneStock) {
+        mensajeAdvertencia = `⚠️ ATENCIÓN: Este producto tiene ${producto.stock_cantidad_total} unidades en stock.`;
+    }
+    if (tieneSeries) {
+        mensajeAdvertencia += ' También se verificarán las series registradas.';
+    }
+
+    const confirmacion = await Swal.fire({
+        title: '¿Eliminar producto?',
+        html: `
+            <div class="text-left">
+                <p class="font-medium text-gray-900 mb-2">${producto.producto_nombre}</p>
+                <p class="text-sm text-gray-600 mb-3">SKU: ${producto.pro_codigo_sku}</p>
+                <p class="text-sm text-orange-600">${mensajeAdvertencia}</p>
+                <p class="text-xs text-gray-500 mt-2">No se puede deshacer esta acción.</p>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        width: '500px'
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    // Mostrar loading
+    Swal.fire({
+        title: 'Eliminando producto...',
+        html: 'Verificando restricciones y eliminando datos asociados',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            Swal.fire({
+                title: 'Producto eliminado',
+                text: data.message,
+                icon: 'success',
+                timer: 3000,
+                timerProgressBar: true
+            });
+            
+            // Recargar datos
+            await Promise.all([
+                this.loadProductos(),
+                this.loadStats(),
+                this.loadAlertas()
+            ]);
+        } else {
+            Swal.fire({
+                title: 'No se puede eliminar',
+                text: data.message,
+                icon: 'error',
+                confirmButtonColor: '#dc2626'
+            });
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        Swal.fire({
+            title: 'Error de conexión',
+            text: 'No se pudo conectar con el servidor',
+            icon: 'error',
+            confirmButtonColor: '#dc2626'
+        });
+    }
+}
 /**
  * Renderizar productos
  */renderProductos() {
@@ -699,74 +794,102 @@ async loadProductos() {
     /**
      * Renderizar card de producto
      */
-    renderProductoCard(producto) {
-        const stock = producto.stock_cantidad_disponible || 0;
-        const minimo = producto.producto_stock_minimo || 0;
-        
-        let stockClass = 'bg-green-100 text-green-800';
-        let stockText = 'En stock';
-        let stockIcon = 'fa-check-circle';
-        
-        if (stock <= 0) {
-            stockClass = 'bg-red-100 text-red-800';
-            stockText = 'Agotado';
-            stockIcon = 'fa-times-circle';
-        } else if (stock <= minimo) {
-            stockClass = 'bg-yellow-100 text-yellow-800';
-            stockText = 'Stock bajo';
-            stockIcon = 'fa-exclamation-triangle';
-        }
+  // Método renderProductoCard actualizado con foto principal y todas las acciones
 
-        return `
-            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center flex-1">
-                        <div class="flex-shrink-0 h-10 w-10">
-                            <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                                <span class="text-sm font-medium text-white">${producto.producto_nombre.substring(0, 2).toUpperCase()}</span>
-                            </div>
-                        </div>
-                        <div class="ml-4 flex-1">
-                            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                ${producto.producto_nombre}
-                            </div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                SKU: ${producto.pro_codigo_sku || 'N/A'} • ${producto.categoria_nombre || 'Sin categoría'} • ${producto.marca_nombre || 'Sin marca'}
-                            </div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Stock: ${stock} unidades
-                                ${producto.producto_requiere_serie ? ' • Control por serie' : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-3">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${stockClass}">
-                            <i class="fas ${stockIcon} mr-1"></i>
-                            ${stockText}
-                        </span>
-                        <div class="flex space-x-1">
-                            <button onclick="inventarioManager.verDetalleProducto(${producto.producto_id})" 
-                                    class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
-                                    title="Ver detalle">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button onclick="inventarioManager.editarProducto(${producto.producto_id})" 
-                                    class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1"
-                                    title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button onclick="inventarioManager.ingresoRapido(${producto.producto_id})" 
-                                    class="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300 p-1"
-                                    title="Ingreso rápido">
-                                <i class="fas fa-plus-circle"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+
+renderProductoCard(producto) {
+    const stock = producto.stock_cantidad_disponible || 0;
+    const minimo = producto.producto_stock_minimo || 0;
+    
+    let stockClass = 'bg-green-100 text-green-800';
+    let stockText = 'En stock';
+    let stockIcon = 'fa-check-circle';
+    
+    if (stock <= 0) {
+        stockClass = 'bg-red-100 text-red-800';
+        stockText = 'Agotado';
+        stockIcon = 'fa-times-circle';
+    } else if (stock <= minimo) {
+        stockClass = 'bg-yellow-100 text-yellow-800';
+        stockText = 'Stock bajo';
+        stockIcon = 'fa-exclamation-triangle';
     }
 
+    // Determinar imagen a mostrar
+    const imagenSrc = producto.foto_principal;
+    const iniciales = producto.producto_nombre.substring(0, 2).toUpperCase();
+
+    return `
+        <div class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600">
+            <!-- Foto o Avatar -->
+            <div class="flex-shrink-0">
+                ${imagenSrc ? 
+                    `<img src="${imagenSrc}" 
+                          alt="${producto.producto_nombre}"
+                          class="w-20 h-20 rounded-full object-cover border-2 border-blue-200"
+                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     <div class="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium text-sm" style="display:none;">
+                        ${iniciales}
+                     </div>` :
+                    `<div class="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium text-sm">
+                        ${iniciales}
+                     </div>`
+                }
+            </div>
+
+            <!-- Información del producto -->
+            <div class="flex-1 min-w-0">
+                <div class="font-medium text-gray-900 dark:text-gray-100">
+                    ${producto.producto_nombre}
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    SKU: ${producto.pro_codigo_sku} • ${producto.categoria_nombre || 'Sin categoría'} • ${producto.marca_nombre || 'Sin marca'}
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                    Stock: ${stock} unidades${producto.producto_requiere_serie ? ' • Control por serie' : ''}
+                </div>
+            </div>
+
+            <!-- Estado y Acciones -->
+            <div class="flex items-center space-x-2">
+                <!-- Estado del stock -->
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${stockClass}">
+                    <i class="fas ${stockIcon} mr-1"></i>
+                    ${stockText}
+                </span>
+
+                <!-- Botones de acciones -->
+                <div class="flex space-x-1 ml-2">
+                    <button onclick="inventarioManager.verDetalleProducto(${producto.producto_id})" 
+                            class="p-1 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 rounded"
+                            title="Ver detalle">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="inventarioManager.editarProducto(${producto.producto_id})" 
+                            class="p-1 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900 rounded"
+                            title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="inventarioManager.openFotosModal(${producto.producto_id})" 
+                            class="p-1 text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded"
+                            title="Gestionar fotos">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <button onclick="inventarioManager.eliminarProducto(${producto.producto_id})" 
+                            class="p-1 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 rounded"
+                            title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button onclick="inventarioManager.ingresoRapido(${producto.producto_id})" 
+                            class="p-1 text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900 rounded"
+                            title="Ingreso rápido">
+                        <i class="fas fa-plus-circle"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
     /**
      * Actualizar estadísticas en el dashboard
      */

@@ -28,8 +28,6 @@ class Producto extends Model
         'producto_calibre_id',
         'producto_madein',
         'producto_requiere_serie',
-        'producto_es_importado',
-        'producto_id_licencia',
         'producto_stock_minimo',
         'producto_stock_maximo',
         'producto_situacion'
@@ -37,7 +35,6 @@ class Producto extends Model
 
     protected $casts = [
         'producto_requiere_serie' => 'boolean',
-        'producto_es_importado' => 'boolean',
         'producto_situacion' => 'integer',
         'producto_stock_minimo' => 'integer',
         'producto_stock_maximo' => 'integer'
@@ -46,8 +43,15 @@ class Producto extends Model
     // ========================================
     // RELACIONES CON TABLAS DE INVENTARIO
     // ========================================
-
     /**
+     * Relación con las asignaciones de licencias
+     */
+    public function asignacionesLicencias(): HasMany
+    {
+        return $this->hasMany(LicenciaAsignacionProducto::class, 'asignacion_producto_id', 'producto_id')
+                    ->where('asignacion_situacion', 1);
+    }
+        /**
      * Relación con las fotos del producto
      */
     public function fotos(): HasMany
@@ -179,10 +183,7 @@ class Producto extends Model
         return $this->belongsTo(Pais::class, 'producto_madein', 'pais_id');
     }
 
-    public function licenciaImportacion(): BelongsTo
-    {
-        return $this->belongsTo(LicenciaImportacion::class, 'producto_id_licencia', 'lipaimp_id');
-    }
+
 
     // ========================================
     // ATRIBUTOS CALCULADOS (GETTERS)
@@ -353,13 +354,6 @@ class Producto extends Model
         return $query->where('producto_requiere_serie', false);
     }
 
-    /**
-     * Scope para productos importados
-     */
-    public function scopeImportados($query)
-    {
-        return $query->where('producto_es_importado', true);
-    }
 
     /**
      * Scope para productos con stock bajo

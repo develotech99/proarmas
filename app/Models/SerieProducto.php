@@ -23,6 +23,7 @@ class SerieProducto extends Model
 
     protected $fillable = [
         'serie_producto_id',
+        'serie_asignacion_id', 
         'serie_numero_serie',
         'serie_estado',
         'serie_fecha_ingreso',
@@ -56,6 +57,13 @@ class SerieProducto extends Model
         return $this->belongsTo(Producto::class, 'serie_producto_id', 'producto_id');
     }
 
+    /**
+     * Relación con la asignación licencia-producto
+     */
+    public function asignacion(): BelongsTo
+    {
+        return $this->belongsTo(LicenciaAsignacionProducto::class, 'serie_asignacion_id', 'asignacion_id');
+    }
     /**
      *Relación con movimientos de inventario
      * Una serie puede tener múltiples movimientos

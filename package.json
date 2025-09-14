@@ -19,6 +19,7 @@
         "vite": "^7.0.4"
     },
     "dependencies": {
+        "@fortawesome/fontawesome-free": "^7.0.1",
         "leaflet": "^1.9.4",
         "sweetalert2": "^11.22.5",
         "tabulator-tables": "^6.3.1",

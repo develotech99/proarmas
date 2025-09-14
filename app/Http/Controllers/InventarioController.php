@@ -44,60 +44,88 @@ class InventarioController extends Controller
     /**
      * Obtener productos con información de stock
      */
-    public function getProductosStock(Request $request): JsonResponse
-    {
-        try {
-            $query = Producto::activos()
-                ->leftJoin('pro_categorias', 'pro_productos.producto_categoria_id', '=', 'pro_categorias.categoria_id')
-                ->leftJoin('pro_subcategorias', 'pro_productos.producto_subcategoria_id', '=', 'pro_subcategorias.subcategoria_id')
-                ->leftJoin('pro_marcas', 'pro_productos.producto_marca_id', '=', 'pro_marcas.marca_id')
-                ->leftJoin('pro_modelo', 'pro_productos.producto_modelo_id', '=', 'pro_modelo.modelo_id')
-                ->leftJoin('pro_stock_actual', 'pro_productos.producto_id', '=', 'pro_stock_actual.stock_producto_id')
-                ->select([
-                    'pro_productos.producto_id',
-                    'pro_productos.producto_nombre',
-                    'pro_productos.pro_codigo_sku',
-                    'pro_productos.producto_codigo_barra',
-                    'pro_productos.producto_requiere_serie',
-                    'pro_productos.producto_stock_minimo',
-                    'pro_productos.producto_stock_maximo',
-                    'pro_categorias.categoria_nombre',
-                    'pro_subcategorias.subcategoria_nombre',
-                    'pro_marcas.marca_descripcion as marca_nombre',
-                    'pro_modelo.modelo_descripcion as modelo_nombre',
-                    'pro_stock_actual.stock_cantidad_total',
-                    'pro_stock_actual.stock_cantidad_disponible',
-                    'pro_stock_actual.stock_cantidad_reservada'
-                ]);
+    // Reemplazar el método getProductosStock en InventarioController
 
-            // Aplicar filtros si existen
-            if ($request->filled('categoria')) {
-                $query->where('pro_productos.producto_categoria_id', $request->categoria);
-            }
-
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('pro_productos.producto_nombre', 'LIKE', "%{$search}%")
-                      ->orWhere('pro_productos.pro_codigo_sku', 'LIKE', "%{$search}%")
-                      ->orWhere('pro_productos.producto_codigo_barra', 'LIKE', "%{$search}%");
-                });
-            }
-
-            $productos = $query->orderBy('pro_productos.producto_nombre')->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $productos
+public function getProductosStock(Request $request): JsonResponse
+{
+    try {
+        $query = Producto::activos()
+            ->leftJoin('pro_categorias', 'pro_productos.producto_categoria_id', '=', 'pro_categorias.categoria_id')
+            ->leftJoin('pro_subcategorias', 'pro_productos.producto_subcategoria_id', '=', 'pro_subcategorias.subcategoria_id')
+            ->leftJoin('pro_marcas', 'pro_productos.producto_marca_id', '=', 'pro_marcas.marca_id')
+            ->leftJoin('pro_modelo', 'pro_productos.producto_modelo_id', '=', 'pro_modelo.modelo_id')
+            ->leftJoin('pro_stock_actual', 'pro_productos.producto_id', '=', 'pro_stock_actual.stock_producto_id')
+            ->select([
+                'pro_productos.producto_id',
+                'pro_productos.producto_nombre',
+                'pro_productos.pro_codigo_sku',
+                'pro_productos.producto_codigo_barra',
+                'pro_productos.producto_requiere_serie',
+                'pro_productos.producto_stock_minimo',
+                'pro_productos.producto_stock_maximo',
+                'pro_categorias.categoria_nombre',
+                'pro_subcategorias.subcategoria_nombre',
+                'pro_marcas.marca_descripcion as marca_nombre',
+                'pro_modelo.modelo_descripcion as modelo_nombre',
+                'pro_stock_actual.stock_cantidad_total',
+                'pro_stock_actual.stock_cantidad_disponible',
+                'pro_stock_actual.stock_cantidad_reservada'
             ]);
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al cargar productos: ' . $e->getMessage()
-            ], 500);
+        // Aplicar filtros si existen
+        if ($request->filled('categoria')) {
+            $query->where('pro_productos.producto_categoria_id', $request->categoria);
         }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('pro_productos.producto_nombre', 'LIKE', "%{$search}%")
+                  ->orWhere('pro_productos.pro_codigo_sku', 'LIKE', "%{$search}%")
+                  ->orWhere('pro_productos.producto_codigo_barra', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $productos = $query->orderBy('pro_productos.producto_nombre')->get();
+
+        // AGREGAR FOTOS PRINCIPALES A CADA PRODUCTO
+        $productosConFotos = $productos->map(function($producto) {
+            $fotoPrincipal = ProductoFoto::activas()
+                ->where('foto_producto_id', $producto->producto_id)
+                ->where('foto_principal', true)
+                ->first();
+
+            return [
+                'producto_id' => $producto->producto_id,
+                'producto_nombre' => $producto->producto_nombre,
+                'pro_codigo_sku' => $producto->pro_codigo_sku,
+                'producto_codigo_barra' => $producto->producto_codigo_barra,
+                'producto_requiere_serie' => $producto->producto_requiere_serie,
+                'producto_stock_minimo' => $producto->producto_stock_minimo,
+                'producto_stock_maximo' => $producto->producto_stock_maximo,
+                'categoria_nombre' => $producto->categoria_nombre,
+                'subcategoria_nombre' => $producto->subcategoria_nombre,
+                'marca_nombre' => $producto->marca_nombre,
+                'modelo_nombre' => $producto->modelo_nombre,
+                'stock_cantidad_total' => $producto->stock_cantidad_total,
+                'stock_cantidad_disponible' => $producto->stock_cantidad_disponible,
+                'stock_cantidad_reservada' => $producto->stock_cantidad_reservada,
+                'foto_principal' => $fotoPrincipal ? $fotoPrincipal->url_completa : null
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $productosConFotos
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar productos: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Buscar productos para el modal de ingreso
@@ -740,7 +768,8 @@ public function subirFotos(Request $request, $productoId): JsonResponse
 
 /**
  * Eliminar producto (soft delete)
- */
+ */// Método destroy mejorado con todas las validaciones necesarias
+
 public function destroy($id): JsonResponse
 {
     DB::beginTransaction();
@@ -748,18 +777,58 @@ public function destroy($id): JsonResponse
     try {
         $producto = Producto::findOrFail($id);
         
-        // Verificar si tiene stock o movimientos
-        $tieneStock = StockActual::where('stock_producto_id', $id)
-            ->where('stock_cantidad_total', '>', 0)
-            ->exists();
-            
-        if ($tieneStock) {
+        // VALIDACIÓN 1: Verificar stock actual
+        $stockActual = StockActual::where('stock_producto_id', $id)->first();
+        if ($stockActual && $stockActual->stock_cantidad_total > 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se puede eliminar un producto que tiene stock actual'
+                'message' => 'No se puede eliminar un producto con stock actual (' . $stockActual->stock_cantidad_total . ' unidades)'
             ], 422);
         }
 
+        // VALIDACIÓN 2: Verificar series registradas
+        if ($producto->producto_requiere_serie) {
+            $seriesActivas = SerieProducto::where('serie_producto_id', $id)
+                ->where('serie_situacion', 1)
+                ->whereIn('serie_estado', ['disponible', 'reservado'])
+                ->count();
+            
+            if ($seriesActivas > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar un producto con series registradas (' . $seriesActivas . ' series activas)'
+                ], 422);
+            }
+        }
+
+        // VALIDACIÓN 3: Verificar movimientos recientes (últimos 30 días)
+        $movimientosRecientes = Movimiento::where('mov_producto_id', $id)
+            ->where('mov_situacion', 1)
+            ->where('mov_fecha', '>=', now()->subDays(30))
+            ->count();
+        
+        if ($movimientosRecientes > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede eliminar un producto con movimientos en los últimos 30 días'
+            ], 422);
+        }
+
+        // VALIDACIÓN 4: Verificar lotes asociados
+        $lotes = Lote::join('pro_movimientos', 'pro_lotes.lote_id', '=', 'pro_movimientos.mov_lote_id')
+            ->where('pro_movimientos.mov_producto_id', $id)
+            ->where('pro_lotes.lote_situacion', 1)
+            ->count();
+        
+        if ($lotes > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede eliminar un producto asociado a lotes activos'
+            ], 422);
+        }
+
+        // Si pasa todas las validaciones, proceder con eliminación
+        
         // Eliminar fotos físicas
         $fotos = ProductoFoto::where('foto_producto_id', $id)->get();
         foreach ($fotos as $foto) {
@@ -769,8 +838,19 @@ public function destroy($id): JsonResponse
             $foto->delete();
         }
 
+        // Eliminar precios asociados
+        Precio::where('precio_producto_id', $id)->delete();
+
+        // Eliminar stock actual
+        if ($stockActual) {
+            $stockActual->delete();
+        }
+
         // Soft delete del producto (cambiar situación a 0)
-        $producto->update(['producto_situacion' => 0]);
+        $producto->update([
+            'producto_situacion' => 0,
+            'producto_fecha_eliminacion' => now() // Si tienes este campo
+        ]);
 
         DB::commit();
 
@@ -787,7 +867,6 @@ public function destroy($id): JsonResponse
         ], 500);
     }
 }
-
 /**
  * Obtener fotos de un producto
  */

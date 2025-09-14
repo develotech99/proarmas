@@ -232,6 +232,32 @@ CREATE TABLE pro_lotes (
     FOREIGN KEY (lote_usuario_id) REFERENCES users(user_id)
 ) COMMENT='Lotes de productos, útil para productos sin serie o importaciones';
 
+
+
+-- ========================
+-- TABLA DE ASIGNACIÓN LICENCIA-PRODUCTO
+-- ========================
+-- Conecta productos del inventario con licencias específicas
+
+CREATE TABLE pro_licencia_asignacion_producto (
+    asignacion_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asignacion_producto_id  BIGINT UNSIGNED NOT NULL COMMENT 'FK al producto del inventario',
+    asignacion_licencia_id  BIGINT UNSIGNED NOT NULL COMMENT 'FK a la licencia de importación',
+    asignacion_cantidad INT NOT NULL COMMENT 'Cantidad de este producto en esta licencia',
+    asignacion_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    -- Foreign Keys
+    FOREIGN KEY (asignacion_producto_id) REFERENCES pro_productos(producto_id) ON DELETE CASCADE,
+    FOREIGN KEY (asignacion_licencia_id) REFERENCES pro_licencias_para_importacion(lipaimp_id) ON DELETE CASCADE,
+    
+    -- Validaciones
+    CONSTRAINT chk_asignacion_cantidad_positiva CHECK (asignacion_cantidad > 0),
+    
+    -- ESTO ES LO QUE TE FALTABA:
+    UNIQUE KEY unique_producto_licencia (asignacion_producto_id, asignacion_licencia_id)
+) COMMENT='Asignación de productos específicos a licencias de importación';
 -- ========================
 -- PRECIOS DE PRODUCTOS
 -- ========================
