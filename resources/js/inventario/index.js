@@ -31,6 +31,7 @@ class InventarioManager {
     init() {
         console.log('🚀 InventarioManager inicializado');
         this.setupEventListeners();
+        this.setupFotosHandling(); 
         this.loadInitialData();
     }
 
@@ -111,18 +112,29 @@ class InventarioManager {
     /**
      * Cargar productos
      */
-    async loadProductos() {
-        try {
-            const response = await fetch('/inventario/productos-stock');
-            if (response.ok) {
-                const data = await response.json();
-                this.productos = data.data || [];
-                this.renderProductos();
-            }
-        } catch (error) {
-            console.error('Error cargando productos:', error);
+/**
+ * Cargar productos
+ */
+async loadProductos() {
+    try {
+        const response = await fetch('/inventario/productos-stock');
+        if (response.ok) {
+            const data = await response.json();
+            this.productos = data.data || [];
+            // Solo renderizar si realmente hay datos o si la carga fue exitosa
+            this.renderProductos();
+        } else {
+            // Si hay error, mantener productos como array vacío
+            this.productos = [];
+            this.renderProductos();
         }
+    } catch (error) {
+        console.error('Error cargando productos:', error);
+        // En caso de error, mantener como vacío
+        this.productos = [];
+        this.renderProductos();
     }
+}
 
     /**
      * Cargar categorías
@@ -244,6 +256,330 @@ class InventarioManager {
         }
     }
 
+        /**
+     * Configurar manejo de fotos en formulario de registro
+     */
+    setupFotosHandling() {
+        // Checkbox para mostrar/ocultar sección de fotos
+        const checkboxFotos = document.getElementById('agregar_fotos');
+        const seccionFotos = document.getElementById('seccion_fotos');
+        
+        if (checkboxFotos && seccionFotos) {
+            checkboxFotos.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    seccionFotos.classList.remove('hidden');
+                } else {
+                    seccionFotos.classList.add('hidden');
+                    this.limpiarPreviewFotos();
+                }
+            });
+        }
+
+        // Manejo de archivo seleccionado
+        const inputFotos = document.getElementById('fotos_producto');
+        if (inputFotos) {
+            inputFotos.addEventListener('change', (e) => {
+                this.handleFotosSeleccionadas(e.target.files);
+            });
+        }
+
+        // Drag & Drop
+        const dropZone = document.getElementById('foto_drop_zone');
+        if (dropZone) {
+            this.setupDragAndDrop(dropZone, inputFotos);
+        }
+    }
+
+    /**
+     * Manejar fotos seleccionadas
+     */
+    handleFotosSeleccionadas(archivos) {
+        if (archivos.length > 5) {
+            this.showAlert('warning', 'Límite excedido', 'Máximo 5 fotos por producto');
+            return;
+        }
+
+        // Validar tipos de archivo
+        const tiposValidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const archivosInvalidos = Array.from(archivos).filter(archivo => 
+            !tiposValidos.includes(archivo.type) || archivo.size > 2048000
+        );
+
+        if (archivosInvalidos.length > 0) {
+            this.showAlert('error', 'Archivos inválidos', 'Solo se permiten JPG, PNG, WebP hasta 2MB');
+            return;
+        }
+
+        this.previewFotos(archivos);
+    }
+
+    /**
+     * Mostrar preview de fotos
+     */
+    previewFotos(archivos) {
+        const container = document.getElementById('preview_fotos');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        Array.from(archivos).forEach((archivo, index) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const previewDiv = document.createElement('div');
+                previewDiv.className = 'relative group';
+                previewDiv.innerHTML = `
+                    <div class="relative">
+                        <img src="${e.target.result}" 
+                            alt="Preview ${index + 1}"
+                            class="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-600">
+                        <button type="button" 
+                                onclick="inventarioManager.eliminarPreview(this)"
+                                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                            ×
+                        </button>
+                        ${index === 0 ? '<span class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-1 rounded">Principal</span>' : ''}
+                    </div>
+                `;
+                container.appendChild(previewDiv);
+            };
+            reader.readAsDataURL(archivo);
+        });
+    }
+
+    /**
+     * Configurar drag and drop
+     */
+    setupDragAndDrop(dropZone, inputFile) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            inputFile.files = files;
+            this.handleFotosSeleccionadas(files);
+        });
+
+        dropZone.addEventListener('click', () => {
+            inputFile.click();
+        });
+    }
+
+    /**
+     * Eliminar preview individual
+     */
+    eliminarPreview(boton) {
+        const previewDiv = boton.closest('.relative.group');
+        previewDiv.remove();
+        
+        // Actualizar el input file (esto es más complejo en vanilla JS)
+        // Por ahora solo removemos visualmente
+    }
+
+    /**
+     * Limpiar preview de fotos
+     */
+    limpiarPreviewFotos() {
+        const container = document.getElementById('preview_fotos');
+        if (container) {
+            container.innerHTML = '';
+        }
+        
+        const inputFotos = document.getElementById('fotos_producto');
+        if (inputFotos) {
+            inputFotos.value = '';
+        }
+    }
+
+    /**
+     * Abrir modal de gestión de fotos
+     */
+    async openFotosModal(productoId) {
+        this.currentProductoId = productoId;
+        
+        try {
+            // Cargar fotos existentes
+            const response = await fetch(`/inventario/productos/${productoId}/fotos`);
+            if (response.ok) {
+                const data = await response.json();
+                this.renderFotosExistentes(data.data || []);
+                this.showModal('fotos');
+            }
+        } catch (error) {
+            console.error('Error cargando fotos:', error);
+            this.showAlert('error', 'Error', 'No se pudieron cargar las fotos');
+        }
+    }
+
+    /**
+     * Renderizar fotos existentes en modal - Corregido para tu modelo
+     */
+    renderFotosExistentes(fotos) {
+        const container = document.getElementById('fotos_existentes');
+        if (!container) return;
+
+        if (fotos.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-image text-gray-400 text-3xl mb-2"></i>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No hay fotos para este producto</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = fotos.map(foto => `
+            <div class="relative group">
+                <img src="${foto.foto_url}" 
+                    alt="Foto producto"
+                    class="w-24 h-24 object-cover rounded-lg border-2 ${foto.foto_principal ? 'border-blue-500' : 'border-gray-200 dark:border-gray-600'}">
+                
+                ${foto.foto_principal ? 
+                    '<span class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-1 rounded">Principal</span>' : 
+                    `<button onclick="inventarioManager.establecerPrincipal(${foto.foto_id})"
+                            class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gray-500 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500">
+                        Hacer Principal
+                    </button>`
+                }
+                
+                <button onclick="inventarioManager.eliminarFotoProducto(${foto.foto_id})"
+                        class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                    ×
+                </button>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Subir nuevas fotos
+     */
+    async subirNuevasFotos() {
+        const inputFile = document.getElementById('nuevas_fotos');
+        if (!inputFile.files || inputFile.files.length === 0) {
+            this.showAlert('warning', 'Sin archivos', 'Selecciona al menos una foto');
+            return;
+        }
+
+        const formData = new FormData();
+        Array.from(inputFile.files).forEach(archivo => {
+            formData.append('fotos[]', archivo);
+        });
+
+        this.setLoading('fotos', true);
+
+        try {
+            const response = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                this.showAlert('success', 'Éxito', data.message);
+                // Recargar fotos
+                this.openFotosModal(this.currentProductoId);
+                // Limpiar input
+                inputFile.value = '';
+            } else {
+                this.showAlert('error', 'Error', data.message || 'Error al subir fotos');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            this.showAlert('error', 'Error', 'Error de conexión');
+        } finally {
+            this.setLoading('fotos', false);
+        }
+    }
+
+    /**
+     * Eliminar foto del producto
+     */
+    async eliminarFotoProducto(fotoId) {
+        const confirmacion = await Swal.fire({
+            title: '¿Eliminar foto?',
+            text: 'Esta acción no se puede deshacer',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!confirmacion.isConfirmed) return;
+
+        try {
+            const response = await fetch(`/inventario/fotos/${fotoId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                this.showAlert('success', 'Éxito', data.message);
+                // Recargar fotos
+                this.openFotosModal(this.currentProductoId);
+            } else {
+                this.showAlert('error', 'Error', data.message || 'Error al eliminar foto');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            this.showAlert('error', 'Error', 'Error de conexión');
+        }
+    }
+
+    /**
+     * Establecer foto como principal
+     */
+    async establecerPrincipal(fotoId) {
+        try {
+            const response = await fetch(`/inventario/fotos/${fotoId}/principal`, {
+                method: 'PUT',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                this.showAlert('success', 'Éxito', data.message);
+                // Recargar fotos
+                this.openFotosModal(this.currentProductoId);
+            } else {
+                this.showAlert('error', 'Error', data.message || 'Error al actualizar foto principal');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            this.showAlert('error', 'Error', 'Error de conexión');
+        }
+    }
+
     /**
      * Poblar select con opciones
      */
@@ -323,36 +659,43 @@ class InventarioManager {
     /**
      * Renderizar productos
      */
-    renderProductos() {
-        const container = document.getElementById('productos-list');
-        const emptyState = document.getElementById('empty-state');
-        const productosFiltrados = this.getProductosFiltrados();
+/**
+ * Renderizar productos
+ */renderProductos() {
+    const container = document.getElementById('productos-list');
+    const emptyState = document.getElementById('empty-state');
+    const productosFiltrados = this.getProductosFiltrados();
 
-        if (productosFiltrados.length === 0) {
-            if (this.productos.length === 0) {
-                emptyState.style.display = 'block';
-                container.style.display = 'none';
-            } else {
-                emptyState.style.display = 'none';
-                container.style.display = 'block';
-                container.innerHTML = `
-                    <div class="text-center py-8">
-                        <i class="fas fa-search text-gray-400 text-3xl mb-2"></i>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">No se encontraron productos con los filtros aplicados</p>
-                    </div>
-                `;
-            }
-            document.getElementById('productos-count').textContent = '0';
-            return;
+    // Si no hay productos filtrados
+    if (productosFiltrados.length === 0) {
+        // Si literalmente no hay productos cargados (array vacío o null)
+        if (!this.productos || this.productos.length === 0) {
+            emptyState.style.display = 'block';
+            container.innerHTML = '';
+        } else {
+            // Hay productos pero los filtros no muestran ninguno
+            emptyState.style.display = 'none';
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-search text-gray-400 text-3xl mb-2"></i>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No se encontraron productos con los filtros aplicados</p>
+                    <button onclick="inventarioManager.clearFilters()" 
+                            class="mt-3 inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <i class="fas fa-eraser mr-2"></i>
+                        Limpiar Filtros
+                    </button>
+                </div>
+            `;
         }
-
-        emptyState.style.display = 'none';
-        container.style.display = 'block';
-        
-        container.innerHTML = productosFiltrados.map(producto => this.renderProductoCard(producto)).join('');
-        document.getElementById('productos-count').textContent = productosFiltrados.length;
+        document.getElementById('productos-count').textContent = '0';
+        return;
     }
 
+    // Hay productos para mostrar
+    emptyState.style.display = 'none';
+    container.innerHTML = productosFiltrados.map(producto => this.renderProductoCard(producto)).join('');
+    document.getElementById('productos-count').textContent = productosFiltrados.length;
+}
     /**
      * Renderizar card de producto
      */

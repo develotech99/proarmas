@@ -196,6 +196,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/calibres/activos', [InventarioController::class, 'getCalibresActivos'])
           ->name('calibres.activos');
     
+
+          Route::prefix('inventario')->group(function () {
+            // ... rutas existentes ...
+            
+            // Rutas para gestión de fotos
+            Route::get('productos/{id}/fotos', [InventarioController::class, 'getFotosProducto']);
+            Route::post('productos/{id}/fotos', [InventarioController::class, 'subirFotos']);
+            Route::delete('fotos/{id}', [InventarioController::class, 'eliminarFoto']);
+            Route::put('fotos/{id}/principal', [InventarioController::class, 'establecerFotoPrincipal']);
+        });
     // ================================
     // RUTAS ADICIONALES (ESTO ESTA QAP 73)
     // ================================

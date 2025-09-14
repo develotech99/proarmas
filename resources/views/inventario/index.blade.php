@@ -161,7 +161,7 @@
                 
                 <div class="overflow-hidden">
                     <div class="max-h-96 overflow-y-auto">
-                        <div id="productos-list" class="space-y-3">
+                        
                             <!-- Estado vacío inicial -->
                             <div id="empty-state" class="text-center py-12">
                                 <i class="fas fa-boxes text-gray-400 text-4xl mb-4"></i>
@@ -173,7 +173,11 @@
                                     Registrar Primer Producto
                                 </button>
                             </div>
-                        </div>
+                             <!-- AGREGA ESTA LÍNEA -->
+        <div id="productos-list" class="space-y-3">
+            <!-- Los productos se cargarán aquí dinámicamente -->
+        </div>
+                      
                     </div>
                 </div>
             </div>
@@ -331,6 +335,45 @@
                                 </label>
                             </div>
                         </div>
+                        
+                        <!-- Sección de Fotos -->
+                        <div class="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <div class="flex items-center mb-3">
+                                <input type="checkbox" 
+                                    id="agregar_fotos"
+                                    name="agregar_fotos"
+                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="agregar_fotos" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    ¿Desea agregar fotos a este producto?
+                                </label>
+                            </div>
+
+                            <!-- Sección de upload de fotos (oculta por defecto) -->
+                            <div id="seccion_fotos" class="hidden">
+                                <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
+                                    <div id="foto_drop_zone" class="text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors rounded-lg p-4">
+                                        <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                                            <span class="font-medium">Arrastra fotos aquí</span> o haz clic para seleccionar
+                                        </p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-500">
+                                            Máximo 5 fotos • JPG, PNG, WebP • Hasta 2MB cada una
+                                        </p>
+                                        <input type="file" 
+                                            id="fotos_producto" 
+                                            name="fotos[]" 
+                                            multiple 
+                                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                                            class="hidden">
+                                    </div>
+
+                                    <!-- Preview de fotos seleccionadas -->
+                                    <div id="preview_fotos" class="mt-4 flex flex-wrap gap-3">
+                                        <!-- Las previews se cargarán aquí dinámicamente -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mt-6 flex justify-end space-x-3">
@@ -357,6 +400,57 @@
         </div>
     </div>
 
+
+<!-- Modal de Gestión de Fotos (agregar después de los modales existentes) -->
+<div id="fotos-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="inventarioManager.closeModal('fotos')"></div>
+
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full sm:p-6">
+            <div class="mb-4">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Gestión de Fotos</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Administrar fotos del producto</p>
+            </div>
+
+            <!-- Fotos existentes -->
+            <div class="mb-6">
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Fotos actuales</h4>
+                <div id="fotos_existentes" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                    <!-- Las fotos se cargarán aquí dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Subir nuevas fotos -->
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Agregar nuevas fotos</h4>
+                <div class="flex items-center space-x-4">
+                    <input type="file" 
+                           id="nuevas_fotos" 
+                           multiple 
+                           accept="image/jpeg,image/jpg,image/png,image/webp"
+                           class="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <button type="button" 
+                            onclick="inventarioManager.subirNuevasFotos()"
+                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+                        <i class="fas fa-upload mr-2"></i>
+                        Subir
+                    </button>
+                </div>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Máximo 5 fotos total por producto
+                </p>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" 
+                        onclick="inventarioManager.closeModal('fotos')" 
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
     <!-- Modal Ingreso a Inventario -->
     <div id="ingreso-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">

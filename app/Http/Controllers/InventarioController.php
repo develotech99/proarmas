@@ -176,94 +176,106 @@ class InventarioController extends Controller
     /**
      * Registrar nuevo producto
      */
-    public function store(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'producto_nombre' => 'required|string|max:100',
-            'producto_descripcion' => 'nullable|string',
-            'producto_categoria_id' => 'required|integer|exists:pro_categorias,categoria_id',
-            'producto_subcategoria_id' => 'required|integer|exists:pro_subcategorias,subcategoria_id',
-            'producto_marca_id' => 'required|integer|exists:pro_marcas,marca_id',
-            'producto_modelo_id' => 'nullable|integer|exists:pro_modelo,modelo_id',
-            'producto_calibre_id' => 'nullable|integer|exists:pro_calibres,calibre_id',
-            'producto_codigo_barra' => 'nullable|string|unique:pro_productos,producto_codigo_barra',
-            'producto_requiere_serie' => 'boolean',
-            'producto_stock_minimo' => 'nullable|integer|min:0',
-            'producto_stock_maximo' => 'nullable|integer|min:0'
-        ]);
+   
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+public function store(Request $request): JsonResponse
+{
+    $validator = Validator::make($request->all(), [
+        'producto_nombre' => 'required|string|max:100',
+        'producto_descripcion' => 'nullable|string',
+        'producto_categoria_id' => 'required|integer|exists:pro_categorias,categoria_id',
+        'producto_subcategoria_id' => 'required|integer|exists:pro_subcategorias,subcategoria_id',
+        'producto_marca_id' => 'required|integer|exists:pro_marcas,marca_id',
+        'producto_modelo_id' => 'nullable|integer|exists:pro_modelo,modelo_id',
+        'producto_calibre_id' => 'nullable|integer|exists:pro_calibres,calibre_id',
+        'producto_codigo_barra' => 'nullable|string|unique:pro_productos,producto_codigo_barra',
+        'producto_requiere_serie' => 'boolean',
+        'producto_stock_minimo' => 'nullable|integer|min:0',
+        'producto_stock_maximo' => 'nullable|integer|min:0',
+        'fotos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+    ]);
 
-        DB::beginTransaction();
-
-        try {
-            // Generar SKU único
-            $sku = $this->generarSKU($request->producto_categoria_id, $request->producto_marca_id);
-
-            $producto = Producto::create([
-                'producto_nombre' => $request->producto_nombre,
-                'producto_descripcion' => $request->producto_descripcion,
-                'pro_codigo_sku' => $sku,
-                'producto_codigo_barra' => $request->producto_codigo_barra,
-                'producto_categoria_id' => $request->producto_categoria_id,
-                'producto_subcategoria_id' => $request->producto_subcategoria_id,
-                'producto_marca_id' => $request->producto_marca_id,
-                'producto_modelo_id' => $request->producto_modelo_id,
-                'producto_calibre_id' => $request->producto_calibre_id,
-                'producto_requiere_serie' => $request->has('producto_requiere_serie'),
-                'producto_stock_minimo' => $request->producto_stock_minimo ?? 0,
-                'producto_stock_maximo' => $request->producto_stock_maximo ?? 0,
-                'producto_situacion' => 1
-            ]);
-
-            // Crear registro de stock inicial
-            StockActual::create([
-                'stock_producto_id' => $producto->producto_id,
-                'stock_cantidad_total' => 0,
-                'stock_cantidad_disponible' => 0,
-                'stock_cantidad_reservada' => 0,
-                'stock_valor_total' => 0
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Producto registrado exitosamente',
-                'data' => $producto
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollback();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al registrar producto: ' . $e->getMessage()
-            ], 500);
-        }
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
     }
 
+    DB::beginTransaction();
+
+    try {
+        // Generar SKU único
+        $sku = $this->generarSKU($request->producto_categoria_id, $request->producto_marca_id);
+
+        $producto = Producto::create([
+            'producto_nombre' => $request->producto_nombre,
+            'producto_descripcion' => $request->producto_descripcion,
+            'pro_codigo_sku' => $sku,
+            'producto_codigo_barra' => $request->producto_codigo_barra,
+            'producto_categoria_id' => $request->producto_categoria_id,
+            'producto_subcategoria_id' => $request->producto_subcategoria_id,
+            'producto_marca_id' => $request->producto_marca_id,
+            'producto_modelo_id' => $request->producto_modelo_id,
+            'producto_calibre_id' => $request->producto_calibre_id,
+            'producto_requiere_serie' => $request->has('producto_requiere_serie'),
+            'producto_stock_minimo' => $request->producto_stock_minimo ?? 0,
+            'producto_stock_maximo' => $request->producto_stock_maximo ?? 0,
+            'producto_situacion' => 1
+        ]);
+
+        // Crear registro de stock inicial
+        StockActual::create([
+            'stock_producto_id' => $producto->producto_id,
+            'stock_cantidad_total' => 0,
+            'stock_cantidad_disponible' => 0,
+            'stock_cantidad_reservada' => 0,
+            'stock_valor_total' => 0
+        ]);
+
+        // Procesar fotos si existen
+        if ($request->hasFile('fotos')) {
+            $this->procesarFotosNuevoProducto($request->file('fotos'), $producto->producto_id);
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto registrado exitosamente',
+            'data' => $producto
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollback();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al registrar producto: ' . $e->getMessage()
+        ], 500);
+    }
+}
     /**
      * Generar SKU único para el producto
      */
     private function generarSKU($categoriaId, $marcaId): string
     {
         // Obtener iniciales de categoría y marca
-        $categoria = DB::table('pro_categorias')->find($categoriaId);
-        $marca = DB::table('pro_marcas')->find($marcaId);
-
+        $categoria = DB::table('pro_categorias')->where('categoria_id', $categoriaId)->first();
+        $marca = DB::table('pro_marcas')->where('marca_id', $marcaId)->first();
+    
+        // Validar que existan
+        if (!$categoria || !$marca) {
+            throw new \Exception('Categoría o marca no encontrada');
+        }
+    
         $categoriaCode = strtoupper(substr($categoria->categoria_nombre, 0, 3));
         $marcaCode = strtoupper(substr($marca->marca_descripcion, 0, 3));
-
+    
         // Generar número secuencial
         $ultimoNumero = Producto::where('pro_codigo_sku', 'LIKE', "{$categoriaCode}-{$marcaCode}-%")
             ->orderBy('pro_codigo_sku', 'desc')
             ->first();
-
+    
         $numero = 1;
         if ($ultimoNumero) {
             $partes = explode('-', $ultimoNumero->pro_codigo_sku);
@@ -271,7 +283,7 @@ class InventarioController extends Controller
                 $numero = intval(end($partes)) + 1;
             }
         }
-
+    
         return sprintf('%s-%s-%04d', $categoriaCode, $marcaCode, $numero);
     }
 
@@ -647,4 +659,252 @@ class InventarioController extends Controller
             ], 500);
         }
     }
+
+    // Agregar estos métodos al InventarioController existente
+
+/**
+ * Subir fotos de un producto - Optimizado con métodos del modelo
+ */
+public function subirFotos(Request $request, $productoId): JsonResponse
+{
+    $validator = Validator::make($request->all(), [
+        'fotos.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    $producto = Producto::findOrFail($productoId);
+    
+    // Verificar límite usando el scope del modelo
+    $fotosExistentes = ProductoFoto::activas()
+        ->where('foto_producto_id', $productoId)
+        ->count();
+    
+    $fotosNuevas = count($request->file('fotos', []));
+    
+    if (($fotosExistentes + $fotosNuevas) > 5) {
+        return response()->json([
+            'success' => false,
+            'message' => 'El producto no puede tener más de 5 fotos. Actualmente tiene ' . $fotosExistentes
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        $fotosGuardadas = [];
+        $esPrimeraFoto = $fotosExistentes === 0;
+        $siguienteOrden = $fotosExistentes + 1;
+
+        foreach ($request->file('fotos') as $index => $archivo) {
+            $nombreArchivo = 'producto_' . $productoId . '_' . time() . '_' . Str::random(8) . '.' . $archivo->getClientOriginalExtension();
+            $ruta = $archivo->storeAs('productos', $nombreArchivo, 'public');
+
+            $foto = ProductoFoto::create([
+                'foto_producto_id' => $productoId,
+                'foto_url' => 'productos/' . $nombreArchivo,
+                'foto_principal' => $esPrimeraFoto && $index === 0,
+                'foto_orden' => $siguienteOrden + $index,
+                'foto_situacion' => 1
+            ]);
+
+            $fotosGuardadas[] = [
+                'foto_id' => $foto->foto_id,
+                'foto_url' => $foto->url_completa, // Usar el accessor del modelo
+                'foto_principal' => $foto->foto_principal
+            ];
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Fotos subidas exitosamente',
+            'data' => $fotosGuardadas
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollback();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al subir fotos: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+/**
+ * Eliminar producto (soft delete)
+ */
+public function destroy($id): JsonResponse
+{
+    DB::beginTransaction();
+
+    try {
+        $producto = Producto::findOrFail($id);
+        
+        // Verificar si tiene stock o movimientos
+        $tieneStock = StockActual::where('stock_producto_id', $id)
+            ->where('stock_cantidad_total', '>', 0)
+            ->exists();
+            
+        if ($tieneStock) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede eliminar un producto que tiene stock actual'
+            ], 422);
+        }
+
+        // Eliminar fotos físicas
+        $fotos = ProductoFoto::where('foto_producto_id', $id)->get();
+        foreach ($fotos as $foto) {
+            if (Storage::disk('public')->exists($foto->foto_url)) {
+                Storage::disk('public')->delete($foto->foto_url);
+            }
+            $foto->delete();
+        }
+
+        // Soft delete del producto (cambiar situación a 0)
+        $producto->update(['producto_situacion' => 0]);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto eliminado exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollback();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar producto: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Obtener fotos de un producto
+ */
+public function getFotosProducto($productoId): JsonResponse
+{
+    try {
+        $fotos = ProductoFoto::where('foto_producto_id', $productoId)
+            ->where('foto_situacion', 1)
+            ->orderBy('foto_principal', 'desc')
+            ->orderBy('foto_id')
+            ->get()
+            ->map(function($foto) {
+                return [
+                    'foto_id' => $foto->foto_id,
+                    'foto_url' => asset('storage/' . $foto->foto_url),
+                    'foto_principal' => $foto->foto_principal
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $fotos
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar fotos'
+        ], 500);
+    }
+}
+
+/**
+ * Eliminar foto específica
+ */
+public function eliminarFoto($fotoId): JsonResponse
+{
+    try {
+        $foto = ProductoFoto::findOrFail($fotoId);
+        
+        // Eliminar archivo físico
+        if (Storage::disk('public')->exists($foto->foto_url)) {
+            Storage::disk('public')->delete($foto->foto_url);
+        }
+
+        // Si era foto principal, establecer otra como principal
+        if ($foto->foto_principal) {
+            $nuevaPrincipal = ProductoFoto::where('foto_producto_id', $foto->foto_producto_id)
+                ->where('foto_id', '!=', $fotoId)
+                ->where('foto_situacion', 1)
+                ->first();
+            
+            if ($nuevaPrincipal) {
+                $nuevaPrincipal->update(['foto_principal' => true]);
+            }
+        }
+
+        $foto->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Foto eliminada exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar foto'
+        ], 500);
+    }
+}
+
+/**
+ * Establecer foto como principal
+ */
+public function establecerFotoPrincipal($fotoId): JsonResponse
+{
+    try {
+        $foto = ProductoFoto::findOrFail($fotoId);
+        
+        // Quitar foto_principal de todas las demás del mismo producto
+        ProductoFoto::where('foto_producto_id', $foto->foto_producto_id)
+            ->where('foto_id', '!=', $fotoId)
+            ->update(['foto_principal' => false]);
+        
+        // Establecer esta como principal
+        $foto->update(['foto_principal' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Foto principal actualizada'
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar foto principal'
+        ], 500);
+    }
+}
+
+
+/**
+ * Procesar fotos para nuevo producto
+ */
+private function procesarFotosNuevoProducto($fotos, $productoId)
+{
+    foreach ($fotos as $index => $archivo) {
+        $nombreArchivo = 'producto_' . $productoId . '_' . time() . '_' . Str::random(8) . '.' . $archivo->getClientOriginalExtension();
+        $ruta = $archivo->storeAs('productos', $nombreArchivo, 'public');
+
+        ProductoFoto::create([
+            'foto_producto_id' => $productoId,
+            'foto_url' => 'productos/' . $nombreArchivo,
+            'foto_principal' => $index === 0, // Primera foto es principal
+            'foto_situacion' => 1
+        ]);
+    }
+}
 }
