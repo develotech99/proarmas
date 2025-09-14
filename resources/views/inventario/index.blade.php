@@ -256,6 +256,23 @@
                             <div id="producto_nombre_error" class="mt-1 text-sm text-red-600 hidden"></div>
                         </div>
 
+                        <!-- Descripción del producto -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <i class="fas fa-align-left mr-1"></i>
+                                Descripción del producto
+                            </label>
+                            <textarea id="producto_descripcion"
+                                    name="producto_descripcion"
+                                    rows="3"
+                                    placeholder="Descripción detallada del producto, características, especificaciones técnicas..."
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm resize-vertical"></textarea>
+                            <div id="producto_descripcion_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            <small class="text-xs text-gray-500 dark:text-gray-400">
+                                Información adicional sobre el producto que será útil para ventas e identificación
+                            </small>
+                        </div>
+
                         <!-- Categoría -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoría *</label>
