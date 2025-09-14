@@ -14,27 +14,38 @@ class Producto extends Model
 
     protected $table = 'pro_productos';
     protected $primaryKey = 'producto_id';
-    public $timestamps = false;
+    public $timestamps = true; // Cambiado a true porque agregaste timestamps
 
     protected $fillable = [
         'producto_nombre',
+        'producto_descripcion',
+        'pro_codigo_sku',
         'producto_codigo_barra',
         'producto_categoria_id',
         'producto_subcategoria_id',
         'producto_marca_id',
         'producto_modelo_id',
         'producto_calibre_id',
+        'producto_madein',
         'producto_requiere_serie',
         'producto_es_importado',
         'producto_id_licencia',
+        'producto_stock_minimo',
+        'producto_stock_maximo',
         'producto_situacion'
     ];
 
     protected $casts = [
         'producto_requiere_serie' => 'boolean',
         'producto_es_importado' => 'boolean',
-        'producto_situacion' => 'integer'
+        'producto_situacion' => 'integer',
+        'producto_stock_minimo' => 'integer',
+        'producto_stock_maximo' => 'integer'
     ];
+
+    // ========================================
+    // RELACIONES CON TABLAS DE INVENTARIO
+    // ========================================
 
     /**
      * Relación con las fotos del producto
@@ -42,7 +53,8 @@ class Producto extends Model
     public function fotos(): HasMany
     {
         return $this->hasMany(ProductoFoto::class, 'foto_producto_id', 'producto_id')
-                    ->where('foto_situacion', 1);
+                    ->where('foto_situacion', 1)
+                    ->orderBy('foto_orden');
     }
 
     /**
@@ -92,7 +104,10 @@ class Producto extends Model
      */
     public function precioActual()
     {
-        return $this->precios()->activos()->latest('precio_fecha_asignacion')->first();
+        return $this->precios()
+                    ->where('precio_situacion', 1)
+                    ->latest('precio_fecha_asignacion')
+                    ->first();
     }
 
     /**
@@ -108,29 +123,107 @@ class Producto extends Model
      */
     public function promocionesActivas(): HasMany
     {
-        return $this->promociones()->activas();
+        return $this->promociones()
+                    ->where('promo_situacion', 1)
+                    ->where('promo_fecha_inicio', '<=', now())
+                    ->where('promo_fecha_fin', '>=', now());
     }
 
     /**
-     * Calcula el stock actual del producto
-     * Si requiere serie: cuenta series disponibles
-     * Si no requiere serie: suma ingresos menos egresos
+     * Relación con el stock actual
      */
-    public function getStockActualAttribute()
+    public function stockActual(): BelongsTo
     {
+        return $this->belongsTo(StockActual::class, 'producto_id', 'stock_producto_id');
+    }
+
+    /**
+     * Relación con las alertas del producto
+     */
+    public function alertas(): HasMany
+    {
+        return $this->hasMany(Alerta::class, 'alerta_producto_id', 'producto_id');
+    }
+
+    // ========================================
+    // RELACIONES CON TABLAS MAESTRAS
+    // ========================================
+
+    public function categoria(): BelongsTo
+    {
+        return $this->belongsTo(Categoria::class, 'producto_categoria_id', 'categoria_id');
+    }
+
+    public function subcategoria(): BelongsTo
+    {
+        return $this->belongsTo(Subcategoria::class, 'producto_subcategoria_id', 'subcategoria_id');
+    }
+
+    public function marca(): BelongsTo
+    {
+        return $this->belongsTo(Marca::class, 'producto_marca_id', 'marca_id');
+    }
+
+    public function modelo(): BelongsTo
+    {
+        return $this->belongsTo(Modelo::class, 'producto_modelo_id', 'modelo_id');
+    }
+
+    public function calibre(): BelongsTo
+    {
+        return $this->belongsTo(Calibre::class, 'producto_calibre_id', 'calibre_id');
+    }
+
+    public function paisFabricacion(): BelongsTo
+    {
+        return $this->belongsTo(Pais::class, 'producto_madein', 'pais_id');
+    }
+
+    public function licenciaImportacion(): BelongsTo
+    {
+        return $this->belongsTo(LicenciaImportacion::class, 'producto_id_licencia', 'lipaimp_id');
+    }
+
+    // ========================================
+    // ATRIBUTOS CALCULADOS (GETTERS)
+    // ========================================
+
+    /**
+     * Calcula el stock actual del producto
+     * Usa tabla pro_stock_actual si existe, sino calcula dinámicamente
+     */
+    public function getStockDisponibleAttribute()
+    {
+        // Intentar obtener desde tabla de stock actual
+        $stockRecord = $this->stockActual;
+        if ($stockRecord) {
+            return $stockRecord->stock_cantidad_disponible;
+        }
+
+        // Calcular dinámicamente si no existe el registro
         if ($this->producto_requiere_serie) {
             return $this->seriesDisponibles()->count();
         }
 
+        // Para productos sin serie, calcular desde movimientos
         $ingresos = $this->movimientos()
-            ->whereIn('mov_tipo', ['ingreso', 'importacion'])
+            ->whereIn('mov_tipo', ['ingreso', 'ajuste_positivo'])
             ->sum('mov_cantidad');
 
         $egresos = $this->movimientos()
-            ->whereIn('mov_tipo', ['egreso', 'baja'])
+            ->whereIn('mov_tipo', ['egreso', 'venta', 'ajuste_negativo', 'merma'])
             ->sum('mov_cantidad');
 
-        return $ingresos - $egresos;
+        return max(0, $ingresos - $egresos);
+    }
+
+    /**
+     * Obtiene el stock total del producto
+     */
+    public function getStockTotalAttribute()
+    {
+        $stockRecord = $this->stockActual;
+        return $stockRecord ? $stockRecord->stock_cantidad_total : $this->stock_disponible;
     }
 
     /**
@@ -177,19 +270,19 @@ class Producto extends Model
     }
 
     /**
-     * Scope para productos activos
+     * Obtiene el estado del stock (normal, bajo, agotado)
      */
-    public function scopeActivos($query)
+    public function getEstadoStockAttribute()
     {
-        return $query->where('producto_situacion', 1);
-    }
-
-    /**
-     * Verifica si el producto tiene stock disponible
-     */
-    public function tieneStock($cantidad = 1)
-    {
-        return $this->stock_actual >= $cantidad;
+        $stock = $this->stock_disponible;
+        
+        if ($stock === 0) {
+            return 'agotado';
+        } elseif ($this->producto_stock_minimo > 0 && $stock <= $this->producto_stock_minimo) {
+            return 'bajo';
+        } else {
+            return 'normal';
+        }
     }
 
     /**
@@ -201,46 +294,149 @@ class Producto extends Model
     }
 
     /**
-     * Obtiene el estado del stock (normal, bajo, agotado)
+     * Obtiene el valor total del inventario para este producto
      */
-    public function getEstadoStockAttribute()
+    public function getValorInventarioAttribute()
     {
-        $stock = $this->stock_actual;
-        
-        if ($stock === 0) {
-            return 'agotado';
-        } elseif ($stock <= 5) {
-            return 'bajo';
-        } else {
-            return 'normal';
-        }
+        $stock = $this->stock_disponible;
+        $precio = $this->precio_costo_actual;
+        return $stock * $precio;
     }
 
     /**
-     * Relaciones con tablas maestras
+     * Obtiene información completa del producto para mostrar
      */
-    public function categoria(): BelongsTo
+    public function getNombreCompletoAttribute()
     {
-        return $this->belongsTo('App\Models\Categoria', 'producto_categoria_id', 'categoria_id');
+        $nombre = $this->producto_nombre;
+        
+        if ($this->marca) {
+            $nombre = $this->marca->marca_descripcion . ' ' . $nombre;
+        }
+        
+        if ($this->modelo) {
+            $nombre .= ' ' . $this->modelo->modelo_descripcion;
+        }
+        
+        if ($this->calibre) {
+            $nombre .= ' ' . $this->calibre->calibre_nombre;
+        }
+        
+        return $nombre;
     }
 
-    public function subcategoria(): BelongsTo
+    // ========================================
+    // SCOPES
+    // ========================================
+
+    /**
+     * Scope para productos activos
+     */
+    public function scopeActivos($query)
     {
-        return $this->belongsTo('App\Models\Subcategoria', 'producto_subcategoria_id', 'subcategoria_id');
+        return $query->where('producto_situacion', 1);
     }
 
-    public function marca(): BelongsTo
+    /**
+     * Scope para productos que requieren serie
+     */
+    public function scopeConSerie($query)
     {
-        return $this->belongsTo('App\Models\Marca', 'producto_marca_id', 'marca_id');
+        return $query->where('producto_requiere_serie', true);
     }
 
-    public function modelo(): BelongsTo
+    /**
+     * Scope para productos sin serie
+     */
+    public function scopeSinSerie($query)
     {
-        return $this->belongsTo('App\Models\Modelo', 'producto_modelo_id', 'modelo_id');
+        return $query->where('producto_requiere_serie', false);
     }
 
-    public function calibre(): BelongsTo
+    /**
+     * Scope para productos importados
+     */
+    public function scopeImportados($query)
     {
-        return $this->belongsTo('App\Models\Calibre', 'producto_calibre_id', 'calibre_id');
+        return $query->where('producto_es_importado', true);
+    }
+
+    /**
+     * Scope para productos con stock bajo
+     */
+    public function scopeStockBajo($query)
+    {
+        return $query->whereColumn('stock_disponible', '<=', 'producto_stock_minimo')
+                     ->where('producto_stock_minimo', '>', 0);
+    }
+
+    /**
+     * Scope para buscar por SKU o código de barra
+     */
+    public function scopeBuscarPorCodigo($query, $codigo)
+    {
+        return $query->where('pro_codigo_sku', 'LIKE', "%{$codigo}%")
+                     ->orWhere('producto_codigo_barra', 'LIKE', "%{$codigo}%");
+    }
+
+    // ========================================
+    // MÉTODOS DE NEGOCIO
+    // ========================================
+
+    /**
+     * Verifica si el producto tiene stock disponible
+     */
+    public function tieneStock($cantidad = 1)
+    {
+        return $this->stock_disponible >= $cantidad;
+    }
+
+    /**
+     * Verifica si el producto necesita reposición
+     */
+    public function necesitaReposicion()
+    {
+        return $this->producto_stock_minimo > 0 && 
+               $this->stock_disponible <= $this->producto_stock_minimo;
+    }
+
+    /**
+     * Genera un SKU automático para el producto
+     */
+    public static function generarSKU($categoria, $marca, $modelo = null, $calibre = null)
+    {
+        // Implementar lógica de generación de SKU
+        // Ejemplo: ARM-GLK-G19G5-9MM-001
+        $base = strtoupper(substr($categoria, 0, 3)) . '-' .
+                strtoupper(substr($marca, 0, 3));
+        
+        if ($modelo) {
+            $base .= '-' . strtoupper(substr($modelo, 0, 5));
+        }
+        
+        if ($calibre) {
+            $base .= '-' . strtoupper(substr($calibre, 0, 4));
+        }
+        
+        // Buscar el siguiente número secuencial
+        $ultimo = static::where('pro_codigo_sku', 'LIKE', $base . '-%')
+                        ->latest('producto_id')
+                        ->first();
+        
+        $numero = 1;
+        if ($ultimo) {
+            $partes = explode('-', $ultimo->pro_codigo_sku);
+            $numero = intval(end($partes)) + 1;
+        }
+        
+        return $base . '-' . str_pad($numero, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Método toString para representación del producto
+     */
+    public function __toString()
+    {
+        return $this->nombre_completo . ' (SKU: ' . $this->pro_codigo_sku . ')';
     }
 }
