@@ -1120,6 +1120,157 @@
             </div>
         </div>
     </div>
+
+
+        <!-- Modal Editar Producto -->
+    <div id="editar-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                onclick="inventarioManager.closeModal('editar')"></div>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
+
+                <form id="editar-form">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Editar Producto</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Modificar información del producto</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Nombre del producto -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del producto *</label>
+                            <input type="text" id="editar_producto_nombre" name="producto_nombre" required
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <div id="editar_producto_nombre_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
+                            <textarea id="editar_producto_descripcion" name="producto_descripcion" rows="3"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                        </div>
+
+                        <!-- Categoría -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoría *</label>
+                            <select id="editar_producto_categoria" name="producto_categoria_id" required
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">Seleccionar categoría</option>
+                            </select>
+                            <div id="editar_producto_categoria_id_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                        </div>
+
+                        <!-- Subcategoría -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subcategoría *</label>
+                            <select id="editar_producto_subcategoria" name="producto_subcategoria_id" required
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">Seleccionar subcategoría</option>
+                            </select>
+                            <div id="editar_producto_subcategoria_id_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                        </div>
+
+                        <!-- Marca -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Marca *</label>
+                            <select id="editar_producto_marca" name="producto_marca_id" required
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">Seleccionar marca</option>
+                            </select>
+                            <div id="editar_producto_marca_id_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                        </div>
+
+                        <!-- Modelo -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Modelo</label>
+                            <select id="editar_producto_modelo" name="producto_modelo_id"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">Seleccionar modelo</option>
+                            </select>
+                        </div>
+
+                        <!-- Calibre -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Calibre</label>
+                            <select id="editar_producto_calibre" name="producto_calibre_id"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">Seleccionar calibre</option>
+                            </select>
+                        </div>
+
+                        <!-- País -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">País de fabricación</label>
+                            <select id="editar_producto_madein" name="producto_madein"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">Seleccionar país</option>
+                            </select>
+                        </div>
+
+                        <!-- Código de barra -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Código de barra</label>
+                            <input type="text" id="editar_producto_codigo_barra" name="producto_codigo_barra"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+
+                        <!-- Stock mínimo y máximo -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock mínimo</label>
+                            <input type="number" id="editar_producto_stock_minimo" name="producto_stock_minimo" min="0"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock máximo</label>
+                            <input type="number" id="editar_producto_stock_maximo" name="producto_stock_maximo" min="0"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+
+                        <!-- Requiere serie (solo mostrar, no editable) -->
+                        <div class="md:col-span-2">
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                <div class="flex items-center">
+                                    <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">
+                                        El tipo de control (con/sin serie) no se puede modificar después del registro
+                                    </span>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Control actual: </span>
+                                    <span id="editar_requiere_serie_display" class="text-sm font-medium">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden field para el ID -->
+                    <input type="hidden" id="editar_producto_id" name="producto_id">
+
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" onclick="inventarioManager.closeModal('editar')"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="editar-submit-btn"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span id="editar-submit-text">Guardar Cambios</span>
+                            <span id="editar-loading" class="hidden flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Guardando...
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @endsection

@@ -2725,7 +2725,268 @@ renderSeriesProducto(series) {
 //termina detalle de producto
 
 
+// empieza edición de producto 
 
+
+// Agregar estos métodos a tu InventarioManager
+
+/**
+ * Abrir modal de edición de producto
+ */
+async editarProducto(productoId) {
+    this.currentProductoId = productoId;
+    
+    try {
+        // Cargar datos del producto
+        const response = await fetch(`/inventario/productos/${productoId}`);
+        if (response.ok) {
+            const data = await response.json();
+            await this.prepararFormularioEdicion(data.data);
+            this.showModal('editar');
+        } else {
+            this.showAlert('error', 'Error', 'No se pudo cargar el producto para editar');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Preparar formulario de edición con datos del producto
+ */
+async prepararFormularioEdicion(producto) {
+    // Llenar campos básicos
+    document.getElementById('editar_producto_id').value = producto.producto_id;
+    document.getElementById('editar_producto_nombre').value = producto.producto_nombre || '';
+    document.getElementById('editar_producto_descripcion').value = producto.producto_descripcion || '';
+    document.getElementById('editar_producto_codigo_barra').value = producto.producto_codigo_barra || '';
+    document.getElementById('editar_producto_stock_minimo').value = producto.producto_stock_minimo || 0;
+    document.getElementById('editar_producto_stock_maximo').value = producto.producto_stock_maximo || 0;
+    
+    // Mostrar tipo de control actual
+    const requiereSerieDisplay = document.getElementById('editar_requiere_serie_display');
+    if (producto.producto_requiere_serie) {
+        requiereSerieDisplay.innerHTML = `
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                <i class="fas fa-check mr-1"></i>
+                Control por serie
+            </span>
+        `;
+    } else {
+        requiereSerieDisplay.innerHTML = `
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                <i class="fas fa-list mr-1"></i>
+                Control por cantidad
+            </span>
+        `;
+    }
+    
+    // Poblar selects con datos actuales
+    await this.poblarSelectsEdicion();
+    
+    // Establecer valores seleccionados
+    document.getElementById('editar_producto_categoria').value = producto.producto_categoria_id || '';
+    document.getElementById('editar_producto_marca').value = producto.producto_marca_id || '';
+    document.getElementById('editar_producto_modelo').value = producto.producto_modelo_id || '';
+    document.getElementById('editar_producto_calibre').value = producto.producto_calibre_id || '';
+    document.getElementById('editar_producto_madein').value = producto.producto_madein || '';
+    
+    // Cargar subcategorías si hay categoría seleccionada
+    if (producto.producto_categoria_id) {
+        await this.loadSubcategoriasEdicion(producto.producto_categoria_id);
+        document.getElementById('editar_producto_subcategoria').value = producto.producto_subcategoria_id || '';
+    }
+    
+    // Configurar event listeners para el formulario de edición
+    this.setupEditarEventListeners();
+}
+
+/**
+ * Poblar selects del formulario de edición
+ */
+async poblarSelectsEdicion() {
+    // Usar los datos ya cargados en this.categorias, this.marcas, etc.
+    this.populateSelect('editar_producto_categoria', this.categorias, 'categoria_id', 'categoria_nombre');
+    this.populateSelect('editar_producto_marca', this.marcas, 'marca_id', 'marca_descripcion');
+    this.populateSelect('editar_producto_calibre', this.calibres, 'calibre_id', 'calibre_nombre');
+    
+    // Cargar países si no están cargados
+    if (!this.paises) {
+        await this.loadPaises();
+    }
+    this.populateSelect('editar_producto_madein', this.paises, 'pais_id', 'pais_descripcion');
+}
+
+/**
+ * Cargar subcategorías para edición
+ */
+async loadSubcategoriasEdicion(categoriaId) {
+    const select = document.getElementById('editar_producto_subcategoria');
+    select.innerHTML = '<option value="">Seleccionar subcategoría</option>';
+    
+    if (!categoriaId) return;
+
+    try {
+        const response = await fetch(`/categorias/${categoriaId}/subcategorias`);
+        if (response.ok) {
+            const data = await response.json();
+            this.populateSelect('editar_producto_subcategoria', data.data || [], 'subcategoria_id', 'subcategoria_nombre');
+        }
+    } catch (error) {
+        console.error('Error cargando subcategorías:', error);
+    }
+}
+
+/**
+ * Configurar event listeners para el formulario de edición
+ */
+setupEditarEventListeners() {
+    // Cambios en categoría
+    const categoriaSelect = document.getElementById('editar_producto_categoria');
+    categoriaSelect.removeEventListener('change', this.handleCategoriaChangeEdicion); // Remover listener previo
+    categoriaSelect.addEventListener('change', (e) => {
+        this.loadSubcategoriasEdicion(e.target.value);
+    });
+    
+    // Cambios en marca para cargar modelos
+    const marcaSelect = document.getElementById('editar_producto_marca');
+    marcaSelect.removeEventListener('change', this.handleMarcaChangeEdicion); // Remover listener previo
+    marcaSelect.addEventListener('change', (e) => {
+        this.loadModelosEdicion(e.target.value);
+    });
+
+    // Submit del formulario
+    const form = document.getElementById('editar-form');
+    form.removeEventListener('submit', this.handleEditarSubmit); // Remover listener previo
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleEditarSubmit();
+    });
+}
+
+/**
+ * Cargar modelos para edición
+ */
+async loadModelosEdicion(marcaId) {
+    const select = document.getElementById('editar_producto_modelo');
+    select.innerHTML = '<option value="">Seleccionar modelo</option>';
+    
+    if (!marcaId) return;
+
+    try {
+        const response = await fetch(`/marcas/${marcaId}/modelos`);
+        if (response.ok) {
+            const data = await response.json();
+            this.populateSelect('editar_producto_modelo', data.data || [], 'modelo_id', 'modelo_descripcion');
+        }
+    } catch (error) {
+        console.error('Error cargando modelos:', error);
+    }
+}
+
+/**
+ * Manejar envío del formulario de edición
+ */
+async handleEditarSubmit() {
+    const form = document.getElementById('editar-form');
+    const formData = new FormData(form);
+    
+    if (!this.validateEditarForm()) {
+        return;
+    }
+
+    this.setLoading('editar', true);
+
+    try {
+        const response = await fetch(`/inventario/productos/${this.currentProductoId}`, {
+            method: 'PUT',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            this.showAlert('success', 'Éxito', data.message || 'Producto actualizado exitosamente');
+            this.closeModal('editar');
+            
+            // Recargar datos
+            await Promise.all([
+                this.loadProductos(),
+                this.loadStats()
+            ]);
+            
+            // Si el modal de detalle está abierto, actualizarlo
+            const detalleModal = document.getElementById('detalle-modal');
+            if (!detalleModal.classList.contains('hidden')) {
+                await this.verDetalleProducto(this.currentProductoId);
+            }
+        } else {
+            if (data.errors) {
+                this.showValidationErrors('editar', data.errors);
+            } else {
+                this.showAlert('error', 'Error', data.message || 'Error al actualizar el producto');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    } finally {
+        this.setLoading('editar', false);
+    }
+}
+
+/**
+ * Validar formulario de edición
+ */
+validateEditarForm() {
+    const nombre = document.getElementById('editar_producto_nombre').value.trim();
+    const categoria = document.getElementById('editar_producto_categoria').value;
+    const subcategoria = document.getElementById('editar_producto_subcategoria').value;
+    const marca = document.getElementById('editar_producto_marca').value;
+    
+    this.clearErrors('editar');
+    
+    let isValid = true;
+    
+    if (!nombre) {
+        this.showFieldError('editar_producto_nombre', 'El nombre del producto es obligatorio');
+        isValid = false;
+    }
+    
+    if (!categoria) {
+        this.showFieldError('editar_producto_categoria_id', 'La categoría es obligatoria');
+        isValid = false;
+    }
+    
+    if (!subcategoria) {
+        this.showFieldError('editar_producto_subcategoria_id', 'La subcategoría es obligatoria');
+        isValid = false;
+    }
+    
+    if (!marca) {
+        this.showFieldError('editar_producto_marca_id', 'La marca es obligatoria');
+        isValid = false;
+    }
+    
+    return isValid;
+}
+
+/**
+ * Resetear formulario de edición
+ */
+resetEditarForm() {
+    document.getElementById('editar-form').reset();
+    this.clearErrors('editar');
+    
+    // Resetear selects a su estado inicial
+    document.getElementById('editar_producto_subcategoria').innerHTML = '<option value="">Seleccionar subcategoría</option>';
+    document.getElementById('editar_producto_modelo').innerHTML = '<option value="">Seleccionar modelo</option>';
+}
 
 
 
