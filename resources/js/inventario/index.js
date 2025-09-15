@@ -1807,122 +1807,17 @@ renderProductoCard(producto) {
     /**
      * Manejar envío del formulario de registro
      */
-    async handleRegistroSubmit() {
-        const form = document.getElementById('registro-form');
-        const formData = new FormData(form);
-        
-        if (!this.validateRegistroForm()) {
-            return;
-        }
-
-        this.setLoading('registro', true);
-
-        try {
-            const response = await fetch('/inventario/productos', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'X-Requested-With': 'XMLHttpRequest',
-                }
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                this.showAlert('success', 'Éxito', data.message);
-                this.closeModal('registro');
-                this.loadProductos();
-                this.loadStats();
-            } else {
-                if (data.errors) {
-                    this.showValidationErrors('registro', data.errors);
-                } else {
-                    this.showAlert('error', 'Error', data.message || 'Error al procesar la solicitud');
-                }
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            this.showAlert('error', 'Error', 'Error de conexión');
-        } finally {
-            this.setLoading('registro', false);
-        }
-    }
-
-    /**
-     * Manejar envío del formulario de ingreso
-     */
-   
-async handleIngresoSubmit() {
-    if (!this.productoSeleccionado) {
-        this.showAlert('error', 'Error', 'Debe seleccionar un producto');
-        return;
-    }
-
-    // Validación manual mejorada
-    if (!this.validateIngresoFormManualV2()) {
-        return;
-    }
-
-    const form = document.getElementById('ingreso-form');
+    
+async handleRegistroSubmit() {
+    const form = document.getElementById('registro-form');
     const formData = new FormData(form);
     
-    // CRÍTICO: Agregar producto_id
-    formData.append('producto_id', this.productoSeleccionado.producto_id);
-
-    // PASO 1: Manejar campos según tipo de producto
-    if (this.productoSeleccionado.producto_requiere_serie) {
-        // PRODUCTO CON SERIE: Remover campos innecesarios
-        formData.delete('mov_cantidad');
-        formData.delete('usar_lotes');
-        formData.delete('tipo_lote');
-        formData.delete('numero_lote');
-        formData.delete('lote_id');
-    } else {
-        // PRODUCTO SIN SERIE: Remover campo de series
-        formData.delete('numeros_series');
-
-        // Manejar lógica de lotes
-        const usarLotes = document.getElementById('usar_lotes').checked;
-        formData.set('usar_lotes', usarLotes ? '1' : '0');
-
-        if (!usarLotes) {
-            // Si no usa lotes, remover todos los campos relacionados
-            formData.delete('tipo_lote');
-            formData.delete('numero_lote');
-            formData.delete('lote_id');
-        } else {
-            // Si usa lotes, incluir solo los campos necesarios según el tipo
-            const tipoLote = document.querySelector('input[name="tipo_lote"]:checked')?.value;
-            formData.set('tipo_lote', tipoLote);
-
-            switch (tipoLote) {
-                case 'manual':
-                    formData.delete('lote_id');
-                    // numero_lote ya está en el FormData
-                    break;
-                case 'automatico':
-                    formData.delete('numero_lote');
-                    formData.delete('lote_id');
-                    break;
-                case 'buscar':
-                    formData.delete('numero_lote');
-                    // lote_id ya está en el FormData
-                    break;
-            }
-        }
+    if (!this.validateRegistroForm()) {
+        return;
     }
 
-    // PASO 2: Manejar campos opcionales
-    const esImportado = document.getElementById('producto_es_importado').checked;
-    formData.set('producto_es_importado', esImportado ? '1' : '0');
-
-    if (!esImportado) {
-        formData.delete('licencia_id_registro');
-        formData.delete('cantidad_licencia');
-    }
-
-    const agregaPrecios = document.getElementById('agregar_precios').checked;
+    // MANTENER: Manejo de precios en registro
+    const agregaPrecios = document.getElementById('agregar_precios')?.checked;
     formData.set('agregar_precios', agregaPrecios ? '1' : '0');
 
     if (!agregaPrecios) {
@@ -1933,16 +1828,10 @@ async handleIngresoSubmit() {
         formData.delete('precio_justificacion');
     }
 
-    // PASO 3: Log para debug
-    console.log('FormData a enviar:');
-    for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-    }
-
-    this.setLoading('ingreso', true);
+    this.setLoading('registro', true);
 
     try {
-        const response = await fetch('/inventario/ingresar', {
+        const response = await fetch('/inventario/productos', {
             method: 'POST',
             body: formData,
             headers: {
@@ -1955,17 +1844,12 @@ async handleIngresoSubmit() {
 
         if (response.ok && data.success) {
             this.showAlert('success', 'Éxito', data.message);
-            this.closeModal('ingreso');
-            
-            // Recargar datos
-            await Promise.all([
-                this.loadProductos(),
-                this.loadStats(),
-                this.loadAlertas()
-            ]);
+            this.closeModal('registro');
+            this.loadProductos();
+            this.loadStats();
         } else {
             if (data.errors) {
-                this.showValidationErrors('ingreso', data.errors);
+                this.showValidationErrors('registro', data.errors);
             } else {
                 this.showAlert('error', 'Error', data.message || 'Error al procesar la solicitud');
             }
@@ -1974,14 +1858,125 @@ async handleIngresoSubmit() {
         console.error('Error:', error);
         this.showAlert('error', 'Error', 'Error de conexión');
     } finally {
-        this.setLoading('ingreso', false);
+        this.setLoading('registro', false);
     }
 }
+
+
+    /**
+     * Manejar envío del formulario de ingreso
+     */
+    async handleIngresoSubmit() {
+        if (!this.productoSeleccionado) {
+            this.showAlert('error', 'Error', 'Debe seleccionar un producto');
+            return;
+        }
+    
+        if (!this.validateIngresoForm()) {
+            return;
+        }
+    
+        const form = document.getElementById('ingreso-form');
+        const formData = new FormData(form);
+        
+        formData.append('producto_id', this.productoSeleccionado.producto_id);
+    
+        // MANTENER: Lógica según tipo de producto
+        if (this.productoSeleccionado.producto_requiere_serie) {
+            formData.delete('mov_cantidad');
+            formData.delete('usar_lotes');
+            formData.delete('tipo_lote');
+            formData.delete('numero_lote');
+            formData.delete('lote_id');
+        } else {
+            formData.delete('numeros_series');
+    
+            // MANTENER: Lógica de lotes (SIEMPRE disponible)
+            const usarLotes = document.getElementById('usar_lotes').checked;
+            formData.set('usar_lotes', usarLotes ? '1' : '0');
+    
+            if (!usarLotes) {
+                formData.delete('tipo_lote');
+                formData.delete('numero_lote');
+                formData.delete('lote_id');
+            } else {
+                const tipoLote = document.querySelector('input[name="tipo_lote"]:checked')?.value;
+                formData.set('tipo_lote', tipoLote);
+    
+                switch (tipoLote) {
+                    case 'manual':
+                        formData.delete('lote_id');
+                        break;
+                    case 'automatico':
+                        formData.delete('numero_lote');
+                        formData.delete('lote_id');
+                        break;
+                    case 'buscar':
+                        formData.delete('numero_lote');
+                        break;
+                }
+            }
+        }
+    
+        // MANTENER: Lógica de importación/licencias
+        const esImportado = document.getElementById('producto_es_importado').checked;
+        formData.set('producto_es_importado', esImportado ? '1' : '0');
+    
+        if (!esImportado) {
+            formData.delete('licencia_id_registro');
+            formData.delete('cantidad_licencia');
+        }
+    
+        // QUITAR: Todos los campos de precios del ingreso
+        formData.delete('agregar_precios');
+        formData.delete('precio_costo');
+        formData.delete('precio_venta');
+        formData.delete('precio_especial');
+        formData.delete('precio_moneda');
+        formData.delete('precio_justificacion');
+    
+        this.setLoading('ingreso', true);
+    
+        try {
+            const response = await fetch('/inventario/ingresar', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+    
+            const data = await response.json();
+    
+            if (response.ok && data.success) {
+                this.showAlert('success', 'Éxito', data.message);
+                this.closeModal('ingreso');
+                
+                await Promise.all([
+                    this.loadProductos(),
+                    this.loadStats(),
+                    this.loadAlertas()
+                ]);
+            } else {
+                if (data.errors) {
+                    this.showValidationErrors('ingreso', data.errors);
+                } else {
+                    this.showAlert('error', 'Error', data.message || 'Error al procesar la solicitud');
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            this.showAlert('error', 'Error', 'Error de conexión');
+        } finally {
+            this.setLoading('ingreso', false);
+        }
+    }
 
 /**
  * Validación manual sin depender de HTML5 - NUEVA FUNCIÓN
  */
-validateIngresoFormManualV2() {
+validateIngresoFormManual() {
     const tipo = document.getElementById('mov_tipo').value;
     const origen = document.getElementById('mov_origen').value.trim();
     
@@ -2145,94 +2140,8 @@ async verificarRequiereLicencia(productoId) {
             this.showFieldError('producto_marca_id', 'La marca es obligatoria');
             isValid = false;
         }
-        
-        return isValid;
-    }
-
-    /**
-     * Validar formulario de ingreso
-     */
-    validateIngresoForm() {
-        const tipo = document.getElementById('mov_tipo').value;
-        const origen = document.getElementById('mov_origen').value.trim();
-        
-        this.clearErrors('ingreso');
-        
-        let isValid = true;
-        
-        if (!tipo) {
-            this.showFieldError('mov_tipo', 'El tipo de movimiento es obligatorio');
-            isValid = false;
-        }
-        
-        if (!origen) {
-            this.showFieldError('mov_origen', 'El origen es obligatorio');
-            isValid = false;
-        }
-        
-        // Validación de licencia para productos que requieren licencia
-        if (this.productoSeleccionado.requiere_licencia) {
-            const licenciaId = document.getElementById('licencia_id').value;
-            if (!licenciaId) {
-                this.showFieldError('licencia_id', 'La licencia es obligatoria para productos con asignaciones de licencias');
-                isValid = false;
-            }
-        }
     
-        // Validación de licencia marcada como importado en este ingreso
-        const esImportado = document.getElementById('producto_es_importado')?.checked;
-        if (esImportado) {
-            const licenciaIdRegistro = document.getElementById('licencia_id_registro')?.value;
-            const cantidadLicencia = document.getElementById('cantidad_licencia_registro')?.value;
-            
-            if (!licenciaIdRegistro) {
-                this.showFieldError('licencia_id_registro', 'Debe seleccionar una licencia para productos importados');
-                isValid = false;
-            }
-            
-            if (!cantidadLicencia || parseInt(cantidadLicencia) <= 0) {
-                this.showFieldError('cantidad_licencia_registro', 'La cantidad para la licencia debe ser mayor a 0');
-                isValid = false;
-            }
-        }
-    
-        // Validación de lote para productos sin serie
-        if (!this.productoSeleccionado.producto_requiere_serie) {
-            const tipoLote = document.querySelector('input[name="generar_lote"]:checked')?.value;
-            if (tipoLote === 'manual') {
-                const numeroLote = document.getElementById('numero_lote').value.trim();
-                if (!numeroLote) {
-                    this.showFieldError('numero_lote', 'El número de lote es obligatorio');
-                    isValid = false;
-                }
-            }
-        }
-        
-        // **VALIDACIÓN CRÍTICA CORREGIDA**
-        if (this.productoSeleccionado.producto_requiere_serie) {
-            // Para productos CON serie: validar textarea de series
-            const series = document.getElementById('numeros_series').value.trim();
-            if (!series) {
-                this.showFieldError('numeros_series', 'Los números de serie son obligatorios');
-                isValid = false;
-            } else {
-                // Validar que haya al menos una serie válida
-                const seriesArray = series.split('\n').filter(line => line.trim() !== '');
-                if (seriesArray.length === 0) {
-                    this.showFieldError('numeros_series', 'Debe ingresar al menos un número de serie válido');
-                    isValid = false;
-                }
-            }
-        } else {
-            // Para productos SIN serie: validar input de cantidad
-            const cantidad = document.getElementById('mov_cantidad').value;
-            if (!cantidad || cantidad <= 0) {
-                this.showFieldError('mov_cantidad', 'La cantidad debe ser mayor a 0');
-                isValid = false;
-            }
-        }
-        
-        // Validación de precios si están habilitados
+        // MANTENER: Validaciones de precios en registro
         const agregaPrecios = document.getElementById('agregar_precios')?.checked;
         if (agregaPrecios) {
             const precioCosto = document.getElementById('precio_costo').value;
@@ -2248,7 +2157,6 @@ async verificarRequiereLicencia(productoId) {
                 isValid = false;
             }
     
-            // Validar que precio de venta sea mayor al costo
             if (parseFloat(precioVenta) <= parseFloat(precioCosto)) {
                 this.showFieldError('precio_venta', 'El precio de venta debe ser mayor al costo');
                 isValid = false;
@@ -2256,6 +2164,135 @@ async verificarRequiereLicencia(productoId) {
         }
         
         return isValid;
+    }
+    
+
+    /**
+     * Validar formulario de ingreso
+     */
+    validateIngresoForm() {
+        const tipo = document.getElementById('mov_tipo').value;
+        const origen = document.getElementById('mov_origen').value.trim();
+        
+        this.clearErrors('ingreso');
+        
+        let isValid = true;
+        
+        // Validaciones básicas
+        if (!tipo) {
+            this.showFieldError('mov_tipo', 'El tipo de movimiento es obligatorio');
+            isValid = false;
+        }
+        
+        if (!origen) {
+            this.showFieldError('mov_origen', 'El origen es obligatorio');
+            isValid = false;
+        }
+        
+        // Validación según tipo de producto
+        if (this.productoSeleccionado.producto_requiere_serie) {
+            const series = document.getElementById('numeros_series').value.trim();
+            if (!series) {
+                this.showFieldError('numeros_series', 'Los números de serie son obligatorios');
+                isValid = false;
+            } else {
+                const seriesArray = series.split('\n').filter(line => line.trim() !== '');
+                if (seriesArray.length === 0) {
+                    this.showFieldError('numeros_series', 'Debe ingresar al menos un número de serie válido');
+                    isValid = false;
+                }
+            }
+        } else {
+            const cantidad = document.getElementById('mov_cantidad').value;
+            if (!cantidad || parseInt(cantidad) <= 0) {
+                this.showFieldError('mov_cantidad', 'La cantidad debe ser mayor a 0');
+                isValid = false;
+            }
+    
+            // MANTENER: Validar lotes si están activados
+            const usarLotes = document.getElementById('usar_lotes').checked;
+            if (usarLotes) {
+                const tipoLote = document.querySelector('input[name="tipo_lote"]:checked')?.value;
+                
+                if (!tipoLote) {
+                    this.showFieldError('tipo_lote', 'Debe seleccionar un tipo de lote');
+                    isValid = false;
+                }
+    
+                switch (tipoLote) {
+                    case 'manual':
+                        const numeroLote = document.getElementById('numero_lote').value.trim();
+                        if (!numeroLote) {
+                            this.showFieldError('numero_lote', 'El número de lote es obligatorio');
+                            isValid = false;
+                        }
+                        break;
+                    case 'buscar':
+                        const loteId = document.getElementById('lote_id').value;
+                        if (!loteId) {
+                            this.showFieldError('lote_id', 'Debe seleccionar un lote existente');
+                            isValid = false;
+                        }
+                        break;
+                }
+            }
+        }
+        
+        // MANTENER: Validación de importación/licencias
+        const esImportado = document.getElementById('producto_es_importado')?.checked;
+        if (esImportado) {
+            const licenciaIdRegistro = document.getElementById('licencia_id_registro')?.value;
+            const cantidadLicencia = document.getElementById('cantidad_licencia_registro')?.value;
+            
+            if (!licenciaIdRegistro) {
+                this.showFieldError('licencia_id_registro', 'Debe seleccionar una licencia para productos importados');
+                isValid = false;
+            }
+            
+            if (!cantidadLicencia || parseInt(cantidadLicencia) <= 0) {
+                this.showFieldError('cantidad_licencia_registro', 'La cantidad para la licencia debe ser mayor a 0');
+                isValid = false;
+            }
+        }
+        
+        // QUITAR: Sin validación de precios en ingreso
+        
+        return isValid;
+    }
+    
+    /**
+     * MANTENER: calcularMargen() para formulario de registro
+     */
+    calcularMargen() {
+        const costInput = document.getElementById('precio_costo');
+        const ventaInput = document.getElementById('precio_venta');
+        const margenElement = document.getElementById('margen_calculado');
+        const gananciaElement = document.getElementById('ganancia_calculada');
+        
+        if (!costInput || !ventaInput || !margenElement || !gananciaElement) return;
+        
+        const costo = parseFloat(costInput.value) || 0;
+        const venta = parseFloat(ventaInput.value) || 0;
+        
+        if (costo > 0 && venta > 0) {
+            const ganancia = venta - costo;
+            const margen = ((ganancia / costo) * 100);
+            
+            margenElement.textContent = `${margen.toFixed(1)}%`;
+            gananciaElement.textContent = `Q${ganancia.toFixed(2)}`;
+            
+            if (margen < 10) {
+                margenElement.className = 'text-red-600 font-bold';
+            } else if (margen < 25) {
+                margenElement.className = 'text-yellow-600 font-bold';
+            } else {
+                margenElement.className = 'text-green-600 font-bold';
+            }
+        } else {
+            margenElement.textContent = '0%';
+            gananciaElement.textContent = 'Q0.00';
+            margenElement.className = 'text-gray-400 font-bold';
+        }
     }
 
 
