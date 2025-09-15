@@ -4,52 +4,66 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * Modelo para los lotes de productos
- */
 class Lote extends Model
 {
     use HasFactory;
-    
+
     protected $table = 'pro_lotes';
     protected $primaryKey = 'lote_id';
-    public $timestamps = true; // Cambió a true porque agregamos timestamps
 
     protected $fillable = [
         'lote_codigo',
-        'lote_fecha', 
+        'lote_producto_id',
+        'lote_fecha',
         'lote_descripcion',
-        'lote_usuario_id',      // NUEVO CAMPO
+        'lote_cantidad_total',
+        'lote_cantidad_disponible',
+        'lote_usuario_id',
         'lote_situacion'
     ];
 
     protected $casts = [
         'lote_fecha' => 'datetime',
+        'lote_cantidad_total' => 'integer',
+        'lote_cantidad_disponible' => 'integer',
         'lote_situacion' => 'integer'
     ];
 
+    // ========================
+    // RELACIONES
+    // ========================
+
     /**
-     * Relación con los movimientos del lote
+     * Relación con el producto
      */
-    public function movimientos(): HasMany
+    public function producto()
     {
-        return $this->hasMany(Movimiento::class, 'mov_lote_id', 'lote_id')
-                    ->where('mov_situacion', 1);
+        return $this->belongsTo(Producto::class, 'lote_producto_id', 'producto_id');
     }
 
     /**
      * Relación con el usuario que creó el lote
      */
-    public function usuario(): BelongsTo
+    public function usuario()
     {
         return $this->belongsTo(User::class, 'lote_usuario_id', 'user_id');
     }
 
     /**
-     * Scope para lotes activos
+     * Movimientos asociados a este lote
+     */
+    public function movimientos()
+    {
+        return $this->hasMany(Movimiento::class, 'mov_lote_id', 'lote_id');
+    }
+
+    // ========================
+    // SCOPES
+    // ========================
+
+    /**
+     * Lotes activos
      */
     public function scopeActivos($query)
     {
@@ -57,169 +71,152 @@ class Lote extends Model
     }
 
     /**
-     * Scope para lotes por fecha
+     * Lotes con stock disponible
      */
-    public function scopePorFecha($query, $fechaInicio, $fechaFin = null)
+    public function scopeConStock($query)
     {
-        if ($fechaFin) {
-            return $query->whereBetween('lote_fecha', [$fechaInicio, $fechaFin]);
-        }
-        return $query->whereDate('lote_fecha', $fechaInicio);
+        return $query->where('lote_cantidad_disponible', '>', 0);
     }
 
     /**
-     * Scope para lotes recientes
+     * Lotes de un producto específico
      */
-    public function scopeRecientes($query, $dias = 30)
+    public function scopeDeProducto($query, $productoId)
     {
-        return $query->where('lote_fecha', '>=', now()->subDays($dias));
+        return $query->where('lote_producto_id', $productoId);
     }
 
     /**
-     * Calcula la cantidad total de productos en el lote
+     * Buscar lotes por código
      */
-    public function getCantidadTotalAttribute()
+    public function scopeBuscarPorCodigo($query, $codigo)
     {
-        return $this->movimientos()
-                    ->whereIn('mov_tipo', ['ingreso', 'ajuste_positivo'])
-                    ->sum('mov_cantidad');
+        return $query->where('lote_codigo', 'LIKE', "%{$codigo}%");
     }
 
-    /**
-     * Calcula la cantidad disponible del lote
-     */
-    public function getCantidadDisponibleAttribute()
-    {
-        $ingresos = $this->movimientos()
-                         ->whereIn('mov_tipo', ['ingreso', 'ajuste_positivo'])
-                         ->sum('mov_cantidad');
-
-        $egresos = $this->movimientos()
-                        ->whereIn('mov_tipo', ['egreso', 'venta', 'ajuste_negativo', 'merma'])
-                        ->sum('mov_cantidad');
-
-        return max(0, $ingresos - $egresos);
-    }
+    // ========================
+    // MÉTODOS ESTÁTICOS
+    // ========================
 
     /**
-     * Verifica si el lote está agotado
+     * Buscar o crear lote para un producto
      */
-    public function getEstaAgotadoAttribute()
+    public static function buscarOCrearParaProducto($productoId, $codigoLote, $cantidad, $descripcion = null, $usuarioId = null)
     {
-        return $this->cantidad_disponible <= 0;
-    }
+        // Buscar lote existente
+        $loteExistente = static::activos()
+            ->where('lote_codigo', $codigoLote)
+            ->where('lote_producto_id', $productoId)
+            ->first();
 
-    /**
-     * Obtiene los productos únicos en este lote
-     */
-    public function getProductosAttribute()
-    {
-        return $this->movimientos()
-                    ->with('producto')
-                    ->get()
-                    ->pluck('producto')
-                    ->unique('producto_id');
-    }
-
-    /**
-     * Obtiene el primer movimiento (ingreso) del lote
-     */
-    public function getMovimientoOrigenAttribute()
-    {
-        return $this->movimientos()
-                    ->where('mov_tipo', 'ingreso')
-                    ->oldest('mov_fecha')
-                    ->first();
-    }
-
-    /**
-     * Obtiene el último movimiento del lote
-     */
-    public function getUltimoMovimientoAttribute()
-    {
-        return $this->movimientos()
-                    ->latest('mov_fecha')
-                    ->first();
-    }
-
-    /**
-     * Calcula el valor total del lote
-     */
-    public function getValorTotalAttribute()
-    {
-        return $this->movimientos()
-                    ->whereNotNull('mov_valor_total')
-                    ->sum('mov_valor_total');
-    }
-
-    /**
-     * Obtiene el número de días desde la creación del lote
-     */
-    public function getDiasCreacionAttribute()
-    {
-        return $this->lote_fecha->diffInDays(now());
-    }
-
-    /**
-     * Verifica si el lote tiene movimientos
-     */
-    public function tieneMovimientos()
-    {
-        return $this->movimientos()->exists();
-    }
-
-    /**
-     * Genera un código de lote automático
-     */
-    public static function generarCodigo($prefijo = 'L', $fecha = null)
-    {
-        $fecha = $fecha ? carbon($fecha) : now();
-        $base = $prefijo . $fecha->format('Y-m');
-        
-        // Buscar el último lote del mes
-        $ultimo = static::where('lote_codigo', 'LIKE', $base . '-%')
-                        ->latest('lote_id')
-                        ->first();
-        
-        $numero = 1;
-        if ($ultimo) {
-            $partes = explode('-', $ultimo->lote_codigo);
-            $numero = intval(end($partes)) + 1;
-        }
-        
-        return $base . '-' . str_pad($numero, 3, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Cierra el lote (lo marca como inactivo)
-     */
-    public function cerrar()
-    {
-        $this->update(['lote_situacion' => 0]);
-    }
-
-    /**
-     * Verifica si se puede cerrar el lote
-     */
-    public function puedecerrarse()
-    {
-        // No se puede cerrar si aún tiene stock disponible
-        return $this->cantidad_disponible <= 0;
-    }
-
-    /**
-     * Hook para generar código automáticamente si no se proporciona
-     */
-    protected static function booted()
-    {
-        static::creating(function ($lote) {
-            if (empty($lote->lote_codigo)) {
-                $lote->lote_codigo = static::generarCodigo();
-            }
+        if ($loteExistente) {
+            // Actualizar cantidades del lote existente
+            $loteExistente->lote_cantidad_total += $cantidad;
+            $loteExistente->lote_cantidad_disponible += $cantidad;
+            $loteExistente->save();
             
-            if (empty($lote->lote_fecha)) {
-                $lote->lote_fecha = now();
+            return $loteExistente;
+        }
+
+        // Crear nuevo lote
+        return static::create([
+            'lote_codigo' => $codigoLote,
+            'lote_producto_id' => $productoId,
+            'lote_fecha' => now(),
+            'lote_descripcion' => $descripcion,
+            'lote_cantidad_total' => $cantidad,
+            'lote_cantidad_disponible' => $cantidad,
+            'lote_usuario_id' => $usuarioId,
+            'lote_situacion' => 1
+        ]);
+    }
+
+    /**
+     * Generar código de lote automático
+     */
+    public static function generarCodigoAutomatico($productoId)
+    {
+        $producto = Producto::find($productoId);
+        if (!$producto) {
+            throw new \Exception('Producto no encontrado');
+        }
+
+        $fecha = now();
+        $año = $fecha->format('Y');
+        $mes = $fecha->format('m');
+        
+        // Obtener código de marca
+        $marcaCode = 'AUTO';
+        if ($producto->marca) {
+            $marcaCode = strtoupper(substr($producto->marca->marca_descripcion, 0, 3));
+        }
+        
+        // Buscar el siguiente secuencial
+        $patron = "L{$año}-{$mes}-{$marcaCode}-%";
+        $ultimoLote = static::where('lote_codigo', 'LIKE', $patron)
+            ->orderBy('lote_codigo', 'desc')
+            ->first();
+        
+        $secuencial = 1;
+        if ($ultimoLote) {
+            $partes = explode('-', $ultimoLote->lote_codigo);
+            if (count($partes) >= 4) {
+                $secuencial = intval(end($partes)) + 1;
             }
-        });
+        }
+        
+        return sprintf('L%s-%s-%s-%03d', $año, $mes, $marcaCode, $secuencial);
+    }
+
+    // ========================
+    // MÉTODOS DE INSTANCIA
+    // ========================
+
+    /**
+     * Descontar cantidad del lote
+     */
+    public function descontarCantidad($cantidad)
+    {
+        if ($cantidad > $this->lote_cantidad_disponible) {
+            throw new \Exception("No hay suficiente stock disponible en el lote. Disponible: {$this->lote_cantidad_disponible}");
+        }
+
+        $this->lote_cantidad_disponible -= $cantidad;
+        $this->save();
+
+        return $this;
+    }
+
+    /**
+     * Agregar cantidad al lote
+     */
+    public function agregarCantidad($cantidad)
+    {
+        $this->lote_cantidad_total += $cantidad;
+        $this->lote_cantidad_disponible += $cantidad;
+        $this->save();
+
+        return $this;
+    }
+
+    /**
+     * Verificar si el lote está agotado
+     */
+    public function estaAgotado()
+    {
+        return $this->lote_cantidad_disponible <= 0;
+    }
+
+    /**
+     * Obtener porcentaje de stock utilizado
+     */
+    public function getPorcentajeUtilizado()
+    {
+        if ($this->lote_cantidad_total <= 0) {
+            return 0;
+        }
+
+        $utilizado = $this->lote_cantidad_total - $this->lote_cantidad_disponible;
+        return ($utilizado / $this->lote_cantidad_total) * 100;
     }
 }

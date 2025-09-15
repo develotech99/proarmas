@@ -676,27 +676,35 @@
                         </div>
 
                         <!-- Cantidad o Series -->
+                       <!-- Cantidad o Series -->
                         <div id="cantidad_section" class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad *</label>
                             <input type="number" 
-                                   id="mov_cantidad"
-                                   name="mov_cantidad"
-                                   min="1"
-                                   class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                id="mov_cantidad"
+                                name="mov_cantidad"
+                                min="1"
+                                placeholder="Ej: 10"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
                             <div id="mov_cantidad_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            <small class="text-xs text-gray-500 dark:text-gray-400">
+                                Cantidad de unidades a ingresar al inventario
+                            </small>
                         </div>
 
                         <div id="series_section" class="mb-4 hidden">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Números de serie *</label>
                             <textarea id="numeros_series" 
-                                      name="numeros_series"
-                                      rows="4"
-                                      placeholder="Un número de serie por línea&#10;Ejemplo:&#10;GLK123456&#10;GLK123457&#10;GLK123458"
-                                      class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
+                                    name="numeros_series"
+                                    rows="4"
+                                    placeholder="Un número de serie por línea&#10;Ejemplo:&#10;GLK123456&#10;GLK123457&#10;GLK123458"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
                             <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Cantidad detectada: <span id="series_count" class="font-semibold text-green-600">0</span> series
                             </div>
                             <div id="numeros_series_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            <small class="text-xs text-gray-500 dark:text-gray-400">
+                                Cada línea debe contener un número de serie único
+                            </small>
                         </div>
 
                         <!-- Observaciones -->

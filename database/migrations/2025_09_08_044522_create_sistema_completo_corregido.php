@@ -505,30 +505,53 @@ return new class extends Migration
                           ->onDelete('set null');
                 });
                 // Tabla de lotes de productos
+                    // Migración corregida para pro_lotes
                 Schema::create('pro_lotes', function (Blueprint $table) {
                     $table->id('lote_id');
                     $table->string('lote_codigo', 100)->unique()->comment('Código único del lote, ej: L2025-08-GLOCK-001');
+                    
+                    // NUEVO: Relación con producto específico
+                    $table->unsignedBigInteger('lote_producto_id')->comment('FK al producto específico');
+                    
                     $table->timestamp('lote_fecha')->useCurrent()->comment('Fecha de creación o ingreso del lote');
                     $table->string('lote_descripcion', 255)->nullable()->comment('Descripción breve opcional del lote');
+                    
+                    // NUEVO: Cantidades del lote
+                    $table->integer('lote_cantidad_total')->default(0)->comment('Cantidad total en este lote');
+                    $table->integer('lote_cantidad_disponible')->default(0)->comment('Cantidad disponible en este lote');
+                    
                     $table->unsignedBigInteger('lote_usuario_id')->nullable()->comment('Usuario que creó el lote');
                     $table->integer('lote_situacion')->default(1)->comment('1 = activo, 0 = cerrado o eliminado');
                     $table->timestamps();
-                    
+                
                     // Índices
                     $table->index('lote_codigo');
+                    $table->index('lote_producto_id');
                     $table->index('lote_fecha');
+                    $table->index('lote_cantidad_total');
+                    $table->index('lote_cantidad_disponible');
                     $table->index('lote_usuario_id');
                     $table->index('lote_situacion');
-        
-                    // FK a usuarios si existe
+
+                    // Foreign Keys
+                    $table->foreign('lote_producto_id')
+                        ->references('producto_id')
+                        ->on('pro_productos')
+                        ->onDelete('cascade');
+                        
                     if (Schema::hasTable('users')) {
                         $table->foreign('lote_usuario_id')
-                              ->references('user_id')
-                              ->on('users')
-                              ->onDelete('set null');
+                            ->references('user_id')
+                            ->on('users')
+                            ->onDelete('set null');
                     }
+                    
+                    // Constraints de validación
+                    $table->check('lote_cantidad_total >= 0');
+                    $table->check('lote_cantidad_disponible >= 0');
+                    $table->check('lote_cantidad_disponible <= lote_cantidad_total');
                 });
-        
+                        
                 // Tabla de precios de productos
                 Schema::create('pro_precios', function (Blueprint $table) {
                     $table->id('precio_id');
