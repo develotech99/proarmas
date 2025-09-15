@@ -819,7 +819,7 @@
                                             class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
                                             Ninguna licencia seleccionada
                                         </div>
-                                        <input type="hidden" id="licencia_id_registro" name="licencia_id">
+                                        <input type="hidden" id="licencia_id_registro" name="licencia_id_registro">
                                     </div>
                                 </div>
 

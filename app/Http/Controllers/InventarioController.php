@@ -6,6 +6,7 @@ use App\Models\Producto;
 use App\Models\ProductoFoto;
 use App\Models\SerieProducto;
 use App\Models\Lote;
+use App\Models\Marcas;
 use App\Models\Movimiento;
 use App\Models\LicenciaAsignacionProducto;
 use App\Models\Precio;
@@ -493,31 +494,44 @@ public function getPaisesActivos(): JsonResponse
                         case 'manual':
                             $lote = Lote::create([
                                 'lote_codigo' => $request->numero_lote,
+                                'lote_producto_id' => $producto->producto_id, 
                                 'lote_fecha' => now(),
                                 'lote_descripcion' => "Lote manual para {$producto->producto_nombre} - {$request->mov_origen}",
+                                'lote_cantidad_total' => $cantidadIngreso, 
+                                'lote_cantidad_disponible' => $cantidadIngreso, 
                                 'lote_usuario_id' => Auth::id(),
                                 'lote_situacion' => 1
                             ]);
                             $loteId = $lote->lote_id;
                             $mensajeAdicional = " (Lote: {$request->numero_lote})";
                             break;
-    
+                        
+                        // CASO 2: Lote automático  
                         case 'automatico':
                             $codigoLoteAuto = $this->generarNumeroLoteAutomatico($producto);
                             $lote = Lote::create([
                                 'lote_codigo' => $codigoLoteAuto,
+                                'lote_producto_id' => $producto->producto_id, 
                                 'lote_fecha' => now(),
                                 'lote_descripcion' => "Lote automático para {$producto->producto_nombre} - {$request->mov_origen}",
+                                'lote_cantidad_total' => $cantidadIngreso, 
+                                'lote_cantidad_disponible' => $cantidadIngreso, 
                                 'lote_usuario_id' => Auth::id(),
                                 'lote_situacion' => 1
                             ]);
                             $loteId = $lote->lote_id;
                             $mensajeAdicional = " (Lote: {$codigoLoteAuto})";
                             break;
-    
+                        
+                        // CASO 3: Buscar lote existente
                         case 'buscar':
                             $loteId = $request->lote_id;
                             $loteExistente = Lote::find($loteId);
+                 
+                            $loteExistente->lote_cantidad_total += $cantidadIngreso;
+                            $loteExistente->lote_cantidad_disponible += $cantidadIngreso;
+                            $loteExistente->save();
+                            
                             $mensajeAdicional = " (agregado a lote: {$loteExistente->lote_codigo})";
                             break;
                     }
@@ -778,16 +792,14 @@ private function generarNumeroLoteAutomatico($producto): string
     $año = $fecha->format('Y');
     $mes = $fecha->format('m');
     
-    // Obtener código de marca
-    $marca = DB::table('pro_marcas')
-        ->where('marca_id', $producto->producto_marca_id)
-        ->first();
-    
+    // Obtener código de marca usando la relación
+    $marca = $producto->marca; // Asumiendo que tienes la relación definida
     $marcaCode = $marca ? strtoupper(substr($marca->marca_descripcion, 0, 3)) : 'AUTO';
     
-    // Buscar el siguiente secuencial
+    // Buscar el siguiente secuencial para este producto específico
     $patron = "L{$año}-{$mes}-{$marcaCode}-%";
     $ultimoLote = Lote::where('lote_codigo', 'LIKE', $patron)
+        ->where('lote_producto_id', $producto->producto_id) // AGREGAR: Filtrar por producto
         ->orderBy('lote_codigo', 'desc')
         ->first();
     
