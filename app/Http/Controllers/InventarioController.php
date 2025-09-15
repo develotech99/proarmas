@@ -7,6 +7,7 @@ use App\Models\ProductoFoto;
 use App\Models\SerieProducto;
 use App\Models\Lote;
 use App\Models\Movimiento;
+use App\Models\LicenciaAsignacionProducto;
 use App\Models\Precio;
 use App\Models\StockActual;
 use App\Models\Alerta;
@@ -1276,7 +1277,7 @@ public function buscarLicencias(Request $request): JsonResponse
         }
 
         $licencias = DB::table('pro_licencias_para_importacion')
-            ->where('lipaimp_situacion', 2) // Solo autorizadas
+            // ->where('lipaimp_situacion', 2) // Solo autorizadas
             ->where(function($q) use ($query) {
                 $q->where('lipaimp_poliza', 'LIKE', "%{$query}%")
                   ->orWhere('lipaimp_descripcion', 'LIKE', "%{$query}%");

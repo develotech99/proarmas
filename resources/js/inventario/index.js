@@ -10,6 +10,7 @@ class InventarioManager {
         this.modelos = [];
         this.calibres = [];
         this.licenciaSeleccionada = null;
+        this.licenciaSeleccionadaRegistro = null;
         this.lotePreview = '';
         this.currentProductoId = null;
         this.stats = {
@@ -132,6 +133,30 @@ class InventarioManager {
             });
         }
 
+        // Checkbox para producto importado
+        const checkboxImportado = document.getElementById('producto_es_importado');
+        if (checkboxImportado) {
+            checkboxImportado.addEventListener('change', (e) => {
+                const seccionLicencia = document.getElementById('seccion_licencia_registro');
+                if (seccionLicencia) {
+                    if (e.target.checked) {
+                        seccionLicencia.classList.remove('hidden');
+                    } else {
+                        seccionLicencia.classList.add('hidden');
+                        this.limpiarLicenciaSeleccionadaRegistro();
+                    }
+                }
+            });
+        }
+
+        // Búsqueda de licencias en registro
+        const buscarLicenciaRegistro = document.getElementById('buscar_licencia_registro');
+        if (buscarLicenciaRegistro) {
+            buscarLicenciaRegistro.addEventListener('input', (e) => {
+                this.buscarLicenciasRegistro(e.target.value);
+            });
+        }
+
     }
 
     /**
@@ -178,6 +203,144 @@ async loadProductos() {
         // En caso de error, mantener como vacío
         this.productos = [];
         this.renderProductos();
+    }
+}
+
+
+
+/**
+ * Buscar licencias para el formulario de ingreso (no registro)
+ */
+async buscarLicenciasRegistro(query) {
+    const container = document.getElementById('licencias_encontradas_registro');
+    
+    if (!query || query.length < 2) {
+        if (container) {
+            container.classList.add('hidden');
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch(`/licencias/buscar?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderResultadosLicenciasRegistro(data.data || []);
+        }
+    } catch (error) {
+        console.error('Error buscando licencias en ingreso:', error);
+    }
+}
+
+/**
+ * Renderizar resultados de búsqueda de licencias en ingreso
+ */
+renderResultadosLicenciasRegistro(licencias) {
+    const container = document.getElementById('licencias_encontradas_registro');
+    if (!container) return;
+    
+    if (licencias.length === 0) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-gray-500 dark:text-gray-400">
+                No se encontraron licencias
+            </div>
+        `;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    container.innerHTML = licencias.map(licencia => `
+        <div onclick="inventarioManager.seleccionarLicenciaRegistro(${licencia.lipaimp_id})" 
+             class="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+            <div class="font-medium text-gray-900 dark:text-gray-100">
+                Póliza: ${licencia.lipaimp_poliza}
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                ${licencia.lipaimp_descripcion}
+            </div>
+            <div class="text-xs text-gray-400 dark:text-gray-500">
+                Vence: ${new Date(licencia.lipaimp_fecha_vencimiento).toLocaleDateString()}
+            </div>
+        </div>
+    `).join('');
+    
+    container.classList.remove('hidden');
+}
+
+/**
+ * Seleccionar licencia en el formulario de ingreso
+ */
+async seleccionarLicenciaRegistro(licenciaId) {
+    try {
+        const response = await fetch(`/licencias/${licenciaId}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.licenciaSeleccionadaRegistro = data.data;
+            
+            // Actualizar interfaz
+            const container = document.getElementById('licencia_seleccionada_registro');
+            const inputHidden = document.getElementById('licencia_id_registro');
+            const searchInput = document.getElementById('buscar_licencia_registro');
+            
+            if (container) {
+                container.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-gray-100">
+                                Póliza: ${this.licenciaSeleccionadaRegistro.lipaimp_poliza}
+                            </div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">
+                                ${this.licenciaSeleccionadaRegistro.lipaimp_descripcion}
+                            </div>
+                        </div>
+                        <button onclick="inventarioManager.limpiarLicenciaSeleccionadaRegistro()" 
+                                class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            
+            if (inputHidden) {
+                inputHidden.value = licenciaId;
+            }
+            
+            if (searchInput) {
+                searchInput.value = this.licenciaSeleccionadaRegistro.lipaimp_poliza;
+            }
+            
+            // Ocultar resultados
+            document.getElementById('licencias_encontradas_registro').classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error obteniendo licencia en ingreso:', error);
+    }
+}
+
+/**
+ * Limpiar licencia seleccionada en ingreso
+ */
+limpiarLicenciaSeleccionadaRegistro() {
+    this.licenciaSeleccionadaRegistro = null;
+    
+    const container = document.getElementById('licencia_seleccionada_registro');
+    const inputHidden = document.getElementById('licencia_id_registro');
+    const searchInput = document.getElementById('buscar_licencia_registro');
+    
+    if (container) {
+        container.innerHTML = `
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                Ninguna licencia seleccionada
+            </div>
+        `;
+    }
+    
+    if (inputHidden) {
+        inputHidden.value = '';
+    }
+    
+    if (searchInput) {
+        searchInput.value = '';
     }
 }
 
@@ -1670,6 +1833,24 @@ async verificarRequiereLicencia(productoId) {
                 isValid = false;
             }
         }
+
+         // NUEVA VALIDACIÓN: Licencia marcada como importado en este ingreso
+        const esImportado = document.getElementById('producto_es_importado')?.checked;
+        if (esImportado) {
+            const licenciaIdRegistro = document.getElementById('licencia_id_registro')?.value;
+            const cantidadLicencia = document.getElementById('cantidad_licencia_registro')?.value;
+            
+            if (!licenciaIdRegistro) {
+                this.showFieldError('licencia_id_registro', 'Debe seleccionar una licencia para productos importados');
+                isValid = false;
+            }
+            
+            if (!cantidadLicencia || parseInt(cantidadLicencia) <= 0) {
+                this.showFieldError('cantidad_licencia_registro', 'La cantidad para la licencia debe ser mayor a 0');
+                isValid = false;
+            }
+        }
+    
         
         // Validación de lote para productos sin serie
         if (!this.productoSeleccionado.producto_requiere_serie) {
@@ -1777,15 +1958,30 @@ async verificarRequiereLicencia(productoId) {
         document.getElementById('ingreso-step-2').classList.add('hidden');
         document.getElementById('productos_encontrados').classList.add('hidden');
         
+
         // Resetear campos de licencias
         const licenciasEncontradas = document.getElementById('licencias_encontradas');
         if (licenciasEncontradas) {
             licenciasEncontradas.classList.add('hidden');
         }
         
-        // Resetear licencia seleccionada
-        this.limpiarLicenciaSeleccionada();
+   
+        //Resetear campos de licencias en ingreso
+        const licenciasEncontradasRegistro = document.getElementById('licencias_encontradas_registro');
+        if (licenciasEncontradasRegistro) {
+            licenciasEncontradasRegistro.classList.add('hidden');
+        }
         
+        const seccionLicenciaRegistro = document.getElementById('seccion_licencia_registro');
+        if (seccionLicenciaRegistro) {
+            seccionLicenciaRegistro.classList.add('hidden');
+        }
+        
+
+            // Resetear licencias seleccionadas
+    this.limpiarLicenciaSeleccionada();
+    this.limpiarLicenciaSeleccionadaRegistro();
+
         // Resetear sección de precios
         const seccionPrecios = document.getElementById('seccion_precios');
         const checkboxPrecios = document.getElementById('agregar_precios');
@@ -1824,6 +2020,7 @@ async verificarRequiereLicencia(productoId) {
         // Resetear estado
         this.productoSeleccionado = null;
         this.licenciaSeleccionada = null;
+        this.licenciaSeleccionadaRegistro = null; 
         this.lotePreview = '';
     }
 

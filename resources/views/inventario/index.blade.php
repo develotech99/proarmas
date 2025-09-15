@@ -539,58 +539,100 @@
 
                         <!-- Tipo de ingreso y Origen -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de movimiento *</label>
-                                <select id="mov_tipo"
-                                        name="mov_tipo"
-                                        required
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                    <option value="ingreso">Ingreso (Compra)</option>
-                                    <option value="ajuste_positivo">Ajuste Positivo</option>
-                                    <option value="devolucion">Devolución</option>
-                                </select>
-                            </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de movimiento *</label>
+                            <select id="mov_tipo"
+                                    name="mov_tipo"
+                                    required
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                <option value="">Seleccionar tipo...</option>
+                                <option value="ingreso">Ingreso (compra)</option>
+                                <option value="ajuste_positivo">Ajuste Positivo</option>
+                                <option value="devolucion">Devolución</option>
+                                <option value="transferencia">Transferencia</option>
+                            </select>
+                        </div>
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Origen *</label>
-                                <input type="text" 
-                                       id="mov_origen"
-                                       name="mov_origen"
-                                       required
-                                       placeholder="Ej: Proveedor ABC, Importación"
-                                       class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                <select id="mov_origen"
+                                        name="mov_origen"
+                                        required
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                    <option value="">Seleccione el origen...</option>
+                                    <option value="Compra Nacional">Compra Nacional</option>
+                                    <option value="Importación">Importación</option>
+                                    <option value="Proveedor">Proveedor</option>
+                                    <option value="Cliente">Cliente</option>
+                                    <option value="Sucursal">Sucursal</option>
+                                    <option value="Almacén Principal">Almacén Principal</option>
+                                    <option value="Bodega">Bodega</option>
+                                    <option value="Vitrina">Vitrina</option>
+                                    <option value="Transferencia">Transferencia</option>
+                                    <option value="Devolución">Devolución</option>
+                                    <option value="Ajuste">Ajuste</option>
+                                    <option value="Auditoría">Auditoría</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
                             </div>
                         </div>
 
-                        <!-- Asignación de Licencia (solo para productos importados) -->
-                        <div id="licencia_section" class="mb-4 hidden">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                <i class="fas fa-certificate mr-1"></i>
-                                Asignación de Licencia
-                            </label>
-                            <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-3">
-                                <p class="text-sm text-blue-700 dark:text-blue-300">
-                                    <i class="fas fa-info-circle mr-1"></i>
-                                    Este producto requiere asignación de licencia de importación
-                                </p>
+                 
+                        <!-- Producto Importado y Licencias -->
+                        <div class="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <div class="flex items-center mb-3">
+                                <input type="checkbox" 
+                                    id="producto_es_importado"
+                                    name="producto_es_importado"
+                                    value="1"
+                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="producto_es_importado" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <i class="fas fa-globe mr-1"></i>
+                                    ¿Es un producto importado?
+                                </label>
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar licencia</label>
-                                    <input type="text" 
-                                           id="buscar_licencia"
-                                           placeholder="Número de póliza o descripción..."
-                                           class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                    <div id="licencias_encontradas" class="mt-2 max-h-32 overflow-y-auto hidden border border-gray-300 dark:border-gray-600 rounded-md">
-                                        <!-- Resultados de búsqueda -->
+
+                            <!-- Sección de asignación de licencia (oculta por defecto) -->
+                            <div id="seccion_licencia_registro" class="hidden">
+                                <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-3">
+                                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Los productos importados deben asignarse a una licencia de importación válida si no la tiene no seleccione que es un producto importado, esto es con fines de trazabilidad. 
+                                    </p>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar licencia</label>
+                                        <input type="text" 
+                                            id="buscar_licencia_registro"
+                                            placeholder="Número de póliza o descripción..."
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        <div id="licencias_encontradas_registro" class="mt-2 max-h-32 overflow-y-auto hidden border border-gray-300 dark:border-gray-600 rounded-md">
+                                            <!-- Resultados de búsqueda -->
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Licencia seleccionada</label>
+                                        <div id="licencia_seleccionada_registro" class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                                            Ninguna licencia seleccionada
+                                        </div>
+                                        <input type="hidden" id="licencia_id_registro" name="licencia_id">
                                     </div>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Licencia seleccionada</label>
-                                    <div id="licencia_seleccionada" class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
-                                        Ninguna licencia seleccionada
-                                    </div>
-                                    <input type="hidden" id="licencia_id" name="licencia_id">
+                                
+                                <div class="mt-3">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad a asignar a esta licencia</label>
+                                    <input type="number" 
+                                        id="cantidad_licencia_registro"
+                                        name="cantidad_licencia"
+                                        min="1"
+                                        value="1"
+                                        placeholder="Ej: 50"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    <small class="text-xs text-gray-500 dark:text-gray-400">
+                                        Cantidad de este producto que será asignada a la licencia seleccionada
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -762,7 +804,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="mt-6 flex justify-end space-x-3">
                         <button type="button" 
                                 onclick="inventarioManager.closeModal('ingreso')" 
