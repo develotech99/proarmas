@@ -1148,8 +1148,9 @@ calcularMargen() {
 }
 
 // ================================
-// 9. MODIFICAR seleccionarProducto() EXISTENTE
+//seleccionarProducto() 
 // ================================
+
 async seleccionarProducto(productoId) {
     try {
         const response = await fetch(`/inventario/productos/${productoId}`);
@@ -1179,15 +1180,40 @@ async seleccionarProducto(productoId) {
                 licenciaSection.classList.add('hidden');
             }
             
-            // Mostrar sección correcta según si requiere serie
+            // **FIX CRÍTICO: Gestión correcta de atributos required**
+            const movCantidadInput = document.getElementById('mov_cantidad');
+            const numerosSeriesTextarea = document.getElementById('numeros_series');
+            
             if (this.productoSeleccionado.producto_requiere_serie) {
+                // Producto CON serie
                 if (cantidadSection) cantidadSection.classList.add('hidden');
                 if (seriesSection) seriesSection.classList.remove('hidden');
-                if (loteSection) loteSection.classList.add('hidden'); // Series no usan lotes
+                if (loteSection) loteSection.classList.add('hidden');
+                
+                // REMOVER required de cantidad y AGREGAR a series
+                if (movCantidadInput) {
+                    movCantidadInput.removeAttribute('required');
+                    movCantidadInput.value = ''; // Limpiar valor
+                }
+                if (numerosSeriesTextarea) {
+                    numerosSeriesTextarea.setAttribute('required', 'required');
+                }
             } else {
+                // Producto SIN serie  
                 if (cantidadSection) cantidadSection.classList.remove('hidden');
                 if (seriesSection) seriesSection.classList.add('hidden');
                 if (loteSection) loteSection.classList.remove('hidden');
+                
+                // AGREGAR required a cantidad y REMOVER de series
+                if (movCantidadInput) {
+                    movCantidadInput.setAttribute('required', 'required');
+                    movCantidadInput.value = '1'; // Valor por defecto
+                }
+                if (numerosSeriesTextarea) {
+                    numerosSeriesTextarea.removeAttribute('required');
+                    numerosSeriesTextarea.value = ''; // Limpiar valor
+                }
+                
                 this.generarPreviewLote(); // Generar preview para lote automático
             }
             
@@ -1825,7 +1851,7 @@ async verificarRequiereLicencia(productoId) {
             isValid = false;
         }
         
-        // CAMBIO PRINCIPAL: Validación de licencia para productos que requieren licencia
+        // Validación de licencia para productos que requieren licencia
         if (this.productoSeleccionado.requiere_licencia) {
             const licenciaId = document.getElementById('licencia_id').value;
             if (!licenciaId) {
@@ -1833,8 +1859,8 @@ async verificarRequiereLicencia(productoId) {
                 isValid = false;
             }
         }
-
-         // NUEVA VALIDACIÓN: Licencia marcada como importado en este ingreso
+    
+        // Validación de licencia marcada como importado en este ingreso
         const esImportado = document.getElementById('producto_es_importado')?.checked;
         if (esImportado) {
             const licenciaIdRegistro = document.getElementById('licencia_id_registro')?.value;
@@ -1851,7 +1877,6 @@ async verificarRequiereLicencia(productoId) {
             }
         }
     
-        
         // Validación de lote para productos sin serie
         if (!this.productoSeleccionado.producto_requiere_serie) {
             const tipoLote = document.querySelector('input[name="generar_lote"]:checked')?.value;
@@ -1864,14 +1889,23 @@ async verificarRequiereLicencia(productoId) {
             }
         }
         
-        // Validación existente de cantidad/series
+        // **VALIDACIÓN CRÍTICA CORREGIDA**
         if (this.productoSeleccionado.producto_requiere_serie) {
+            // Para productos CON serie: validar textarea de series
             const series = document.getElementById('numeros_series').value.trim();
             if (!series) {
                 this.showFieldError('numeros_series', 'Los números de serie son obligatorios');
                 isValid = false;
+            } else {
+                // Validar que haya al menos una serie válida
+                const seriesArray = series.split('\n').filter(line => line.trim() !== '');
+                if (seriesArray.length === 0) {
+                    this.showFieldError('numeros_series', 'Debe ingresar al menos un número de serie válido');
+                    isValid = false;
+                }
             }
         } else {
+            // Para productos SIN serie: validar input de cantidad
             const cantidad = document.getElementById('mov_cantidad').value;
             if (!cantidad || cantidad <= 0) {
                 this.showFieldError('mov_cantidad', 'La cantidad debe ser mayor a 0');
@@ -1958,15 +1992,27 @@ async verificarRequiereLicencia(productoId) {
         document.getElementById('ingreso-step-2').classList.add('hidden');
         document.getElementById('productos_encontrados').classList.add('hidden');
         
-
+        // **FIX: Restaurar atributos required a estado inicial**
+        const movCantidadInput = document.getElementById('mov_cantidad');
+        const numerosSeriesTextarea = document.getElementById('numeros_series');
+        
+        // Estado inicial: cantidad es required, series no
+        if (movCantidadInput) {
+            movCantidadInput.setAttribute('required', 'required');
+            movCantidadInput.value = '';
+        }
+        if (numerosSeriesTextarea) {
+            numerosSeriesTextarea.removeAttribute('required');
+            numerosSeriesTextarea.value = '';
+        }
+    
         // Resetear campos de licencias
         const licenciasEncontradas = document.getElementById('licencias_encontradas');
         if (licenciasEncontradas) {
             licenciasEncontradas.classList.add('hidden');
         }
         
-   
-        //Resetear campos de licencias en ingreso
+        // Resetear campos de licencias en ingreso
         const licenciasEncontradasRegistro = document.getElementById('licencias_encontradas_registro');
         if (licenciasEncontradasRegistro) {
             licenciasEncontradasRegistro.classList.add('hidden');
@@ -1976,12 +2022,11 @@ async verificarRequiereLicencia(productoId) {
         if (seccionLicenciaRegistro) {
             seccionLicenciaRegistro.classList.add('hidden');
         }
-        
-
-            // Resetear licencias seleccionadas
-    this.limpiarLicenciaSeleccionada();
-    this.limpiarLicenciaSeleccionadaRegistro();
-
+    
+        // Resetear licencias seleccionadas
+        this.limpiarLicenciaSeleccionada();
+        this.limpiarLicenciaSeleccionadaRegistro();
+    
         // Resetear sección de precios
         const seccionPrecios = document.getElementById('seccion_precios');
         const checkboxPrecios = document.getElementById('agregar_precios');

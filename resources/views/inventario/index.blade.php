@@ -682,7 +682,6 @@
                                    id="mov_cantidad"
                                    name="mov_cantidad"
                                    min="1"
-                                   required
                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
                             <div id="mov_cantidad_error" class="mt-1 text-sm text-red-600 hidden"></div>
                         </div>
