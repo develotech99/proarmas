@@ -1010,4 +1010,289 @@ private function procesarFotosNuevoProducto($fotos, $productoId)
         ]);
     }
 }
+
+
+
+
+/**
+ * Procesar ingreso a inventario con lotes y licencias
+ */
+public function ingresar(Request $request): JsonResponse
+{
+    $validator = Validator::make($request->all(), [
+        'producto_id' => 'required|integer|exists:pro_productos,producto_id',
+        'mov_tipo' => 'required|in:ingreso,ajuste_positivo,devolucion',
+        'mov_origen' => 'required|string|max:100',
+        'mov_cantidad' => 'required_without:numeros_series|integer|min:1',
+        'numeros_series' => 'required_without:mov_cantidad|string',
+        'mov_observaciones' => 'nullable|string|max:250',
+        'licencia_id' => 'nullable|integer|exists:pro_licencias_para_importacion,lipaimp_id',
+        'generar_lote' => 'required|in:automatico,manual',
+        'numero_lote' => 'required_if:generar_lote,manual|string|max:100',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        $producto = Producto::findOrFail($request->producto_id);
+        $cantidadIngreso = 0;
+        $loteId = null;
+
+        // Validar licencia para productos importados
+        if ($producto->producto_es_importado && !$request->licencia_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este producto requiere asignación de licencia'
+            ], 422);
+        }
+
+        // Gestión de lotes (solo para productos sin serie)
+        if (!$producto->producto_requiere_serie) {
+            $numeroLote = $this->generarNumeroLote($request, $producto);
+            
+            // Verificar que el lote no exista
+            $loteExistente = Lote::where('lote_codigo', $numeroLote)->first();
+            if ($loteExistente) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El número de lote ya existe: ' . $numeroLote
+                ], 422);
+            }
+
+            $lote = Lote::create([
+                'lote_codigo' => $numeroLote,
+                'lote_fecha' => now(),
+                'lote_descripcion' => "Lote para {$producto->producto_nombre} - {$request->mov_origen}",
+                'lote_situacion' => 1
+            ]);
+            
+            $loteId = $lote->lote_id;
+            $cantidadIngreso = $request->mov_cantidad;
+        }
+
+        // Procesamiento de series (para productos con serie)
+        if ($producto->producto_requiere_serie) {
+            $series = array_filter(array_map('trim', explode("\n", $request->numeros_series)));
+            
+            if (empty($series)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe proporcionar al menos un número de serie'
+                ], 422);
+            }
+
+            // Verificar series duplicadas en BD
+            $seriesExistentes = SerieProducto::whereIn('serie_numero_serie', $series)
+                ->pluck('serie_numero_serie');
+            
+            if ($seriesExistentes->isNotEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Las siguientes series ya existen: ' . $seriesExistentes->implode(', ')
+                ], 422);
+            }
+
+            // Crear registros de series
+            foreach ($series as $numeroSerie) {
+                SerieProducto::create([
+                    'serie_producto_id' => $producto->producto_id,
+                    'serie_numero_serie' => $numeroSerie,
+                    'serie_estado' => SerieProducto::ESTADO_DISPONIBLE,
+                    'serie_fecha_ingreso' => now(),
+                    'serie_observaciones' => $request->mov_observaciones,
+                    'serie_situacion' => 1
+                ]);
+            }
+
+            $cantidadIngreso = count($series);
+        }
+
+        // Registrar movimiento
+        $movimiento = Movimiento::create([
+            'mov_producto_id' => $producto->producto_id,
+            'mov_tipo' => $request->mov_tipo,
+            'mov_origen' => $request->mov_origen,
+            'mov_cantidad' => $cantidadIngreso,
+            'mov_fecha' => now(),
+            'mov_usuario_id' => Auth::id() ?? 1,
+            'mov_lote_id' => $loteId,
+            'mov_documento_referencia' => $request->licencia_id ? "LIC-{$request->licencia_id}" : null,
+            'mov_observaciones' => $request->mov_observaciones,
+            'mov_situacion' => 1
+        ]);
+
+        // Actualizar stock
+        $this->actualizarStock($producto->producto_id);
+
+        // Actualizar licencia si aplica
+        if ($request->licencia_id && $producto->producto_requiere_serie) {
+            $this->actualizarCantidadLicencia($request->licencia_id, $producto, $cantidadIngreso);
+        }
+
+        DB::commit();
+
+        $mensaje = "Ingreso procesado exitosamente. {$cantidadIngreso} unidades agregadas al inventario.";
+        
+        if ($loteId) {
+            $mensaje .= " Lote generado: " . $numeroLote;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $mensaje,
+            'data' => [
+                'movimiento_id' => $movimiento->mov_id,
+                'lote_codigo' => $loteId ? $numeroLote : null,
+                'cantidad_ingresada' => $cantidadIngreso
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollback();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al procesar ingreso: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Generar número de lote según configuración
+ */
+private function generarNumeroLote(Request $request, $producto): string
+{
+    if ($request->generar_lote === 'manual') {
+        return $request->numero_lote;
+    }
+
+    // Generar automáticamente
+    $fecha = now();
+    $año = $fecha->format('Y');
+    $mes = $fecha->format('m');
+    
+    // Obtener código de marca
+    $marca = DB::table('pro_marcas')
+        ->where('marca_id', $producto->producto_marca_id)
+        ->first();
+    
+    $marcaCode = $marca ? strtoupper(substr($marca->marca_descripcion, 0, 3)) : 'AUTO';
+    
+    // Buscar el siguiente secuencial
+    $patron = "L{$año}-{$mes}-{$marcaCode}-%";
+    $ultimoLote = Lote::where('lote_codigo', 'LIKE', $patron)
+        ->orderBy('lote_codigo', 'desc')
+        ->first();
+    
+    $secuencial = 1;
+    if ($ultimoLote) {
+        $partes = explode('-', $ultimoLote->lote_codigo);
+        if (count($partes) >= 4) {
+            $secuencial = intval(end($partes)) + 1;
+        }
+    }
+    
+    return sprintf('L%s-%s-%s-%03d', $año, $mes, $marcaCode, $secuencial);
+}
+
+/**
+ * Actualizar cantidad usada en licencia (si aplica)
+ */
+private function actualizarCantidadLicencia($licenciaId, $producto, $cantidad): void
+{
+    // Buscar el arma licenciada correspondiente
+    $armaLicenciada = DB::table('pro_armas_licenciadas')
+        ->where('arma_licencia_id', $licenciaId)
+        ->where('arma_marca_id', $producto->producto_marca_id)
+        ->where('arma_modelo_id', $producto->producto_modelo_id)
+        ->first();
+    
+    if ($armaLicenciada) {
+        // Actualizar cantidad utilizada (esto depende de tu estructura de BD)
+        DB::table('pro_armas_licenciadas')
+            ->where('arma_id', $armaLicenciada->arma_id)
+            ->increment('arma_cantidad_utilizada', $cantidad);
+    }
+}
+
+/**
+ * Buscar licencias para el autocomplete
+ */
+public function buscarLicencias(Request $request): JsonResponse
+{
+    try {
+        $query = $request->get('q', '');
+        
+        if (strlen($query) < 2) {
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
+
+        $licencias = DB::table('pro_licencias_para_importacion')
+            ->where('lipaimp_situacion', 2) // Solo autorizadas
+            ->where(function($q) use ($query) {
+                $q->where('lipaimp_poliza', 'LIKE', "%{$query}%")
+                  ->orWhere('lipaimp_descripcion', 'LIKE', "%{$query}%");
+            })
+            ->whereDate('lipaimp_fecha_vencimiento', '>=', now()) // No vencidas
+            ->select([
+                'lipaimp_id',
+                'lipaimp_poliza', 
+                'lipaimp_descripcion',
+                'lipaimp_fecha_vencimiento'
+            ])
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $licencias
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en búsqueda de licencias: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+/**
+ * Obtener una licencia específica
+ */
+public function getLicencia($id): JsonResponse
+{
+    try {
+        $licencia = DB::table('pro_licencias_para_importacion')
+            ->where('lipaimp_id', $id)
+            ->first();
+
+        if (!$licencia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Licencia no encontrada'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $licencia
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener licencia'
+        ], 500);
+    }
+}
 }

@@ -537,8 +537,8 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400" id="producto_seleccionado_info">Stock actual: 0</p>
                         </div>
 
-                        <!-- Tipo de ingreso -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Tipo de ingreso y Origen -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de movimiento *</label>
                                 <select id="mov_tipo"
@@ -562,8 +562,79 @@
                             </div>
                         </div>
 
+                        <!-- Asignación de Licencia (solo para productos importados) -->
+                        <div id="licencia_section" class="mb-4 hidden">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <i class="fas fa-certificate mr-1"></i>
+                                Asignación de Licencia
+                            </label>
+                            <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-3">
+                                <p class="text-sm text-blue-700 dark:text-blue-300">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Este producto requiere asignación de licencia de importación
+                                </p>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar licencia</label>
+                                    <input type="text" 
+                                           id="buscar_licencia"
+                                           placeholder="Número de póliza o descripción..."
+                                           class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                    <div id="licencias_encontradas" class="mt-2 max-h-32 overflow-y-auto hidden border border-gray-300 dark:border-gray-600 rounded-md">
+                                        <!-- Resultados de búsqueda -->
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Licencia seleccionada</label>
+                                    <div id="licencia_seleccionada" class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                                        Ninguna licencia seleccionada
+                                    </div>
+                                    <input type="hidden" id="licencia_id" name="licencia_id">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gestión de Lotes (solo para productos sin serie) -->
+                        <div id="lote_section" class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <i class="fas fa-boxes mr-1"></i>
+                                Gestión de Lote
+                            </label>
+                            <div class="flex items-center space-x-4 mb-3">
+                                <label class="flex items-center">
+                                    <input type="radio" 
+                                           name="generar_lote" 
+                                           value="automatico" 
+                                           checked
+                                           class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Generar automáticamente</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" 
+                                           name="generar_lote" 
+                                           value="manual"
+                                           class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Ingresar manualmente</span>
+                                </label>
+                            </div>
+                            <div id="lote_manual_input" class="hidden">
+                                <input type="text" 
+                                       id="numero_lote"
+                                       name="numero_lote"
+                                       placeholder="Ej: L2025-01-GLOCK-001"
+                                       class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                <small class="text-xs text-gray-500 dark:text-gray-400">
+                                    Formato recomendado: L[AÑO]-[MES]-[MARCA]-[SECUENCIAL]
+                                </small>
+                            </div>
+                            <div id="lote_automatico_preview" class="text-sm text-gray-500 dark:text-gray-400">
+                                El sistema generará: <span id="lote_preview" class="font-mono text-green-600">L2025-09-AUTO-001</span>
+                            </div>
+                        </div>
+
                         <!-- Cantidad o Series -->
-                        <div id="cantidad_section" class="mt-4">
+                        <div id="cantidad_section" class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad *</label>
                             <input type="number" 
                                    id="mov_cantidad"
@@ -571,19 +642,24 @@
                                    min="1"
                                    required
                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            <div id="mov_cantidad_error" class="mt-1 text-sm text-red-600 hidden"></div>
                         </div>
 
-                        <div id="series_section" class="mt-4 hidden">
+                        <div id="series_section" class="mb-4 hidden">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Números de serie *</label>
                             <textarea id="numeros_series" 
                                       name="numeros_series"
                                       rows="4"
                                       placeholder="Un número de serie por línea&#10;Ejemplo:&#10;GLK123456&#10;GLK123457&#10;GLK123458"
                                       class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
+                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                Cantidad detectada: <span id="series_count" class="font-semibold text-green-600">0</span> series
+                            </div>
+                            <div id="numeros_series_error" class="mt-1 text-sm text-red-600 hidden"></div>
                         </div>
 
                         <!-- Observaciones -->
-                        <div class="mt-4">
+                        <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Observaciones</label>
                             <textarea id="mov_observaciones" 
                                       name="mov_observaciones"

@@ -204,6 +204,10 @@ Route::middleware('auth')->group(function () {
           Route::put('fotos/{id}/principal', [InventarioController::class, 'establecerFotoPrincipal']);
           
           Route::delete('productos/{id}', [InventarioController::class, 'destroy']);
+
+
+      Route::get('/licencias/buscar', [InventarioController::class, 'buscarLicencias']);
+      Route::get('/licencias/{id}', [InventarioController::class, 'getLicencia']);
     // ================================
     // RUTAS ADICIONALES (ESTO ESTA QAP 73)
     // ================================
