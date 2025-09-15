@@ -234,6 +234,37 @@ CREATE TABLE pro_lotes (
 
 
 
+-- Agregar las columnas faltantes a la tabla pro_lotes existente
+ALTER TABLE pro_lotes 
+ADD COLUMN lote_producto_id INT NOT NULL COMMENT 'FK al producto específico' AFTER lote_codigo,
+ADD COLUMN lote_cantidad_total INT DEFAULT 0 COMMENT 'Cantidad total en este lote' AFTER lote_descripcion,
+ADD COLUMN lote_cantidad_disponible INT DEFAULT 0 COMMENT 'Cantidad disponible en este lote' AFTER lote_cantidad_total;
+
+-- Corregir el tipo de dato de lote_producto_id para que coincida con producto_id
+ALTER TABLE pro_lotes 
+MODIFY COLUMN lote_producto_id bigint unsigned NOT NULL COMMENT 'FK al producto específico';
+
+
+-- Agregar índices para las nuevas columnas
+ALTER TABLE pro_lotes 
+ADD INDEX idx_lote_producto (lote_producto_id),
+ADD INDEX idx_lote_cantidad_total (lote_cantidad_total),
+ADD INDEX idx_lote_cantidad_disponible (lote_cantidad_disponible);
+
+-- Agregar la foreign key al producto
+ALTER TABLE pro_lotes 
+ADD CONSTRAINT fk_lote_producto 
+FOREIGN KEY (lote_producto_id) REFERENCES pro_productos(producto_id) ON DELETE CASCADE;
+
+-- Agregar constraints de validación
+ALTER TABLE pro_lotes 
+ADD CONSTRAINT chk_lote_cantidad_total_positiva CHECK (lote_cantidad_total >= 0),
+ADD CONSTRAINT chk_lote_cantidad_disponible_positiva CHECK (lote_cantidad_disponible >= 0),
+ADD CONSTRAINT chk_cantidad_disponible_menor_igual_total CHECK (lote_cantidad_disponible <= lote_cantidad_total);
+
+
+
+
 -- ========================
 -- TABLA DE ASIGNACIÓN LICENCIA-PRODUCTO
 -- ========================

@@ -1167,54 +1167,63 @@ async seleccionarProducto(productoId) {
             document.getElementById('producto_seleccionado_info').textContent = 
                 `Stock actual: ${this.productoSeleccionado.stock_cantidad_disponible || 0} • SKU: ${this.productoSeleccionado.pro_codigo_sku}`;
             
-            // Gestión de secciones según tipo de producto
-            const licenciaSection = document.getElementById('licencia_section');
-            const loteSection = document.getElementById('lote_section');
+            // Obtener elementos del DOM
             const cantidadSection = document.getElementById('cantidad_section');
             const seriesSection = document.getElementById('series_section');
-            
-            // CAMBIO PRINCIPAL: Mostrar sección de licencia si requiere licencia
-            if (this.productoSeleccionado.requiere_licencia && licenciaSection) {
-                licenciaSection.classList.remove('hidden');
-            } else if (licenciaSection) {
-                licenciaSection.classList.add('hidden');
-            }
-            
-            // **FIX CRÍTICO: Gestión correcta de atributos required**
+            const loteSection = document.getElementById('lote_section'); // SIEMPRE MOSTRAR SECCIÓN DE LOTES
             const movCantidadInput = document.getElementById('mov_cantidad');
             const numerosSeriesTextarea = document.getElementById('numeros_series');
             
+            // Configurar campos según tipo de producto
             if (this.productoSeleccionado.producto_requiere_serie) {
-                // Producto CON serie
-                if (cantidadSection) cantidadSection.classList.add('hidden');
-                if (seriesSection) seriesSection.classList.remove('hidden');
-                if (loteSection) loteSection.classList.add('hidden');
+                // PRODUCTO CON SERIE
+                console.log('Producto requiere serie - configurando campos');
                 
-                // REMOVER required de cantidad y AGREGAR a series
+                // Mostrar sección de series, ocultar cantidad
+                if (seriesSection) seriesSection.classList.remove('hidden');
+                if (cantidadSection) cantidadSection.classList.add('hidden');
+                
+                // Configurar atributos required
                 if (movCantidadInput) {
                     movCantidadInput.removeAttribute('required');
-                    movCantidadInput.value = ''; // Limpiar valor
+                    movCantidadInput.value = '';
                 }
                 if (numerosSeriesTextarea) {
                     numerosSeriesTextarea.setAttribute('required', 'required');
                 }
+                
             } else {
-                // Producto SIN serie  
+                // PRODUCTO SIN SERIE
+                console.log('Producto NO requiere serie - configurando campos');
+                
+                // Mostrar sección de cantidad, ocultar series
                 if (cantidadSection) cantidadSection.classList.remove('hidden');
                 if (seriesSection) seriesSection.classList.add('hidden');
-                if (loteSection) loteSection.classList.remove('hidden');
                 
-                // AGREGAR required a cantidad y REMOVER de series
+                // Configurar atributos required
                 if (movCantidadInput) {
                     movCantidadInput.setAttribute('required', 'required');
-                    movCantidadInput.value = '1'; // Valor por defecto
+                    movCantidadInput.value = '1';
                 }
                 if (numerosSeriesTextarea) {
                     numerosSeriesTextarea.removeAttribute('required');
-                    numerosSeriesTextarea.value = ''; // Limpiar valor
+                    numerosSeriesTextarea.value = '';
                 }
-                
-                this.generarPreviewLote(); // Generar preview para lote automático
+            }
+            
+            // SIEMPRE MOSTRAR SECCIÓN DE LOTES (para ambos tipos de productos)
+            if (loteSection) {
+                loteSection.classList.remove('hidden');
+                // Generar preview del lote automático por defecto
+                this.generarPreviewLote();
+            }
+            
+            // Gestión de licencias (si aplica)
+            const licenciaSection = document.getElementById('licencia_section');
+            if (this.productoSeleccionado.requiere_licencia && licenciaSection) {
+                licenciaSection.classList.remove('hidden');
+            } else if (licenciaSection) {
+                licenciaSection.classList.add('hidden');
             }
             
             // Ocultar resultados de búsqueda
@@ -1222,6 +1231,7 @@ async seleccionarProducto(productoId) {
         }
     } catch (error) {
         console.error('Error obteniendo detalle del producto:', error);
+        this.showAlert('error', 'Error', 'Error al cargar el producto');
     }
 }
 /**

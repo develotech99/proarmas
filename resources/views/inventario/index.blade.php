@@ -531,14 +531,16 @@
                         </div>
                     </div>
 
-                    <div id="ingreso-step-2" class="hidden">
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                            <h4 class="font-medium text-gray-900 dark:text-gray-100" id="producto_seleccionado_nombre">Producto seleccionado</h4>
-                            <p class="text-sm text-gray-500 dark:text-gray-400" id="producto_seleccionado_info">Stock actual: 0</p>
-                        </div>
+              <!-- dl step-2 en el modal de ingreso -->
 
-                        <!-- Tipo de ingreso y Origen -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div id="ingreso-step-2" class="hidden">
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                        <h4 class="font-medium text-gray-900 dark:text-gray-100" id="producto_seleccionado_nombre">Producto seleccionado</h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" id="producto_seleccionado_info">Stock actual: 0</p>
+                    </div>
+
+                    <!-- Tipo de ingreso y Origen -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de movimiento *</label>
                             <select id="mov_tipo"
@@ -551,266 +553,321 @@
                                 <option value="devolucion">Devolución</option>
                                 <option value="transferencia">Transferencia</option>
                             </select>
+                            <div id="mov_tipo_error" class="mt-1 text-sm text-red-600 hidden"></div>
                         </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Origen *</label>
-                                <select id="mov_origen"
-                                        name="mov_origen"
-                                        required
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                    <option value="">Seleccione el origen...</option>
-                                    <option value="Compra Nacional">Compra Nacional</option>
-                                    <option value="Importación">Importación</option>
-                                    <option value="Proveedor">Proveedor</option>
-                                    <option value="Cliente">Cliente</option>
-                                    <option value="Sucursal">Sucursal</option>
-                                    <option value="Almacén Principal">Almacén Principal</option>
-                                    <option value="Bodega">Bodega</option>
-                                    <option value="Vitrina">Vitrina</option>
-                                    <option value="Transferencia">Transferencia</option>
-                                    <option value="Devolución">Devolución</option>
-                                    <option value="Ajuste">Ajuste</option>
-                                    <option value="Auditoría">Auditoría</option>
-                                    <option value="Otro">Otro</option>
-                                </select>
-                            </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Origen *</label>
+                            <select id="mov_origen"
+                                    name="mov_origen"
+                                    required
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                <option value="">Seleccione el origen...</option>
+                                <option value="Compra Nacional">Compra Nacional</option>
+                                <option value="Importación">Importación</option>
+                                <option value="Proveedor">Proveedor</option>
+                                <option value="Cliente">Cliente</option>
+                                <option value="Sucursal">Sucursal</option>
+                                <option value="Almacén Principal">Almacén Principal</option>
+                                <option value="Bodega">Bodega</option>
+                                <option value="Vitrina">Vitrina</option>
+                                <option value="Transferencia">Transferencia</option>
+                                <option value="Devolución">Devolución</option>
+                                <option value="Ajuste">Ajuste</option>
+                                <option value="Auditoría">Auditoría</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                            <div id="mov_origen_error" class="mt-1 text-sm text-red-600 hidden"></div>
                         </div>
+                    </div>
 
-                 
-                        <!-- Producto Importado y Licencias -->
-                        <div class="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <!-- CANTIDAD (para productos sin serie) -->
+                    <div id="cantidad_section" class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad *</label>
+                        <input type="number" 
+                            id="mov_cantidad"
+                            name="mov_cantidad"
+                            min="1"
+                            placeholder="Ej: 10"
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                        <div id="mov_cantidad_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                        <small class="text-xs text-gray-500 dark:text-gray-400">
+                            Cantidad de unidades a ingresar al inventario
+                        </small>
+                    </div>
+
+                    <!-- SERIES (para productos con serie) -->
+                    <div id="series_section" class="mb-4 hidden">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Números de serie *</label>
+                        <textarea id="numeros_series" 
+                                name="numeros_series"
+                                rows="4"
+                                placeholder="Un número de serie por línea&#10;Ejemplo:&#10;GLK123456&#10;GLK123457&#10;GLK123458"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
+                        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            Cantidad detectada: <span id="series_count" class="font-semibold text-green-600">0</span> series
+                        </div>
+                        <div id="numeros_series_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                        <small class="text-xs text-gray-500 dark:text-gray-400">
+                            Cada línea debe contener un número de serie único
+                        </small>
+                    </div>
+
+                    <!-- GESTIÓN DE LOTES (SOLO para productos SIN serie) -->
+                    <div id="lote_section" class="mb-4 hidden">
+                        <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
                             <div class="flex items-center mb-3">
                                 <input type="checkbox" 
-                                    id="producto_es_importado"
-                                    name="producto_es_importado"
-                                    value="1"
-                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                <label for="producto_es_importado" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    <i class="fas fa-globe mr-1"></i>
-                                    ¿Es un producto importado?
+                                    id="usar_lotes"
+                                    name="usar_lotes"
+                                    class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                                <label for="usar_lotes" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <i class="fas fa-boxes mr-1"></i>
+                                    ¿Desea gestionar por lotes?
                                 </label>
                             </div>
 
-                            <!-- Sección de asignación de licencia (oculta por defecto) -->
-                            <div id="seccion_licencia_registro" class="hidden">
+                            <!-- Opciones de lote (ocultas por defecto) -->
+                            <div id="opciones_lote" class="hidden">
                                 <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-3">
                                     <p class="text-sm text-blue-700 dark:text-blue-300">
                                         <i class="fas fa-info-circle mr-1"></i>
-                                        Los productos importados deben asignarse a una licencia de importación válida si no la tiene no seleccione que es un producto importado, esto es con fines de trazabilidad. 
+                                        Los lotes ayudan a rastrear grupos de productos para mejor control de inventario
                                     </p>
                                 </div>
                                 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar licencia</label>
-                                        <input type="text" 
-                                            id="buscar_licencia_registro"
-                                            placeholder="Número de póliza o descripción..."
-                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                        <div id="licencias_encontradas_registro" class="mt-2 max-h-32 overflow-y-auto hidden border border-gray-300 dark:border-gray-600 rounded-md">
-                                            <!-- Resultados de búsqueda -->
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Licencia seleccionada</label>
-                                        <div id="licencia_seleccionada_registro" class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
-                                            Ninguna licencia seleccionada
-                                        </div>
-                                        <input type="hidden" id="licencia_id_registro" name="licencia_id">
-                                    </div>
+                                <div class="flex items-center space-x-4 mb-3">
+                                    <label class="flex items-center">
+                                        <input type="radio" 
+                                            name="tipo_lote" 
+                                            value="automatico" 
+                                            checked
+                                            class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Generar automáticamente</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="radio" 
+                                            name="tipo_lote" 
+                                            value="manual"
+                                            class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Ingresar manualmente</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="radio" 
+                                            name="tipo_lote" 
+                                            value="buscar"
+                                            class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Buscar existente</span>
+                                    </label>
                                 </div>
-                                
-                                <div class="mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad a asignar a esta licencia</label>
-                                    <input type="number" 
-                                        id="cantidad_licencia_registro"
-                                        name="cantidad_licencia"
-                                        min="1"
-                                        value="1"
-                                        placeholder="Ej: 50"
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+
+                                <!-- Lote manual -->
+                                <div id="lote_manual_input" class="hidden">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Código de lote</label>
+                                    <input type="text" 
+                                        id="numero_lote"
+                                        name="numero_lote"
+                                        placeholder="Ej: L2025-01-GLOCK-001"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                    <div id="numero_lote_error" class="mt-1 text-sm text-red-600 hidden"></div>
                                     <small class="text-xs text-gray-500 dark:text-gray-400">
-                                        Cantidad de este producto que será asignada a la licencia seleccionada
+                                        Formato recomendado: L[AÑO]-[MES]-[MARCA]-[SECUENCIAL]
                                     </small>
                                 </div>
-                            </div>
-                        </div>
 
-                        <!-- Gestión de Lotes (solo para productos sin serie) -->
-                        <div id="lote_section" class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                <i class="fas fa-boxes mr-1"></i>
-                                Gestión de Lote
-                            </label>
-                            <div class="flex items-center space-x-4 mb-3">
-                                <label class="flex items-center">
-                                    <input type="radio" 
-                                           name="generar_lote" 
-                                           value="automatico" 
-                                           checked
-                                           class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
-                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Generar automáticamente</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" 
-                                           name="generar_lote" 
-                                           value="manual"
-                                           class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
-                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Ingresar manualmente</span>
-                                </label>
-                            </div>
-                            <div id="lote_manual_input" class="hidden">
-                                <input type="text" 
-                                       id="numero_lote"
-                                       name="numero_lote"
-                                       placeholder="Ej: L2025-01-GLOCK-001"
-                                       class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                <small class="text-xs text-gray-500 dark:text-gray-400">
-                                    Formato recomendado: L[AÑO]-[MES]-[MARCA]-[SECUENCIAL]
-                                </small>
-                            </div>
-                            <div id="lote_automatico_preview" class="text-sm text-gray-500 dark:text-gray-400">
-                                El sistema generará: <span id="lote_preview" class="font-mono text-green-600">L2025-09-AUTO-001</span>
-                            </div>
-                        </div>
-
-                        <!-- Cantidad o Series -->
-                       <!-- Cantidad o Series -->
-                        <div id="cantidad_section" class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad *</label>
-                            <input type="number" 
-                                id="mov_cantidad"
-                                name="mov_cantidad"
-                                min="1"
-                                placeholder="Ej: 10"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                            <div id="mov_cantidad_error" class="mt-1 text-sm text-red-600 hidden"></div>
-                            <small class="text-xs text-gray-500 dark:text-gray-400">
-                                Cantidad de unidades a ingresar al inventario
-                            </small>
-                        </div>
-
-                        <div id="series_section" class="mb-4 hidden">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Números de serie *</label>
-                            <textarea id="numeros_series" 
-                                    name="numeros_series"
-                                    rows="4"
-                                    placeholder="Un número de serie por línea&#10;Ejemplo:&#10;GLK123456&#10;GLK123457&#10;GLK123458"
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
-                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                Cantidad detectada: <span id="series_count" class="font-semibold text-green-600">0</span> series
-                            </div>
-                            <div id="numeros_series_error" class="mt-1 text-sm text-red-600 hidden"></div>
-                            <small class="text-xs text-gray-500 dark:text-gray-400">
-                                Cada línea debe contener un número de serie único
-                            </small>
-                        </div>
-
-                        <!-- Observaciones -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Observaciones</label>
-                            <textarea id="mov_observaciones" 
-                                      name="mov_observaciones"
-                                      rows="2"
-                                      placeholder="Detalles adicionales del ingreso..."
-                                      class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
-                        </div>
-
-                        <!-- Información de Precios (Basado en tu modelo pro_precios) -->
-                        <div class="mb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-                            <div class="flex items-center mb-3">
-                                <input type="checkbox" 
-                                       id="agregar_precios"
-                                       name="agregar_precios"
-                                       class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
-                                <label for="agregar_precios" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    <i class="fas fa-dollar-sign mr-1"></i>
-                                    Registrar precios para este ingreso
-                                </label>
-                            </div>
-
-                            <!-- Sección de precios (oculta por defecto) -->
-                            <div id="seccion_precios" class="hidden">
-                                <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-3">
-                                    <p class="text-sm text-blue-700 dark:text-blue-300">
-                                        <i class="fas fa-info-circle mr-1"></i>
-                                        Los precios se registrarán para este lote/ingreso específico
-                                    </p>
+                                <!-- Lote automático preview -->
+                                <div id="lote_automatico_preview" class="text-sm text-gray-500 dark:text-gray-400">
+                                    El sistema generará: <span id="lote_preview" class="font-mono text-green-600">L2025-09-AUTO-001</span>
+                                    <small class="block text-xs text-gray-400 mt-1">Basado en: Año-Mes-Marca-Secuencial</small>
                                 </div>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio de costo *</label>
-                                        <input type="number" 
-                                               id="precio_costo"
-                                               name="precio_costo"
-                                               step="0.01"
-                                               min="0"
-                                               placeholder="0.00"
-                                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                        <small class="text-xs text-gray-500 dark:text-gray-400">Costo real de compra/importación</small>
+
+                                <!-- Buscar lote existente -->
+                                <div id="lote_buscar_input" class="hidden">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar lote</label>
+                                    <input type="text" 
+                                        id="buscar_lote"
+                                        placeholder="Buscar por código de lote..."
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                    
+                                    <!-- Resultados de búsqueda de lotes -->
+                                    <div id="lotes_encontrados" class="mt-2 max-h-32 overflow-y-auto hidden border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700">
+                                        <!-- Resultados dinámicos -->
                                     </div>
                                     
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio de venta *</label>
-                                        <input type="number" 
-                                               id="precio_venta"
-                                               name="precio_venta"
-                                               step="0.01"
-                                               min="0"
-                                               placeholder="0.00"
-                                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                        <small class="text-xs text-gray-500 dark:text-gray-400">Precio de venta al público</small>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio especial</label>
-                                        <input type="number" 
-                                               id="precio_especial"
-                                               name="precio_especial"
-                                               step="0.01"
-                                               min="0"
-                                               placeholder="0.00"
-                                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                        <small class="text-xs text-gray-500 dark:text-gray-400">Precio promocional (opcional)</small>
-                                    </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Moneda</label>
-                                        <select id="precio_moneda"
-                                                name="precio_moneda"
-                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                            <option value="GTQ">Quetzales (GTQ)</option>
-                                            <option value="USD">Dólares (USD)</option>
-                                            <option value="EUR">Euros (EUR)</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Justificación</label>
-                                        <input type="text" 
-                                               id="precio_justificacion"
-                                               name="precio_justificacion"
-                                               placeholder="Ej: Precio de lanzamiento, Importación directa"
-                                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                                    </div>
-                                </div>
-                                
-                                <!-- Cálculo automático de margen -->
-                                <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                    <div class="text-sm text-gray-600 dark:text-gray-400">
-                                        <span class="font-medium">Margen calculado:</span>
-                                        <span id="margen_calculado" class="text-green-600 font-bold">0%</span>
-                                        <span class="ml-4 font-medium">Ganancia por unidad:</span>
-                                        <span id="ganancia_calculada" class="text-blue-600 font-bold">Q0.00</span>
+                                    <!-- Lote seleccionado -->
+                                    <div class="mt-2">
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Lote seleccionado</label>
+                                        <div id="lote_seleccionado" class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                                            Ningún lote seleccionado
+                                        </div>
+                                        <input type="hidden" id="lote_id" name="lote_id">
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Producto Importado y Licencias -->
+                    <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
+                        <div class="flex items-center mb-3">
+                            <input type="checkbox" 
+                                id="producto_es_importado"
+                                name="producto_es_importado"
+                                value="1"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="producto_es_importado" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <i class="fas fa-globe mr-1"></i>
+                                ¿Es un producto importado?
+                            </label>
+                        </div>
+
+                        <!-- Sección de asignación de licencia (oculta por defecto) -->
+                        <div id="seccion_licencia_registro" class="hidden">
+                            <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-3">
+                                <p class="text-sm text-blue-700 dark:text-blue-300">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Los productos importados deben asignarse a una licencia de importación válida
+                                </p>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar licencia</label>
+                                    <input type="text" 
+                                        id="buscar_licencia_registro"
+                                        placeholder="Número de póliza o descripción..."
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    <div id="licencias_encontradas_registro" class="mt-2 max-h-32 overflow-y-auto hidden border border-gray-300 dark:border-gray-600 rounded-md">
+                                        <!-- Resultados de búsqueda -->
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Licencia seleccionada</label>
+                                    <div id="licencia_seleccionada_registro" class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                                        Ninguna licencia seleccionada
+                                    </div>
+                                    <input type="hidden" id="licencia_id_registro" name="licencia_id">
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad a asignar a esta licencia</label>
+                                <input type="number" 
+                                    id="cantidad_licencia_registro"
+                                    name="cantidad_licencia"
+                                    min="1"
+                                    value="1"
+                                    placeholder="Ej: 50"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <small class="text-xs text-gray-500 dark:text-gray-400">
+                                    Cantidad de este producto que será asignada a la licencia seleccionada
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Observaciones</label>
+                        <textarea id="mov_observaciones" 
+                                name="mov_observaciones"
+                                rows="2"
+                                placeholder="Detalles adicionales del ingreso..."
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
+                    </div>
+
+                    <!-- Información de Precios -->
+                    <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
+                        <div class="flex items-center mb-3">
+                            <input type="checkbox" 
+                                id="agregar_precios"
+                                name="agregar_precios"
+                                class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                            <label for="agregar_precios" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <i class="fas fa-dollar-sign mr-1"></i>
+                                Registrar precios para este ingreso
+                            </label>
+                        </div>
+
+                        <!-- Sección de precios (oculta por defecto) -->
+                        <div id="seccion_precios" class="hidden">
+                            <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-3">
+                                <p class="text-sm text-blue-700 dark:text-blue-300">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Los precios se registrarán para este lote/ingreso específico
+                                </p>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio de costo *</label>
+                                    <input type="number" 
+                                        id="precio_costo"
+                                        name="precio_costo"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                    <small class="text-xs text-gray-500 dark:text-gray-400">Costo real de compra/importación</small>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio de venta *</label>
+                                    <input type="number" 
+                                        id="precio_venta"
+                                        name="precio_venta"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                    <small class="text-xs text-gray-500 dark:text-gray-400">Precio de venta al público</small>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio especial</label>
+                                    <input type="number" 
+                                        id="precio_especial"
+                                        name="precio_especial"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                    <small class="text-xs text-gray-500 dark:text-gray-400">Precio promocional (opcional)</small>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Moneda</label>
+                                    <select id="precio_moneda"
+                                            name="precio_moneda"
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                        <option value="GTQ">Quetzales (GTQ)</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Justificación</label>
+                                    <input type="text" 
+                                        id="precio_justificacion"
+                                        name="precio_justificacion"
+                                        placeholder="Ej: Precio de lanzamiento, Importación directa"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                </div>
+                            </div>
+                            
+                            <!-- Cálculo automático de margen -->
+                            <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="text-sm text-gray-600 dark:text-gray-400">
+                                    <span class="font-medium">Margen calculado:</span>
+                                    <span id="margen_calculado" class="text-green-600 font-bold">0%</span>
+                                    <span class="ml-4 font-medium">Ganancia por unidad:</span>
+                                    <span id="ganancia_calculada" class="text-blue-600 font-bold">Q0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                     <div class="mt-6 flex justify-end space-x-3">
                         <button type="button" 
