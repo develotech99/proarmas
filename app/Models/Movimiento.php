@@ -383,24 +383,24 @@ class Movimiento extends Model
     /**
      *  Obtener resumen por producto
      */
-    public static function resumenPorProducto(int $productoId): array
-    {
-        $ingresos = self::activos()
-            ->delProducto($productoId)
-            ->ingresos()
-            ->sum('mov_cantidad');
+    // public static function resumenPorProducto(int $productoId): array
+    // {
+    //     $ingresos = self::activos()
+    //         ->delProducto($productoId)
+    //         ->ingresos()
+    //         ->sum('mov_cantidad');
 
-        $egresos = self::activos()
-            ->delProducto($productoId)
-            ->egresos()
-            ->sum('mov_cantidad');
+    //     $egresos = self::activos()
+    //         ->delProducto($productoId)
+    //         ->egresos()
+    //         ->sum('mov_cantidad');
 
-        return [
-            'ingresos' => $ingresos,
-            'egresos' => $egresos,
-            'stock_calculado' => $ingresos - $egresos
-        ];
-    }
+    //     return [
+    //         'ingresos' => $ingresos,
+    //         'egresos' => $egresos,
+    //         'stock_calculado' => $ingresos - $egresos
+    //     ];
+    // }
 
     // En app/Models/Movimiento.php
 public static function resumenPorProducto($productoId)
