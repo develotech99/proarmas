@@ -401,4 +401,24 @@ class Movimiento extends Model
             'stock_calculado' => $ingresos - $egresos
         ];
     }
+
+    // En app/Models/Movimiento.php
+public static function resumenPorProducto($productoId)
+{
+    $ingresos = static::where('mov_producto_id', $productoId)
+        ->whereIn('mov_tipo', ['ingreso', 'ajuste_positivo', 'devolucion'])
+        ->where('mov_situacion', 1)
+        ->sum('mov_cantidad');
+    
+    $egresos = static::where('mov_producto_id', $productoId)
+        ->whereIn('mov_tipo', ['egreso', 'venta', 'ajuste_negativo'])
+        ->where('mov_situacion', 1)
+        ->sum('mov_cantidad');
+    
+    return [
+        'ingresos' => $ingresos,
+        'egresos' => $egresos,
+        'stock_calculado' => $ingresos - $egresos
+    ];
+}
 }

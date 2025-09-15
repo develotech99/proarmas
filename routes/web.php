@@ -196,7 +196,8 @@ Route::middleware('auth')->group(function () {
     // Calibres activos (AJAX)
     Route::get('/calibres/activos', [InventarioController::class, 'getCalibresActivos'])
           ->name('calibres.activos');
-    
+  
+Route::get('/inventario/productos/{id}/requiere-licencia', [InventarioController::class, 'verificarRequiereLicencia']);
 
           Route::get('productos/{id}/fotos', [InventarioController::class, 'getFotosProducto']);
           Route::post('productos/{id}/fotos', [InventarioController::class, 'subirFotos']);

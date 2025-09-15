@@ -9,6 +9,9 @@ class InventarioManager {
         this.marcas = [];
         this.modelos = [];
         this.calibres = [];
+        this.licenciaSeleccionada = null;
+        this.lotePreview = '';
+        this.currentProductoId = null;
         this.stats = {
             totalProductos: 0,
             stockTotal: 0,
@@ -32,6 +35,7 @@ class InventarioManager {
         console.log('🚀 InventarioManager inicializado');
         this.setupEventListeners();
         this.setupFotosHandling(); 
+        this.setupPreciosHandling();
         this.loadInitialData();
     }
 
@@ -88,6 +92,46 @@ class InventarioManager {
                 this.closeModal('ingreso');
             }
         });
+
+            
+        // Búsqueda de licencias
+        const buscarLicenciaInput = document.getElementById('buscar_licencia');
+        if (buscarLicenciaInput) {
+            buscarLicenciaInput.addEventListener('input', (e) => {
+                this.buscarLicencias(e.target.value);
+            });
+        }
+
+        // Radio buttons para generar lote  
+        document.querySelectorAll('input[name="generar_lote"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.toggleLoteInput(e.target.value);
+            });
+        });
+
+        // Contador de series
+        const numerosSeriesInput = document.getElementById('numeros_series');
+        if (numerosSeriesInput) {
+            numerosSeriesInput.addEventListener('input', (e) => {
+                this.contarSeries(e.target.value);
+            });
+        }
+
+        // Checkbox para agregar precios
+        const checkboxPrecios = document.getElementById('agregar_precios');
+        if (checkboxPrecios) {
+            checkboxPrecios.addEventListener('change', (e) => {
+                const seccionPrecios = document.getElementById('seccion_precios');
+                if (seccionPrecios) {
+                    if (e.target.checked) {
+                        seccionPrecios.classList.remove('hidden');
+                    } else {
+                        seccionPrecios.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
     }
 
     /**
@@ -669,6 +713,318 @@ async loadProductos() {
         }
     }
 
+
+    // ================================
+// 4. NUEVO MÉTODO: setupPreciosHandling()
+// ================================
+setupPreciosHandling() {
+    // Cálculo automático de margen
+    ['precio_costo', 'precio_venta'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('input', () => this.calcularMargen());
+        }
+    });
+}
+
+// ================================
+// 5. NUEVOS MÉTODOS PARA LICENCIAS
+// ================================
+
+/**
+ * Buscar licencias disponibles
+ */
+async buscarLicencias(query) {
+    const container = document.getElementById('licencias_encontradas');
+    
+    if (!query || query.length < 2) {
+        if (container) {
+            container.classList.add('hidden');
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch(`/licencias/buscar?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderResultadosLicencias(data.data || []);
+        }
+    } catch (error) {
+        console.error('Error buscando licencias:', error);
+    }
+}
+
+/**
+ * Renderizar resultados de búsqueda de licencias
+ */
+renderResultadosLicencias(licencias) {
+    const container = document.getElementById('licencias_encontradas');
+    if (!container) return;
+    
+    if (licencias.length === 0) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-gray-500 dark:text-gray-400">
+                No se encontraron licencias
+            </div>
+        `;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    container.innerHTML = licencias.map(licencia => `
+        <div onclick="inventarioManager.seleccionarLicencia(${licencia.lipaimp_id})" 
+             class="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+            <div class="font-medium text-gray-900 dark:text-gray-100">
+                Póliza: ${licencia.lipaimp_poliza}
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                ${licencia.lipaimp_descripcion}
+            </div>
+            <div class="text-xs text-gray-400 dark:text-gray-500">
+                Vence: ${new Date(licencia.lipaimp_fecha_vencimiento).toLocaleDateString()}
+            </div>
+        </div>
+    `).join('');
+    
+    container.classList.remove('hidden');
+}
+
+/**
+ * Seleccionar licencia específica
+ */
+async seleccionarLicencia(licenciaId) {
+    try {
+        const response = await fetch(`/licencias/${licenciaId}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.licenciaSeleccionada = data.data;
+            
+            // Actualizar interfaz
+            const container = document.getElementById('licencia_seleccionada');
+            const inputHidden = document.getElementById('licencia_id');
+            const searchInput = document.getElementById('buscar_licencia');
+            
+            if (container) {
+                container.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-gray-100">
+                                Póliza: ${this.licenciaSeleccionada.lipaimp_poliza}
+                            </div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">
+                                ${this.licenciaSeleccionada.lipaimp_descripcion}
+                            </div>
+                        </div>
+                        <button onclick="inventarioManager.limpiarLicenciaSeleccionada()" 
+                                class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            
+            if (inputHidden) {
+                inputHidden.value = licenciaId;
+            }
+            
+            if (searchInput) {
+                searchInput.value = this.licenciaSeleccionada.lipaimp_poliza;
+            }
+            
+            // Ocultar resultados
+            document.getElementById('licencias_encontradas').classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error obteniendo licencia:', error);
+    }
+}
+
+/**
+ * Limpiar licencia seleccionada
+ */
+limpiarLicenciaSeleccionada() {
+    this.licenciaSeleccionada = null;
+    
+    const container = document.getElementById('licencia_seleccionada');
+    const inputHidden = document.getElementById('licencia_id');
+    const searchInput = document.getElementById('buscar_licencia');
+    
+    if (container) {
+        container.innerHTML = `
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                Ninguna licencia seleccionada
+            </div>
+        `;
+    }
+    
+    if (inputHidden) {
+        inputHidden.value = '';
+    }
+    
+    if (searchInput) {
+        searchInput.value = '';
+    }
+}
+
+// ================================
+// 6. NUEVOS MÉTODOS PARA LOTES
+// ================================
+
+/**
+ * Toggle entre lote automático y manual
+ */
+toggleLoteInput(tipo) {
+    const loteManualInput = document.getElementById('lote_manual_input');
+    const loteAutomaticoPreview = document.getElementById('lote_automatico_preview');
+    
+    if (tipo === 'manual') {
+        if (loteManualInput) loteManualInput.classList.remove('hidden');
+        if (loteAutomaticoPreview) loteAutomaticoPreview.classList.add('hidden');
+    } else {
+        if (loteManualInput) loteManualInput.classList.add('hidden');
+        if (loteAutomaticoPreview) loteAutomaticoPreview.classList.remove('hidden');
+        this.generarPreviewLote();
+    }
+}
+
+/**
+ * Generar preview del lote automático
+ */
+generarPreviewLote() {
+    if (!this.productoSeleccionado) return;
+    
+    const fecha = new Date();
+    const año = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    
+    // Obtener código de marca del producto seleccionado
+    let marcaCode = 'AUTO';
+    if (this.productoSeleccionado.marca_nombre) {
+        marcaCode = this.productoSeleccionado.marca_nombre.substring(0, 3).toUpperCase();
+    }
+    
+    this.lotePreview = `L${año}-${mes}-${marcaCode}-001`;
+    
+    const previewElement = document.getElementById('lote_preview');
+    if (previewElement) {
+        previewElement.textContent = this.lotePreview;
+    }
+}
+
+// ================================
+// 7. NUEVOS MÉTODOS PARA SERIES
+// ================================
+
+/**
+ * Contar series ingresadas
+ */
+contarSeries(texto) {
+    const series = texto.split('\n').filter(line => line.trim() !== '');
+    const countElement = document.getElementById('series_count');
+    
+    if (countElement) {
+        countElement.textContent = series.length;
+        
+        // Cambiar color según cantidad
+        if (series.length > 0) {
+            countElement.className = 'font-semibold text-green-600';
+        } else {
+            countElement.className = 'font-semibold text-gray-400';
+        }
+    }
+}
+
+// ================================
+// 8. NUEVOS MÉTODOS PARA PRECIOS
+// ================================
+
+/**
+ * Calcular margen automáticamente
+ */
+calcularMargen() {
+    const costInput = document.getElementById('precio_costo');
+    const ventaInput = document.getElementById('precio_venta');
+    const margenElement = document.getElementById('margen_calculado');
+    const gananciaElement = document.getElementById('ganancia_calculada');
+    
+    if (!costInput || !ventaInput || !margenElement || !gananciaElement) return;
+    
+    const costo = parseFloat(costInput.value) || 0;
+    const venta = parseFloat(ventaInput.value) || 0;
+    
+    if (costo > 0 && venta > 0) {
+        const ganancia = venta - costo;
+        const margen = ((ganancia / costo) * 100);
+        
+        margenElement.textContent = `${margen.toFixed(1)}%`;
+        gananciaElement.textContent = `Q${ganancia.toFixed(2)}`;
+        
+        // Colorear según el margen
+        if (margen < 10) {
+            margenElement.className = 'text-red-600 font-bold';
+        } else if (margen < 25) {
+            margenElement.className = 'text-yellow-600 font-bold';
+        } else {
+            margenElement.className = 'text-green-600 font-bold';
+        }
+    } else {
+        margenElement.textContent = '0%';
+        gananciaElement.textContent = 'Q0.00';
+        margenElement.className = 'text-gray-400 font-bold';
+    }
+}
+
+// ================================
+// 9. MODIFICAR seleccionarProducto() EXISTENTE
+// ================================
+async seleccionarProducto(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.productoSeleccionado = data.data;
+            
+            // Código existente...
+            document.getElementById('ingreso-step-1').classList.add('hidden');
+            document.getElementById('ingreso-step-2').classList.remove('hidden');
+            
+            document.getElementById('producto_seleccionado_nombre').textContent = this.productoSeleccionado.producto_nombre;
+            document.getElementById('producto_seleccionado_info').textContent = 
+                `Stock actual: ${this.productoSeleccionado.stock_cantidad_disponible || 0} • SKU: ${this.productoSeleccionado.pro_codigo_sku}`;
+            
+            // AGREGAR: Gestión de secciones según tipo de producto
+            const licenciaSection = document.getElementById('licencia_section');
+            const loteSection = document.getElementById('lote_section');
+            const cantidadSection = document.getElementById('cantidad_section');
+            const seriesSection = document.getElementById('series_section');
+            
+            // Mostrar sección de licencia si es producto importado
+            if (this.productoSeleccionado.producto_es_importado && licenciaSection) {
+                licenciaSection.classList.remove('hidden');
+            } else if (licenciaSection) {
+                licenciaSection.classList.add('hidden');
+            }
+            
+            // Mostrar sección correcta según si requiere serie
+            if (this.productoSeleccionado.producto_requiere_serie) {
+                if (cantidadSection) cantidadSection.classList.add('hidden');
+                if (seriesSection) seriesSection.classList.remove('hidden');
+                if (loteSection) loteSection.classList.add('hidden'); // Series no usan lotes
+            } else {
+                if (cantidadSection) cantidadSection.classList.remove('hidden');
+                if (seriesSection) seriesSection.classList.add('hidden');
+                if (loteSection) loteSection.classList.remove('hidden');
+                this.generarPreviewLote(); // Generar preview para lote automático
+            }
+            
+            // Ocultar resultados de búsqueda
+            document.getElementById('productos_encontrados').classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error obteniendo detalle del producto:', error);
+    }
+}
 /**
  * Eliminar producto (con validaciones completas)
  */
@@ -1262,6 +1618,28 @@ renderProductoCard(producto) {
             isValid = false;
         }
         
+        // AGREGAR: Validación de licencia para productos importados
+        if (this.productoSeleccionado.producto_es_importado) {
+            const licenciaId = document.getElementById('licencia_id').value;
+            if (!licenciaId) {
+                this.showFieldError('licencia_id', 'La licencia es obligatoria para productos importados');
+                isValid = false;
+            }
+        }
+        
+        // AGREGAR: Validación de lote para productos sin serie
+        if (!this.productoSeleccionado.producto_requiere_serie) {
+            const tipoLote = document.querySelector('input[name="generar_lote"]:checked').value;
+            if (tipoLote === 'manual') {
+                const numeroLote = document.getElementById('numero_lote').value.trim();
+                if (!numeroLote) {
+                    this.showFieldError('numero_lote', 'El número de lote es obligatorio');
+                    isValid = false;
+                }
+            }
+        }
+        
+        // Validación existente de cantidad/series
         if (this.productoSeleccionado.producto_requiere_serie) {
             const series = document.getElementById('numeros_series').value.trim();
             if (!series) {
@@ -1276,9 +1654,25 @@ renderProductoCard(producto) {
             }
         }
         
+        // AGREGAR: Validación de precios si están habilitados
+        const agregaPrecios = document.getElementById('agregar_precios').checked;
+        if (agregaPrecios) {
+            const precioCosto = document.getElementById('precio_costo').value;
+            const precioVenta = document.getElementById('precio_venta').value;
+            
+            if (!precioCosto || parseFloat(precioCosto) <= 0) {
+                this.showFieldError('precio_costo', 'El precio de costo es obligatorio');
+                isValid = false;
+            }
+            
+            if (!precioVenta || parseFloat(precioVenta) <= 0) {
+                this.showFieldError('precio_venta', 'El precio de venta es obligatorio');
+                isValid = false;
+            }
+        }
+        
         return isValid;
     }
-
     /**
      * Mostrar modal
      */
@@ -1330,7 +1724,43 @@ renderProductoCard(producto) {
         document.getElementById('ingreso-step-2').classList.add('hidden');
         document.getElementById('productos_encontrados').classList.add('hidden');
         
+        // AGREGAR: Resetear nuevos campos
+        const licenciasEncontradas = document.getElementById('licencias_encontradas');
+        if (licenciasEncontradas) {
+            licenciasEncontradas.classList.add('hidden');
+        }
+        
+        // Resetear licencia seleccionada
+        this.limpiarLicenciaSeleccionada();
+        
+        // Resetear sección de precios
+        const seccionPrecios = document.getElementById('seccion_precios');
+        if (seccionPrecios) {
+            seccionPrecios.classList.add('hidden');
+        }
+        
+        // Resetear contador de series
+        const seriesCount = document.getElementById('series_count');
+        if (seriesCount) {
+            seriesCount.textContent = '0';
+            seriesCount.className = 'font-semibold text-gray-400';
+        }
+        
+        // Resetear cálculo de margen
+        const margenCalculado = document.getElementById('margen_calculado');
+        const gananciaCalculada = document.getElementById('ganancia_calculada');
+        if (margenCalculado) {
+            margenCalculado.textContent = '0%';
+            margenCalculado.className = 'text-gray-400 font-bold';
+        }
+        if (gananciaCalculada) {
+            gananciaCalculada.textContent = 'Q0.00';
+        }
+        
+        // Resetear estado
         this.productoSeleccionado = null;
+        this.licenciaSeleccionada = null;
+        this.lotePreview = '';
     }
 
     /**
