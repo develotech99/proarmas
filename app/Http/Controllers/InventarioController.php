@@ -1644,4 +1644,157 @@ public function getLicencia($id): JsonResponse
 
 
 
+// Agregar estos métodos a tu InventarioController
+
+/**
+ * Obtener detalle completo de un producto
+ */
+public function getDetalleProducto($id): JsonResponse
+{
+    try {
+        $producto = Producto::with([
+            'stockActual', 
+            'fotos' => function($query) {
+                $query->where('foto_situacion', 1)->where('foto_principal', true);
+            },
+            'precios' => function($query) {
+                $query->where('precio_situacion', 1)->orderBy('precio_fecha_asignacion', 'desc');
+            }
+        ])
+        ->leftJoin('pro_categorias', 'pro_productos.producto_categoria_id', '=', 'pro_categorias.categoria_id')
+        ->leftJoin('pro_subcategorias', 'pro_productos.producto_subcategoria_id', '=', 'pro_subcategorias.subcategoria_id')
+        ->leftJoin('pro_marcas', 'pro_productos.producto_marca_id', '=', 'pro_marcas.marca_id')
+        ->leftJoin('pro_modelo', 'pro_productos.producto_modelo_id', '=', 'pro_modelo.modelo_id')
+        ->leftJoin('pro_calibres', 'pro_productos.producto_calibre_id', '=', 'pro_calibres.calibre_id')
+        ->leftJoin('pro_paises', 'pro_productos.producto_madein', '=', 'pro_paises.pais_id')
+        ->select([
+            'pro_productos.*',
+            'pro_categorias.categoria_nombre',
+            'pro_subcategorias.subcategoria_nombre',
+            'pro_marcas.marca_descripcion as marca_nombre',
+            'pro_modelo.modelo_descripcion as modelo_nombre',
+            'pro_calibres.calibre_nombre',
+            'pro_paises.pais_descripcion as pais_nombre'
+        ])
+        ->findOrFail($id);
+
+        // Agregar datos adicionales
+        $productoData = $producto->toArray();
+        
+        // Foto principal
+        $fotoPrincipal = $producto->fotos->first();
+        $productoData['foto_principal'] = $fotoPrincipal ? $fotoPrincipal->url_completa : null;
+        
+        // Stock actual
+        $stock = $producto->stockActual;
+        $productoData['stock_cantidad_total'] = $stock ? $stock->stock_cantidad_total : 0;
+        $productoData['stock_cantidad_disponible'] = $stock ? $stock->stock_cantidad_disponible : 0;
+        $productoData['stock_cantidad_reservada'] = $stock ? $stock->stock_cantidad_reservada : 0;
+        
+        // Precios actuales
+        $productoData['precios'] = $producto->precios->map(function($precio) {
+            return [
+                'precio_costo' => number_format($precio->precio_costo, 2),
+                'precio_venta' => number_format($precio->precio_venta, 2),
+                'precio_especial' => $precio->precio_especial ? number_format($precio->precio_especial, 2) : null,
+                'precio_margen' => number_format($precio->precio_margen, 1),
+                'precio_moneda' => $precio->precio_moneda,
+                'precio_fecha_asignacion' => $precio->precio_fecha_asignacion
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $productoData
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Producto no encontrado'
+        ], 404);
+    }
+}
+
+/**
+ * Obtener movimientos recientes de un producto
+ */
+public function getMovimientosProducto($id): JsonResponse
+{
+    try {
+        $limit = request('limit', 10);
+        
+        $movimientos = Movimiento::where('mov_producto_id', $id)
+            ->where('mov_situacion', 1)
+            ->orderBy('mov_fecha', 'desc')
+            ->limit($limit)
+            ->get()
+            ->map(function($movimiento) {
+                return [
+                    'mov_id' => $movimiento->mov_id,
+                    'mov_tipo' => ucfirst($movimiento->mov_tipo),
+                    'mov_origen' => $movimiento->mov_origen,
+                    'mov_cantidad' => $movimiento->mov_cantidad,
+                    'mov_fecha' => $movimiento->mov_fecha->format('Y-m-d H:i:s'),
+                    'mov_observaciones' => $movimiento->mov_observaciones,
+                    'usuario_nombre' => $movimiento->usuario->name ?? 'Sistema'
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $movimientos
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar movimientos: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Obtener series de un producto
+ */
+public function getSeriesProducto($id): JsonResponse
+{
+    try {
+        $producto = Producto::findOrFail($id);
+        
+        if (!$producto->producto_requiere_serie) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este producto no maneja series'
+            ], 400);
+        }
+
+        $series = SerieProducto::where('serie_producto_id', $id)
+            ->where('serie_situacion', 1)
+            ->orderBy('serie_fecha_ingreso', 'desc')
+            ->get()
+            ->map(function($serie) {
+                return [
+                    'serie_id' => $serie->serie_id,
+                    'serie_numero_serie' => $serie->serie_numero_serie,
+                    'serie_estado' => $serie->serie_estado,
+                    'serie_fecha_ingreso' => $serie->serie_fecha_ingreso->format('Y-m-d'),
+                    'serie_observaciones' => $serie->serie_observaciones
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $series
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar series: ' . $e->getMessage()
+        ], 500);
+    }
+}
+            
+
 }

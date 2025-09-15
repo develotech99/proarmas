@@ -209,6 +209,23 @@ Route::get('/inventario/productos/{id}/requiere-licencia', [InventarioController
 
       Route::get('/licencias/buscar', [InventarioController::class, 'buscarLicencias']);
       Route::get('/licencias/{id}', [InventarioController::class, 'getLicencia']);
+
+
+      // Detalle completo de producto
+            Route::get('/inventario/productos/{id}/detalle', [InventarioController::class, 'getDetalleProducto'])
+            ->name('inventario.producto.detalle');
+
+            // Actualizar producto
+            Route::put('/inventario/productos/{id}', [InventarioController::class, 'update'])
+            ->name('inventario.producto.update');
+
+            // Movimientos de un producto específico
+            Route::get('/inventario/productos/{id}/movimientos', [InventarioController::class, 'getMovimientosProducto'])
+            ->name('inventario.producto.movimientos');
+
+            // Series de un producto específico
+            Route::get('/inventario/productos/{id}/series', [InventarioController::class, 'getSeriesProducto'])
+            ->name('inventario.producto.series');
     // ================================
     // RUTAS ADICIONALES (ESTO ESTA QAP 73)
     // ================================

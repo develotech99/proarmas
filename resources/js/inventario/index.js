@@ -2435,6 +2435,303 @@ validateLicenciaSeleccionada() {
     
     return true;
 }
+
+
+/*
+/** 
+*///aquí empiezan los vergazos;  las acciones desde aquí hasta donde allá otro comentario como este para no planchar
+
+///detalle de producto modal y sus funciones 
+
+
+// Agregar estos métodos a tu InventarioManager
+
+/**
+ * Ver detalle completo de un producto
+ */
+async verDetalleProducto(productoId) {
+    this.currentProductoId = productoId;
+    
+    try {
+        // Cargar datos del producto
+        const response = await fetch(`/inventario/productos/${productoId}/detalle`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderDetalleProducto(data.data);
+            this.showModal('detalle');
+            
+            // Cargar datos adicionales
+            this.loadMovimientosRecientes(productoId);
+            if (data.data.producto_requiere_serie) {
+                this.loadSeriesProducto(productoId);
+            }
+        } else {
+            this.showAlert('error', 'Error', 'No se pudo cargar el detalle del producto');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Renderizar datos del producto en el modal de detalle
+ */
+renderDetalleProducto(producto) {
+    // Información básica
+    document.getElementById('detalle_producto_nombre').textContent = producto.producto_nombre;
+    document.getElementById('detalle_producto_sku').textContent = `SKU: ${producto.pro_codigo_sku}`;
+    
+    // Información general
+    document.getElementById('detalle_categoria').textContent = producto.categoria_nombre || '-';
+    document.getElementById('detalle_subcategoria').textContent = producto.subcategoria_nombre || '-';
+    document.getElementById('detalle_marca').textContent = producto.marca_nombre || '-';
+    document.getElementById('detalle_modelo').textContent = producto.modelo_nombre || '-';
+    document.getElementById('detalle_calibre').textContent = producto.calibre_nombre || '-';
+    document.getElementById('detalle_pais').textContent = producto.pais_nombre || '-';
+    document.getElementById('detalle_codigo_barra').textContent = producto.producto_codigo_barra || '-';
+    
+    // Requiere serie
+    const requiereSerieElement = document.getElementById('detalle_requiere_serie');
+    if (producto.producto_requiere_serie) {
+        requiereSerieElement.innerHTML = `
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                <i class="fas fa-check mr-1"></i>
+                Sí
+            </span>
+        `;
+        // Mostrar sección de series
+        document.getElementById('detalle_series_container').classList.remove('hidden');
+    } else {
+        requiereSerieElement.innerHTML = `
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                <i class="fas fa-times mr-1"></i>
+                No
+            </span>
+        `;
+        // Ocultar sección de series
+        document.getElementById('detalle_series_container').classList.add('hidden');
+    }
+    
+    // Descripción
+    const descripcionContainer = document.getElementById('detalle_descripcion_container');
+    const descripcionElement = document.getElementById('detalle_descripcion');
+    if (producto.producto_descripcion && producto.producto_descripcion.trim()) {
+        descripcionElement.textContent = producto.producto_descripcion;
+        descripcionContainer.classList.remove('hidden');
+    } else {
+        descripcionContainer.classList.add('hidden');
+    }
+    
+    // Stock
+    document.getElementById('detalle_stock_total').textContent = producto.stock_cantidad_total || 0;
+    document.getElementById('detalle_stock_disponible').textContent = producto.stock_cantidad_disponible || 0;
+    document.getElementById('detalle_stock_reservado').textContent = producto.stock_cantidad_reservada || 0;
+    document.getElementById('detalle_stock_minimo').textContent = producto.producto_stock_minimo || 0;
+    
+    // Foto principal
+    this.renderFotoPrincipal(producto.foto_principal);
+    
+    // Precios
+    this.renderPreciosDetalle(producto.precios || []);
+}
+
+/**
+ * Renderizar foto principal
+ */
+renderFotoPrincipal(fotoUrl) {
+    const container = document.getElementById('detalle_foto_principal');
+    
+    if (fotoUrl) {
+        container.innerHTML = `
+            <img src="${fotoUrl}" 
+                 alt="Foto del producto"
+                 class="w-full h-48 object-cover rounded-lg border border-gray-300 dark:border-gray-600">
+        `;
+    } else {
+        container.innerHTML = `
+            <div class="w-full h-48 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                <div class="text-center">
+                    <i class="fas fa-image text-gray-400 text-3xl mb-2"></i>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Sin foto</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Renderizar precios en el detalle
+ */
+renderPreciosDetalle(precios) {
+    const container = document.getElementById('detalle_precios_container');
+    
+    if (precios.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 dark:text-gray-400 py-4">
+                Sin precios registrados
+            </div>
+        `;
+        return;
+    }
+    
+    const precioActual = precios[0]; // Asumiendo que el primero es el actual
+    
+    container.innerHTML = `
+        <div class="space-y-2">
+            <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">Costo:</span>
+                <span class="font-medium text-gray-900 dark:text-gray-100">Q${precioActual.precio_costo}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">Venta:</span>
+                <span class="font-medium text-green-600">Q${precioActual.precio_venta}</span>
+            </div>
+            ${precioActual.precio_especial ? `
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Especial:</span>
+                    <span class="font-medium text-blue-600">Q${precioActual.precio_especial}</span>
+                </div>
+            ` : ''}
+            <hr class="border-gray-300 dark:border-gray-600">
+            <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">Margen:</span>
+                <span class="font-medium text-purple-600">${precioActual.precio_margen}%</span>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Cargar movimientos recientes del producto
+ */
+async loadMovimientosRecientes(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}/movimientos?limit=5`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderMovimientosRecientes(data.data || []);
+        }
+    } catch (error) {
+        console.error('Error cargando movimientos:', error);
+        document.getElementById('detalle_movimientos_container').innerHTML = `
+            <div class="text-center text-red-500 dark:text-red-400 py-4 text-sm">
+                Error al cargar movimientos
+            </div>
+        `;
+    }
+}
+
+/**
+ * Renderizar movimientos recientes
+ */
+renderMovimientosRecientes(movimientos) {
+    const container = document.getElementById('detalle_movimientos_container');
+    
+    if (movimientos.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 dark:text-gray-400 py-4 text-sm">
+                Sin movimientos registrados
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = movimientos.map(mov => {
+        const tipoClass = mov.mov_tipo === 'ingreso' ? 'text-green-600' : 'text-red-600';
+        const tipoIcon = mov.mov_tipo === 'ingreso' ? 'fa-arrow-up' : 'fa-arrow-down';
+        
+        return `
+            <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+                <div class="flex items-center space-x-3">
+                    <i class="fas ${tipoIcon} ${tipoClass}"></i>
+                    <div>
+                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${mov.mov_tipo}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${mov.mov_origen}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-medium ${tipoClass}">${mov.mov_cantidad}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">${new Date(mov.mov_fecha).toLocaleDateString()}</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Cargar series del producto (si requiere serie)
+ */
+async loadSeriesProducto(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}/series`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderSeriesProducto(data.data || []);
+        }
+    } catch (error) {
+        console.error('Error cargando series:', error);
+    }
+}
+
+/**
+ * Renderizar series del producto
+ */
+renderSeriesProducto(series) {
+    const countElement = document.getElementById('detalle_series_count');
+    const listaElement = document.getElementById('detalle_series_lista');
+    
+    countElement.textContent = `${series.length} series`;
+    
+    if (series.length === 0) {
+        listaElement.innerHTML = `
+            <div class="text-center text-gray-500 dark:text-gray-400 py-4 text-sm">
+                Sin series registradas
+            </div>
+        `;
+        return;
+    }
+    
+    listaElement.innerHTML = series.slice(0, 10).map(serie => {
+        const estadoClass = {
+            'disponible': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+            'reservado': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+            'vendido': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        };
+        
+        return `
+            <div class="flex items-center justify-between py-1">
+                <span class="text-xs font-mono text-gray-700 dark:text-gray-300">${serie.serie_numero_serie}</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${estadoClass[serie.serie_estado] || 'bg-gray-100 text-gray-800'}">
+                    ${serie.serie_estado}
+                </span>
+            </div>
+        `;
+    }).join('');
+    
+    if (series.length > 10) {
+        listaElement.innerHTML += `
+            <div class="text-center pt-2">
+                <button onclick="inventarioManager.verTodasLasSeries(${this.currentProductoId})"
+                        class="text-blue-600 hover:text-blue-800 text-xs">
+                    Ver todas las ${series.length} series
+                </button>
+            </div>
+        `;
+    }
+}
+
+
+//termina detalle de producto
+
+
+
+
+
+
+
+///aquí terminarán los vergazos de las acciones 
+
     /**
      * Establecer estado de carga
      */
