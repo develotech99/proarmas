@@ -625,6 +625,9 @@ class InventarioController extends Controller
                 ->where('subcategoria_situacion', 1)
                 ->get(['subcategoria_id', 'subcategoria_nombre']);
 
+                // echo json_encode($subcategorias);
+                // exit;
+
             return response()->json([
                 'success' => true,
                 'data' => $subcategorias

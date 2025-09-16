@@ -6,7 +6,10 @@ async function obtenerSubcategorias(categoriaId) {
 
     try {
         const response = await fetch(`/api/ventas/subcategorias/${categoriaId}`);
+          
         const data = await response.json();
+
+        console.log(data);
 
         // Limpiar y habilitar el select de subcategorías
         subcategoriaSelect.innerHTML = '<option value="">Seleccionar subcategoría...</option>';
@@ -102,11 +105,15 @@ async function obtenerProductos() {
     const modeloId = document.getElementById("modelo").value;
     const calibreId = document.getElementById("calibre").value;
 
-    if (!categoriaId || !subcategoriaId || !marcaId || !modeloId || !calibreId) return;
+    if (!categoriaId || !subcategoriaId || !marcaId || !modeloId || !calibreId) {
+        limpiarDashboard();
+        return;
+    }
 
     const productoSelect = document.getElementById("producto");
-    productoSelect.innerHTML = '<option value="">Seleccionar producto...</option>';
+    productoSelect.innerHTML = '<option value="">Cargando productos...</option>';
     productoSelect.disabled = true;
+    limpiarDashboard();
 
     try {
         const response = await fetch(`/api/ventas/productos?categoria_id=${categoriaId}&subcategoria_id=${subcategoriaId}&marca_id=${marcaId}&modelo_id=${modeloId}&calibre_id=${calibreId}`);
@@ -115,17 +122,121 @@ async function obtenerProductos() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const result = await response.json();
+        const productos = await response.json()
+        console.log(productos);
+        
+        productoSelect.innerHTML = '<option value="">Seleccionar producto...</option>';
+        
+        if (productos.length === 0) {
+            productoSelect.innerHTML = '<option value="">No hay productos disponibles</option>';
+            productoSelect.disabled = true;
+            return;
+        }
 
-        productoSelect.disabled = false;
-        result.forEach(producto => {
-            productoSelect.innerHTML += `<option value="${producto.producto_id}">${producto.producto_nombre} - $${producto.precio_venta}</option>`;
+        // Llenar el select con información concatenada
+        productos.forEach(producto => {
+            const optionText = `${producto.producto_nombre} - ${producto.producto_completo} - $${formatearPrecio(producto.precio_venta)} (Stock: ${producto.producto_stock})`;
+            
+            productoSelect.innerHTML += `<option value="${producto.producto_id}" 
+                data-precio="${producto.precio_venta}"
+                data-stock="${producto.producto_stock}"
+                data-nombre="${producto.producto_nombre}"
+                data-completo="${producto.producto_completo}">
+                ${optionText}
+            </option>`;
         });
+        
+        productoSelect.disabled = false;
+
     } catch (error) {
         console.error("Error:", error);
+        productoSelect.innerHTML = '<option value="">Error al cargar productos</option>';
         alert("Error al cargar los productos");
     }
 }
+
+// Event listener para cuando cambia el producto seleccionado
+document.getElementById("producto").addEventListener("change", function() {
+    const select = this;
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (select.value === "") {
+        limpiarDashboard();
+        return;
+    }
+    
+    // Actualizar dashboard con datos del producto seleccionado
+    const stock = parseInt(selectedOption.dataset.stock);
+    const precio = parseFloat(selectedOption.dataset.precio);
+    const productoCompleto = selectedOption.dataset.completo;
+    
+    // Actualizar stock disponible
+    document.getElementById("stockDisponible").textContent = stock;
+    document.getElementById("stockDisponible").className = 
+        stock > 10 ? "text-2xl font-bold text-green-600" :
+        stock > 5 ? "text-2xl font-bold text-yellow-600" :
+        stock > 0 ? "text-2xl font-bold text-orange-600" :
+        "text-2xl font-bold text-red-600";
+
+    // Actualizar precio unitario
+    document.getElementById("precioUnitario").textContent = `$${formatearPrecio(precio)}`;
+
+    // Actualizar producto seleccionado
+    document.getElementById("productoSeleccionado").textContent = productoCompleto;
+    
+    // Habilitar/deshabilitar controles
+    const cantidadInput = document.getElementById("cantidad");
+    const agregarBtn = document.getElementById("agregarCarrito");
+    
+    cantidadInput.disabled = false;
+    cantidadInput.max = stock;
+    cantidadInput.value = 1;
+    
+    if (stock <= 0) {
+        agregarBtn.disabled = true;
+        agregarBtn.textContent = "Sin Stock";
+        agregarBtn.className = "w-full bg-red-500 text-white px-4 py-2 rounded-md cursor-not-allowed";
+    } else {
+        agregarBtn.disabled = false;
+        agregarBtn.textContent = "Agregar al Carrito";
+        agregarBtn.className = "w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors";
+    }
+});
+
+// Función para limpiar dashboard
+function limpiarDashboard() {
+    document.getElementById("stockDisponible").textContent = "--";
+    document.getElementById("stockDisponible").className = "text-2xl font-bold text-blue-600";
+    document.getElementById("precioUnitario").textContent = "$--";
+    document.getElementById("productoSeleccionado").textContent = "--";
+    
+    document.getElementById("cantidad").disabled = true;
+    document.getElementById("cantidad").value = "";
+    document.getElementById("agregarCarrito").disabled = true;
+}
+
+// Función para formatear precios
+function formatearPrecio(precio) {
+    return parseFloat(precio).toLocaleString('es-GT', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+// Validación de cantidad
+document.getElementById("cantidad").addEventListener("input", function() {
+    const cantidad = parseInt(this.value);
+    const stockDisponible = parseInt(document.getElementById("stockDisponible").textContent);
+    const agregarBtn = document.getElementById("agregarCarrito");
+    
+    if (cantidad <= 0 || cantidad > stockDisponible || isNaN(cantidad)) {
+        agregarBtn.disabled = true;
+        this.style.borderColor = "#ef4444";
+    } else {
+        agregarBtn.disabled = false;
+        this.style.borderColor = "#10b981";
+    }
+});
 
 // Event listeners para los cambios en los selects
 document.getElementById("categoria").addEventListener("change", function () {
@@ -172,3 +283,5 @@ function limpiarSelectsPosteriores(selects) {
         select.disabled = true;
     });
 }
+
+

@@ -154,7 +154,7 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">Seleccionar...</option>
                             @foreach ($clientes as $cliente)
-                                <option value="{{ $cliente->cliente_id }}">{{ $cliente->nombre }}</option>
+                                <option value="{{ $cliente->user_id }}">{{ $cliente->user_primer_nombre }}</option>
                             @endforeach
                         </select>
                     </div>
