@@ -1543,6 +1543,12 @@ renderProductoCard(producto) {
                             title="Ingreso rápido">
                         <i class="fas fa-plus-circle"></i>
                     </button>
+                    <!-- Botón Gestión de Precios -->
+                    <button onclick="inventarioManager.gestionarPrecios(${producto.producto_id})" 
+                    class="p-1 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900 rounded"
+                            title="Gestionar precios">
+                        <i class="fas fa-dollar-sign"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -3083,7 +3089,292 @@ resetEditarForm() {
 }
 
 
+///actualizar precios empieza
 
+/**
+ * Abrir modal de gestión de precios
+ */
+async gestionarPrecios(productoId) {
+    this.currentProductoId = productoId;
+    
+    try {
+        // Cargar datos del producto
+        const response = await fetch(`/inventario/productos/${productoId}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.prepararGestionPrecios(data.data);
+            this.showModal('precios');
+            
+            // Cargar historial de precios
+            this.loadHistorialPrecios(productoId);
+        } else {
+            this.showAlert('error', 'Error', 'No se pudo cargar el producto');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Preparar modal de gestión de precios
+ */
+prepararGestionPrecios(producto) {
+    // Actualizar título
+    document.getElementById('precios_producto_nombre').textContent = 
+        `${producto.producto_nombre} (SKU: ${producto.pro_codigo_sku})`;
+    
+    // Limpiar formulario
+    document.getElementById('precio-form').reset();
+    this.clearErrors('precios');
+
+    const margenElement = document.getElementById('nuevo_margen_calculado');
+    const gananciaElement = document.getElementById('nueva_ganancia_calculada');
+    
+    if (margenElement) {
+        margenElement.textContent = '0%';
+        margenElement.className = 'font-medium text-gray-600';
+    }
+    
+    if (gananciaElement) {
+        gananciaElement.textContent = 'Q0.00';
+    }
+    
+    // Configurar cálculo automático de margen
+    this.setupCalculoMargenPrecios();
+    
+    // Configurar envío del formulario
+    this.setupPreciosFormSubmit();
+}
+
+/**
+ * Configurar cálculo automático de margen en precios
+ */
+setupCalculoMargenPrecios() {
+    const costInput = document.getElementById('nuevo_precio_costo');
+    const ventaInput = document.getElementById('nuevo_precio_venta');
+    
+    const calcularMargen = () => {
+        const costo = parseFloat(costInput.value) || 0;
+        const venta = parseFloat(ventaInput.value) || 0;
+        
+        const margenElement = document.getElementById('nuevo_margen_calculado');
+        const gananciaElement = document.getElementById('nueva_ganancia_calculada');
+        
+        if (costo > 0 && venta > 0) {
+            const ganancia = venta - costo;
+            const margen = ((ganancia / costo) * 100);
+            
+            margenElement.textContent = `${margen.toFixed(1)}%`;
+            gananciaElement.textContent = `Q${ganancia.toFixed(2)}`;
+            
+            // Colorear según el margen
+            if (margen < 10) {
+                margenElement.className = 'font-medium text-red-600';
+            } else if (margen < 25) {
+                margenElement.className = 'font-medium text-yellow-600';
+            } else {
+                margenElement.className = 'font-medium text-green-600';
+            }
+        } else {
+            margenElement.textContent = '0%';
+            gananciaElement.textContent = 'Q0.00';
+            margenElement.className = 'font-medium text-gray-600';
+        }
+    };
+    
+    // Remover listeners anteriores y agregar nuevos
+    costInput.removeEventListener('input', calcularMargen);
+    ventaInput.removeEventListener('input', calcularMargen);
+    costInput.addEventListener('input', calcularMargen);
+    ventaInput.addEventListener('input', calcularMargen);
+}
+
+/**
+ * Configurar envío del formulario de precios
+ */
+setupPreciosFormSubmit() {
+    const form = document.getElementById('precio-form');
+    
+    // Remover listener anterior
+    form.removeEventListener('submit', this.handlePreciosSubmit);
+    
+    // Agregar nuevo listener
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handlePreciosSubmit();
+    });
+}
+
+/**
+ * Manejar envío del formulario de precios
+ */
+async handlePreciosSubmit() {
+    if (!this.validatePreciosForm()) {
+        return;
+    }
+
+    const formData = new URLSearchParams();
+    formData.append('precio_costo', document.getElementById('nuevo_precio_costo').value);
+    formData.append('precio_venta', document.getElementById('nuevo_precio_venta').value);
+    formData.append('precio_especial', document.getElementById('nuevo_precio_especial').value || '');
+    formData.append('precio_justificacion', document.getElementById('nuevo_precio_justificacion').value);
+    formData.append('precio_moneda', document.getElementById('nuevo_precio_moneda').value);
+
+    this.setLoading('precios', true);
+
+    try {
+        const response = await fetch(`/inventario/productos/${this.currentProductoId}/precios`, {
+            method: 'PUT',  
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            this.showAlert('success', 'Éxito', data.message || 'Precios actualizados exitosamente');
+            
+            // Recargar historial de precios
+            this.loadHistorialPrecios(this.currentProductoId);
+            
+            // Limpiar formulario
+            document.getElementById('precio-form').reset();
+            document.getElementById('nuevo_margen_calculado').textContent = '0%';
+            document.getElementById('nueva_ganancia_calculada').textContent = 'Q0.00';
+            
+        } else {
+            if (data.errors) {
+                this.showValidationErrors('precios', data.errors);
+            } else {
+                this.showAlert('error', 'Error', data.message || 'Error al actualizar precios');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    } finally {
+        this.setLoading('precios', false);
+    }
+}
+
+/**
+ * Validar formulario de precios
+ */
+validatePreciosForm() {
+    const costo = parseFloat(document.getElementById('nuevo_precio_costo').value) || 0;
+    const venta = parseFloat(document.getElementById('nuevo_precio_venta').value) || 0;
+    const justificacion = document.getElementById('nuevo_precio_justificacion').value.trim();
+    
+    this.clearErrors('precios');
+    
+    let isValid = true;
+    
+    if (costo <= 0) {
+        this.showFieldError('nuevo_precio_costo', 'El precio de costo debe ser mayor a 0');
+        isValid = false;
+    }
+    
+    if (venta <= 0) {
+        this.showFieldError('nuevo_precio_venta', 'El precio de venta debe ser mayor a 0');
+        isValid = false;
+    }
+    
+    if (venta <= costo) {
+        this.showFieldError('nuevo_precio_venta', 'El precio de venta debe ser mayor al costo');
+        isValid = false;
+    }
+    
+    if (!justificacion) {
+        this.showFieldError('nuevo_precio_justificacion', 'Debe indicar el motivo del cambio de precio');
+        isValid = false;
+    }
+    
+    return isValid;
+}
+
+/**
+ * Cargar historial de precios
+ */
+async loadHistorialPrecios(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}/precios`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderHistorialPrecios(data.data || []);
+        } else {
+            this.renderHistorialPrecios([]);
+        }
+    } catch (error) {
+        console.error('Error cargando historial de precios:', error);
+        this.renderHistorialPrecios([]);
+    }
+}
+
+/**
+ * Renderizar historial de precios
+ */
+renderHistorialPrecios(precios) {
+    const container = document.getElementById('precios_historial_container');
+    
+    if (precios.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8">
+                <i class="fas fa-dollar-sign text-gray-400 text-3xl mb-2"></i>
+                <p class="text-sm text-gray-500 dark:text-gray-400">No hay historial de precios</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = precios.map((precio, index) => {
+        const esPrecioActual = index === 0;
+        const fechaFormateada = new Date(precio.precio_fecha_asignacion).toLocaleDateString();
+        
+        return `
+            <div class="border ${esPrecioActual ? 'border-blue-300 bg-blue-50 dark:bg-blue-900' : 'border-gray-200 dark:border-gray-600'} rounded-lg p-3">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-2">
+                        ${esPrecioActual ? 
+                            '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">Actual</span>' : 
+                            '<span class="text-xs text-gray-500 dark:text-gray-400">Histórico</span>'
+                        }
+                        <span class="text-xs text-gray-500 dark:text-gray-400">${fechaFormateada}</span>
+                    </div>
+                    <span class="text-xs font-medium text-purple-600">${precio.precio_margen}% margen</span>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Costo</span>
+                        <span class="font-medium">Q${precio.precio_costo}</span>
+                    </div>
+                    <div>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Venta</span>
+                        <span class="font-medium text-green-600">Q${precio.precio_venta}</span>
+                    </div>
+                    <div>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Especial</span>
+                        <span class="font-medium text-blue-600">${precio.precio_especial ? 'Q' + precio.precio_especial : '-'}</span>
+                    </div>
+                </div>
+                
+                ${precio.precio_justificacion ? `
+                    <div class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Motivo: </span>
+                        <span class="text-xs">${precio.precio_justificacion}</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+//termina actualizar precios
 
 ///aquí terminarán los vergazos de las acciones 
 

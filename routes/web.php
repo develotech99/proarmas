@@ -255,6 +255,12 @@ Route::middleware('auth')->group(function () {
       // Obtener licencia específica
       Route::get('/licencias/{id}', [InventarioController::class, 'getLicencia'])
             ->name('licencias.get');
+            
+            Route::get('/inventario/productos/{id}/precios', [InventarioController::class, 'getHistorialPrecios'])
+            ->name('inventario.producto.precios');
+
+            Route::put('/inventario/productos/{id}/precios', [InventarioController::class, 'actualizarPrecios'])
+      ->name('inventario.producto.precios.actualizar');
     // ================================
     // RUTAS ADICIONALES (ESTO ESTA QAP 73)
     // ================================

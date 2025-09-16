@@ -1882,4 +1882,113 @@ public function update(Request $request, $id): JsonResponse
     }
 }
 
+
+//actualizar precio de un producto 
+
+
+// Agregar estos métodos a tu InventarioController
+
+/**
+ * Actualizar precios de un producto
+ */
+public function actualizarPrecios(Request $request, $id): JsonResponse
+{
+    $validator = Validator::make($request->all(), [
+        'precio_costo' => 'required|numeric|min:0.01',
+        'precio_venta' => 'required|numeric|min:0.01|gt:precio_costo',
+        'precio_especial' => 'nullable|numeric|min:0',
+        'precio_justificacion' => 'required|string|max:255',
+        'precio_moneda' => 'nullable|string|in:GTQ,USD,EUR'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        $producto = Producto::findOrFail($id);
+        
+        // Calcular margen
+        $margen = (($request->precio_venta - $request->precio_costo) / $request->precio_costo) * 100;
+        
+        // Marcar precios anteriores como históricos
+        Precio::where('precio_producto_id', $id)
+              ->where('precio_situacion', 1)
+              ->update(['precio_situacion' => 0]);
+        
+        // Crear nuevo precio
+        $nuevoPrecio = Precio::create([
+            'precio_producto_id' => $id,
+            'precio_costo' => $request->precio_costo,
+            'precio_venta' => $request->precio_venta,
+            'precio_margen' => round($margen, 2),
+            'precio_especial' => $request->precio_especial,
+            'precio_moneda' => $request->precio_moneda ?? 'GTQ',
+            'precio_justificacion' => $request->precio_justificacion,
+            'precio_fecha_asignacion' => now()->toDateString(),
+            'precio_usuario_id' => Auth::id(),
+            'precio_situacion' => 1
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Precios actualizados exitosamente',
+            'data' => $nuevoPrecio
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollback();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar precios: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Obtener historial de precios de un producto
+ */
+public function getHistorialPrecios($id): JsonResponse
+{
+    try {
+        $precios = Precio::where('precio_producto_id', $id)
+            ->orderBy('precio_fecha_asignacion', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function($precio) {
+                return [
+                    'precio_id' => $precio->precio_id,
+                    'precio_costo' => number_format($precio->precio_costo, 2),
+                    'precio_venta' => number_format($precio->precio_venta, 2),
+                    'precio_especial' => $precio->precio_especial ? number_format($precio->precio_especial, 2) : null,
+                    'precio_margen' => number_format($precio->precio_margen, 1),
+                    'precio_moneda' => $precio->precio_moneda,
+                    'precio_justificacion' => $precio->precio_justificacion,
+                    'precio_fecha_asignacion' => $precio->precio_fecha_asignacion,
+                    'precio_situacion' => $precio->precio_situacion,
+                    'usuario_nombre' => $precio->usuario->name ?? 'Sistema'
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $precios
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar historial de precios: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
 }

@@ -1122,13 +1122,14 @@
     </div>
 
 
-        <!-- Modal Editar Producto -->
+    <!-- Modal Editar Producto -->
     <div id="editar-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
                 onclick="inventarioManager.closeModal('editar')"></div>
 
-            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
+            <div
+                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
 
                 <form id="editar-form">
                     <div class="mb-4">
@@ -1139,7 +1140,8 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <!-- Nombre del producto -->
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del producto *</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del
+                                producto *</label>
                             <input type="text" id="editar_producto_nombre" name="producto_nombre" required
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <div id="editar_producto_nombre_error" class="mt-1 text-sm text-red-600 hidden"></div>
@@ -1147,14 +1149,16 @@
 
                         <!-- Descripción -->
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
+                            <label
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
                             <textarea id="editar_producto_descripcion" name="producto_descripcion" rows="3"
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
                         </div>
 
                         <!-- Categoría -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoría *</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoría
+                                *</label>
                             <select id="editar_producto_categoria" name="producto_categoria_id" required
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                 <option value="">Seleccionar categoría</option>
@@ -1164,12 +1168,14 @@
 
                         <!-- Subcategoría -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subcategoría *</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subcategoría
+                                *</label>
                             <select id="editar_producto_subcategoria" name="producto_subcategoria_id" required
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                 <option value="">Seleccionar subcategoría</option>
                             </select>
-                            <div id="editar_producto_subcategoria_id_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            <div id="editar_producto_subcategoria_id_error" class="mt-1 text-sm text-red-600 hidden">
+                            </div>
                         </div>
 
                         <!-- Marca -->
@@ -1202,7 +1208,8 @@
 
                         <!-- País -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">País de fabricación</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">País de
+                                fabricación</label>
                             <select id="editar_producto_madein" name="producto_madein"
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                 <option value="">Seleccionar país</option>
@@ -1211,20 +1218,23 @@
 
                         <!-- Código de barra -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Código de barra</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Código de
+                                barra</label>
                             <input type="text" id="editar_producto_codigo_barra" name="producto_codigo_barra"
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                         </div>
 
                         <!-- Stock mínimo y máximo -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock mínimo</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock
+                                mínimo</label>
                             <input type="number" id="editar_producto_stock_minimo" name="producto_stock_minimo" min="0"
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock máximo</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock
+                                máximo</label>
                             <input type="number" id="editar_producto_stock_maximo" name="producto_stock_maximo" min="0"
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                         </div>
@@ -1239,7 +1249,8 @@
                                     </span>
                                 </div>
                                 <div class="mt-2">
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Control actual: </span>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Control actual:
+                                    </span>
                                     <span id="editar_requiere_serie_display" class="text-sm font-medium">-</span>
                                 </div>
                             </div>
@@ -1259,14 +1270,172 @@
                             <span id="editar-submit-text">Guardar Cambios</span>
                             <span id="editar-loading" class="hidden flex items-center">
                                 <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                        stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
                                 </svg>
                                 Guardando...
                             </span>
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal Gestión de Precios (agregar después de los modales existentes) -->
+    <div id="precios-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                onclick="inventarioManager.closeModal('precios')"></div>
+
+            <div
+                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full sm:p-6">
+
+                <!-- Header -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                                Gestión de Precios
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400" id="precios_producto_nombre">
+                                Producto seleccionado
+                            </p>
+                        </div>
+                        <button onclick="inventarioManager.closeModal('precios')"
+                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <i class="fas fa-times mr-2"></i>
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <!-- Columna Izquierda: Precios Actuales -->
+                    <div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                <i class="fas fa-history mr-2"></i>
+                                Historial de Precios
+                            </h4>
+                            <div id="precios_historial_container" class="space-y-3 max-h-80 overflow-y-auto">
+                                <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                                    <i class="fas fa-dollar-sign text-gray-400 text-3xl mb-2"></i>
+                                    <p class="text-sm">Cargando historial de precios...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Nuevo Precio -->
+                    <div>
+                        <div class="bg-blue-50 dark:bg-blue-900 rounded-lg p-4 mb-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                <i class="fas fa-plus mr-2"></i>
+                                Actualizar Precios
+                            </h4>
+
+                            <form id="precio-form">
+                                <div class="space-y-4">
+                                    <!-- Precio de Costo -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
+                                            de costo *</label>
+                                        <input type="number" id="nuevo_precio_costo" name="precio_costo" step="0.01"
+                                            min="0" placeholder="0.00" required
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        <div id="nuevo_precio_costo_error" class="mt-1 text-sm text-red-600 hidden">
+                                        </div>
+                                    </div>
+
+                                    <!-- Precio de Venta -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
+                                            de venta *</label>
+                                        <input type="number" id="nuevo_precio_venta" name="precio_venta" step="0.01"
+                                            min="0" placeholder="0.00" required
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        <div id="nuevo_precio_venta_error" class="mt-1 text-sm text-red-600 hidden">
+                                        </div>
+                                    </div>
+
+                                    <!-- Precio Especial -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
+                                            especial</label>
+                                        <input type="number" id="nuevo_precio_especial" name="precio_especial"
+                                            step="0.01" min="0" placeholder="0.00"
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        <small class="text-xs text-gray-500 dark:text-gray-400">Precio promocional
+                                            (opcional)</small>
+                                    </div>
+
+                                    <!-- Justificación -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Motivo
+                                            del cambio *</label>
+                                        <input type="text" id="nuevo_precio_justificacion" name="precio_justificacion"
+                                            placeholder="Ej: Actualización por inflación, Promoción especial..."
+                                            required
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        <div id="nuevo_precio_justificacion_error"
+                                            class="mt-1 text-sm text-red-600 hidden"></div>
+                                    </div>
+
+                                    <!-- Moneda -->
+                                    <div>
+                                        <label
+                                            class="block text-sm font-medium text-gray-700 dark:text-gray-300">Moneda</label>
+                                        <select id="nuevo_precio_moneda" name="precio_moneda"
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                            <option value="GTQ">Quetzales (GTQ)</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Cálculo automático -->
+                                    <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                                        <div class="text-sm">
+                                            <div class="flex justify-between mb-2">
+                                                <span class="text-gray-600 dark:text-gray-400">Margen calculado:</span>
+                                                <span id="nuevo_margen_calculado"
+                                                    class="font-medium text-green-600">0%</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600 dark:text-gray-400">Ganancia por
+                                                    unidad:</span>
+                                                <span id="nueva_ganancia_calculada"
+                                                    class="font-medium text-blue-600">Q0.00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Botón Guardar -->
+                                    <button type="submit" id="precios-submit-btn"
+                                        class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <span id="precios-submit-text">Actualizar Precios</span>
+                                        <span id="precios-loading" class="hidden flex items-center">
+                                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none"
+                                                viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                    stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
+                                            </svg>
+                                            Guardando...
+                                        </span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
