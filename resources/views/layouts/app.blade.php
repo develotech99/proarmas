@@ -10,6 +10,8 @@
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
+        <!-- En resources/views/layouts/app.blade.php -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -78,7 +80,7 @@
                 @endisset
 
                 <!-- Page Content -->
-                <main class="flex-1 p-6">
+                <main class="flex-1 p-2">
                 @yield('content')  
                 </main>
             </div>
