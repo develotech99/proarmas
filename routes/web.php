@@ -30,6 +30,9 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
       Route::redirect('/dashboard', '/prolicencias')->name('dashboard');
+      Route::patch('/prolicencias/{id}/estado', [ProLicenciaParaImportacionController::class, 'updateEstado'])
+    ->name('prolicencias.updateEstado');
+
 
     
     Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
