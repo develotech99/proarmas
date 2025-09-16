@@ -126,106 +126,135 @@ Route::middleware('auth')->group(function () {
 
 
     // ================================
-    // INVENTARIO - RUTAS PRINCIPALES
-    // ================================
-    
-    // Vista principal del inventario
-    Route::get('/inventario', [InventarioController::class, 'index'])->name('inventario.index');
-    
-    // ================================
-    // PRODUCTOS
-    // ================================
-    
-    // Obtener productos con stock (AJAX)
-    Route::get('/inventario/productos-stock', [InventarioController::class, 'getProductosStock'])
-          ->name('inventario.productos-stock');
-    
-    // Buscar productos (AJAX)
-    Route::get('/inventario/buscar-productos', [InventarioController::class, 'buscarProductos'])
-          ->name('inventario.buscar-productos');
-    
-    // Obtener detalle de producto específico (AJAX)
-    Route::get('/inventario/productos/{id}', [InventarioController::class, 'getProducto'])
-          ->name('inventario.producto.detalle');
-    
-    // Registrar nuevo producto (AJAX)
-    Route::post('/inventario/productos', [InventarioController::class, 'store'])
-          ->name('inventario.productos.store');
-    
-    // ================================
-    // MOVIMIENTOS E INGRESOS
-    // ================================
-    
-    // Procesar ingreso a inventario (AJAX)
-    Route::post('/inventario/ingresar', [InventarioController::class, 'ingresar'])
-          ->name('inventario.ingresar');
-    
-    // ================================
-    // ESTADÍSTICAS Y DASHBOARDS
-    // ================================
-    
-    // Obtener estadísticas del inventario (AJAX)
-    Route::get('/inventario/estadisticas', [InventarioController::class, 'getEstadisticas'])
-          ->name('inventario.estadisticas');
-    
-    // Obtener alertas de stock (AJAX)
-    Route::get('/inventario/alertas-stock', [InventarioController::class, 'getAlertasStock'])
-          ->name('inventario.alertas-stock');
-    
-    // ================================
-    // APIS PARA SELECTS Y FORMULARIOS
-    // ================================
-    
-    // Categorías activas (AJAX)
-    Route::get('/categorias/activas', [InventarioController::class, 'getCategoriasActivas'])
-          ->name('categorias.activas');
-    
-    // Subcategorías por categoría (AJAX)
-    Route::get('/categorias/{categoria}/subcategorias', [InventarioController::class, 'getSubcategoriasPorCategoria'])
-          ->name('categorias.subcategorias');
-    
-    // Marcas activas (AJAX)
-    Route::get('/marcas/activas', [InventarioController::class, 'getMarcasActivas'])
-          ->name('marcas.activas');
-    
-    // Modelos por marca (AJAX)
-    Route::get('/marcas/{marca}/modelos', [InventarioController::class, 'getModelosPorMarca'])
-          ->name('marcas.modelos');
-   
-    Route::get('paises/activos', [InventarioController::class, 'getPaisesActivos']);
-    // Calibres activos (AJAX)
-    Route::get('/calibres/activos', [InventarioController::class, 'getCalibresActivos'])
-          ->name('calibres.activos');
-  
-Route::get('/inventario/productos/{id}/requiere-licencia', [InventarioController::class, 'verificarRequiereLicencia']);
+      // INVENTARIO - RUTAS PRINCIPALES
+      // ================================
 
-          Route::get('productos/{id}/fotos', [InventarioController::class, 'getFotosProducto']);
-          Route::post('productos/{id}/fotos', [InventarioController::class, 'subirFotos']);
-          Route::delete('fotos/{id}', [InventarioController::class, 'eliminarFoto']);
-          Route::put('fotos/{id}/principal', [InventarioController::class, 'establecerFotoPrincipal']);
-          
-          Route::delete('productos/{id}', [InventarioController::class, 'destroy']);
+      // Vista principal del inventario
+      Route::get('/inventario', [InventarioController::class, 'index'])->name('inventario.index');
 
+      // ================================
+      // PRODUCTOS
+      // ================================
 
-      Route::get('/licencias/buscar', [InventarioController::class, 'buscarLicencias']);
-      Route::get('/licencias/{id}', [InventarioController::class, 'getLicencia']);
+      // Obtener productos con stock (AJAX)
+      Route::get('/inventario/productos-stock', [InventarioController::class, 'getProductosStock'])
+            ->name('inventario.productos-stock');
 
+      // Buscar productos (AJAX)
+      Route::get('/inventario/buscar-productos', [InventarioController::class, 'buscarProductos'])
+            ->name('inventario.buscar-productos');
 
       // Detalle completo de producto
-            Route::get('/inventario/productos/{id}/detalle', [InventarioController::class, 'getDetalleProducto'])
+      Route::get('/inventario/productos/{id}/detalle', [InventarioController::class, 'getDetalleProducto'])
             ->name('inventario.producto.detalle');
 
-            // Actualizar producto
-            Route::put('/inventario/productos/{id}', [InventarioController::class, 'update'])
+      // Obtener detalle de producto específico (AJAX)
+      Route::get('/inventario/productos/{id}', [InventarioController::class, 'getProducto'])
+            ->name('inventario.producto.get');
+
+      // Registrar nuevo producto (AJAX)
+      Route::post('/inventario/productos', [InventarioController::class, 'store'])
+            ->name('inventario.productos.store');
+
+      // Actualizar producto
+      Route::put('/inventario/productos/{id}', [InventarioController::class, 'update'])
             ->name('inventario.producto.update');
 
-            // Movimientos de un producto específico
-            Route::get('/inventario/productos/{id}/movimientos', [InventarioController::class, 'getMovimientosProducto'])
+      // Eliminar producto
+      Route::delete('/inventario/productos/{id}', [InventarioController::class, 'destroy'])
+            ->name('inventario.producto.delete');
+
+      // Movimientos de un producto específico
+      Route::get('/inventario/productos/{id}/movimientos', [InventarioController::class, 'getMovimientosProducto'])
             ->name('inventario.producto.movimientos');
 
-            // Series de un producto específico
-            Route::get('/inventario/productos/{id}/series', [InventarioController::class, 'getSeriesProducto'])
+      // Series de un producto específico
+      Route::get('/inventario/productos/{id}/series', [InventarioController::class, 'getSeriesProducto'])
             ->name('inventario.producto.series');
+
+      // Verificar si requiere licencia
+      Route::get('/inventario/productos/{id}/requiere-licencia', [InventarioController::class, 'verificarRequiereLicencia'])
+            ->name('inventario.producto.requiere-licencia');
+
+      // ================================
+      // GESTIÓN DE FOTOS
+      // ================================
+
+      // Obtener fotos de producto
+      Route::get('/inventario/productos/{id}/fotos', [InventarioController::class, 'getFotosProducto'])
+            ->name('inventario.producto.fotos');
+
+      // Subir fotos a producto
+      Route::post('/inventario/productos/{id}/fotos', [InventarioController::class, 'subirFotos'])
+            ->name('inventario.producto.fotos.subir');
+
+      // Eliminar foto específica
+      Route::delete('/inventario/fotos/{id}', [InventarioController::class, 'eliminarFoto'])
+            ->name('inventario.foto.eliminar');
+
+      // Establecer foto como principal
+      Route::put('/inventario/fotos/{id}/principal', [InventarioController::class, 'establecerFotoPrincipal'])
+            ->name('inventario.foto.principal');
+
+      // ================================
+      // MOVIMIENTOS E INGRESOS
+      // ================================
+
+      // Procesar ingreso a inventario (AJAX)
+      Route::post('/inventario/ingresar', [InventarioController::class, 'ingresar'])
+            ->name('inventario.ingresar');
+
+      // ================================
+      // ESTADÍSTICAS Y DASHBOARDS
+      // ================================
+
+      // Obtener estadísticas del inventario (AJAX)
+      Route::get('/inventario/estadisticas', [InventarioController::class, 'getEstadisticas'])
+            ->name('inventario.estadisticas');
+
+      // Obtener alertas de stock (AJAX)
+      Route::get('/inventario/alertas-stock', [InventarioController::class, 'getAlertasStock'])
+            ->name('inventario.alertas-stock');
+
+      // ================================
+      // APIS PARA SELECTS Y FORMULARIOS
+      // ================================
+
+      // Categorías activas (AJAX)
+      Route::get('/categorias/activas', [InventarioController::class, 'getCategoriasActivas'])
+            ->name('categorias.activas');
+
+      // Subcategorías por categoría (AJAX)
+      Route::get('/categorias/{categoria}/subcategorias', [InventarioController::class, 'getSubcategoriasPorCategoria'])
+            ->name('categorias.subcategorias');
+
+      // Marcas activas (AJAX)
+      Route::get('/marcas/activas', [InventarioController::class, 'getMarcasActivas'])
+            ->name('marcas.activas');
+
+      // Modelos por marca (AJAX)
+      Route::get('/marcas/{marca}/modelos', [InventarioController::class, 'getModelosPorMarca'])
+            ->name('marcas.modelos');
+
+      // Países activos (AJAX) - CORREGIDO
+      Route::get('/paises/activos', [InventarioController::class, 'getPaisesActivos'])
+            ->name('paises.activos');
+
+      // Calibres activos (AJAX)
+      Route::get('/calibres/activos', [InventarioController::class, 'getCalibresActivos'])
+            ->name('calibres.activos');
+
+      // ================================
+      // LICENCIAS
+      // ================================
+
+      // Buscar licencias
+      Route::get('/licencias/buscar', [InventarioController::class, 'buscarLicencias'])
+            ->name('licencias.buscar');
+
+      // Obtener licencia específica
+      Route::get('/licencias/{id}', [InventarioController::class, 'getLicencia'])
+            ->name('licencias.get');
     // ================================
     // RUTAS ADICIONALES (ESTO ESTA QAP 73)
     // ================================

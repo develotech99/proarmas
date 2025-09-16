@@ -8,6 +8,7 @@ class InventarioManager {
         this.categorias = [];
         this.marcas = [];
         this.modelos = [];
+        this.paises = [];
         this.calibres = [];
         this.licenciaSeleccionada = null;
         this.licenciaSeleccionadaRegistro = null;
@@ -947,6 +948,7 @@ limpiarLicenciaSeleccionadaRegistro() {
             const response = await fetch('/paises/activos');
             if (response.ok) {
                 const data = await response.json();
+                this.paises = data.data || [];
                 this.populateSelect('producto_madein', data.data || [], 'pais_id', 'pais_descripcion');
             }
         } catch (error) {
@@ -2321,9 +2323,16 @@ async verificarRequiereLicencia(productoId) {
             this.resetRegistroForm();
         } else if (type === 'ingreso') {
             this.resetIngresoForm();
+        } else if (type === 'editar') {
+            this.resetEditarForm();
+        } else if (type === 'detalle') {
+            // Limpiar datos del detalle
+            this.currentProductoId = null;
+        } else if (type === 'fotos') {
+            // Limpiar datos de fotos
+            this.currentProductoId = null;
         }
     }
-
     /**
      * Resetear formulario de registro
      */
@@ -2797,25 +2806,94 @@ async prepararFormularioEdicion(producto) {
         await this.loadSubcategoriasEdicion(producto.producto_categoria_id);
         document.getElementById('editar_producto_subcategoria').value = producto.producto_subcategoria_id || '';
     }
-    
+    // PASO 4: Cargar modelos si hay marca seleccionada
+if (producto.producto_marca_id) {
+    await this.loadModelosEdicion(producto.producto_marca_id);
+    // Establecer modelo después de cargarlos
+    setTimeout(() => {
+        if (producto.producto_modelo_id) {
+            document.getElementById('editar_producto_modelo').value = producto.producto_modelo_id;
+        }
+    }, 100);
+}
     // Configurar event listeners para el formulario de edición
     this.setupEditarEventListeners();
 }
 
+
+
+/**
+ * Cargar modelos para edición
+ */
+async loadModelosEdicion(marcaId) {
+    const select = document.getElementById('editar_producto_modelo');
+    select.innerHTML = '<option value="">Seleccionar modelo</option>';
+    
+    if (!marcaId) return;
+
+    try {
+        const response = await fetch(`/marcas/${marcaId}/modelos`);
+        if (response.ok) {
+            const data = await response.json();
+            this.populateSelect('editar_producto_modelo', data.data || [], 'modelo_id', 'modelo_descripcion');
+            console.log('Modelos cargados para marca', marcaId, ':', data.data?.length || 0);
+        } else {
+            console.error('Error cargando modelos para marca', marcaId);
+        }
+    } catch (error) {
+        console.error('Error cargando modelos:', error);
+    }
+}
 /**
  * Poblar selects del formulario de edición
  */
+/**
+ * Método poblarSelectsEdicion con debug - TEMPORAL
+ */
 async poblarSelectsEdicion() {
-    // Usar los datos ya cargados en this.categorias, this.marcas, etc.
-    this.populateSelect('editar_producto_categoria', this.categorias, 'categoria_id', 'categoria_nombre');
-    this.populateSelect('editar_producto_marca', this.marcas, 'marca_id', 'marca_descripcion');
-    this.populateSelect('editar_producto_calibre', this.calibres, 'calibre_id', 'calibre_nombre');
+    console.log('=== DEBUG POBLAR SELECTS EDICIÓN ===');
+    console.log('this.categorias:', this.categorias?.length);
+    console.log('this.marcas:', this.marcas?.length);
+    console.log('this.calibres:', this.calibres?.length);
+    console.log('this.paises antes:', this.paises?.length);
+    
+    // Usar los datos ya cargados
+    if (this.categorias && this.categorias.length > 0) {
+        this.populateSelect('editar_producto_categoria', this.categorias, 'categoria_id', 'categoria_nombre');
+        console.log('✅ Categorías pobladas');
+    } else {
+        console.log('❌ No hay categorías');
+    }
+    
+    if (this.marcas && this.marcas.length > 0) {
+        this.populateSelect('editar_producto_marca', this.marcas, 'marca_id', 'marca_descripcion');
+        console.log('✅ Marcas pobladas');
+    } else {
+        console.log('❌ No hay marcas');
+    }
+    
+    if (this.calibres && this.calibres.length > 0) {
+        this.populateSelect('editar_producto_calibre', this.calibres, 'calibre_id', 'calibre_nombre');
+        console.log('✅ Calibres poblados');
+    } else {
+        console.log('❌ No hay calibres');
+    }
     
     // Cargar países si no están cargados
-    if (!this.paises) {
+    if (!this.paises || this.paises.length === 0) {
+        console.log('Cargando países...');
         await this.loadPaises();
+        console.log('this.paises después:', this.paises?.length);
     }
-    this.populateSelect('editar_producto_madein', this.paises, 'pais_id', 'pais_descripcion');
+    
+    if (this.paises && this.paises.length > 0) {
+        this.populateSelect('editar_producto_madein', this.paises, 'pais_id', 'pais_descripcion');
+        console.log('✅ Países poblados');
+    } else {
+        console.log('❌ No hay países');
+    }
+    
+    console.log('=== FIN DEBUG ===');
 }
 
 /**
@@ -2888,13 +2966,29 @@ async loadModelosEdicion(marcaId) {
 /**
  * Manejar envío del formulario de edición
  */
+
 async handleEditarSubmit() {
-    const form = document.getElementById('editar-form');
-    const formData = new FormData(form);
-    
     if (!this.validateEditarForm()) {
         return;
     }
+
+    const form = document.getElementById('editar-form');
+    
+    // Para PUT requests, usar URLSearchParams en lugar de FormData
+    const formData = new URLSearchParams();
+    
+    // Agregar todos los campos manualmente
+    formData.append('producto_nombre', document.getElementById('editar_producto_nombre').value);
+    formData.append('producto_descripcion', document.getElementById('editar_producto_descripcion').value || '');
+    formData.append('producto_categoria_id', document.getElementById('editar_producto_categoria').value);
+    formData.append('producto_subcategoria_id', document.getElementById('editar_producto_subcategoria').value);
+    formData.append('producto_marca_id', document.getElementById('editar_producto_marca').value);
+    formData.append('producto_modelo_id', document.getElementById('editar_producto_modelo').value || '');
+    formData.append('producto_calibre_id', document.getElementById('editar_producto_calibre').value || '');
+    formData.append('producto_madein', document.getElementById('editar_producto_madein').value || '');
+    formData.append('producto_codigo_barra', document.getElementById('editar_producto_codigo_barra').value || '');
+    formData.append('producto_stock_minimo', document.getElementById('editar_producto_stock_minimo').value || '0');
+    formData.append('producto_stock_maximo', document.getElementById('editar_producto_stock_maximo').value || '0');
 
     this.setLoading('editar', true);
 
@@ -2905,6 +2999,7 @@ async handleEditarSubmit() {
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded',
             }
         });
 
@@ -2939,7 +3034,6 @@ async handleEditarSubmit() {
         this.setLoading('editar', false);
     }
 }
-
 /**
  * Validar formulario de edición
  */

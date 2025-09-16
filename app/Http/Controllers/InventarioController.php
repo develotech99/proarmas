@@ -1795,6 +1795,91 @@ public function getSeriesProducto($id): JsonResponse
         ], 500);
     }
 }
-            
+            //edición de producto 
+
+
+            // Agregar este método a tu InventarioController
+
+/**
+ * Actualizar un producto existente
+ */
+public function update(Request $request, $id): JsonResponse
+{
+    $validator = Validator::make($request->all(), [
+        'producto_nombre' => 'required|string|max:100',
+        'producto_descripcion' => 'nullable|string',
+        'producto_categoria_id' => 'required|integer|exists:pro_categorias,categoria_id',
+        'producto_subcategoria_id' => 'required|integer|exists:pro_subcategorias,subcategoria_id',
+        'producto_marca_id' => 'required|integer|exists:pro_marcas,marca_id',
+        'producto_modelo_id' => 'nullable|integer|exists:pro_modelo,modelo_id',
+        'producto_calibre_id' => 'nullable|integer|exists:pro_calibres,calibre_id',
+        'producto_madein' => 'nullable|integer|exists:pro_paises,pais_id',
+        'producto_codigo_barra' => 'nullable|string|unique:pro_productos,producto_codigo_barra,' . $id . ',producto_id',
+        'producto_stock_minimo' => 'nullable|integer|min:0',
+        'producto_stock_maximo' => 'nullable|integer|min:0'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        $producto = Producto::findOrFail($id);
+        
+        // Verificar que no se hayan hecho movimientos si se quiere cambiar información crítica
+        $tieneMovimientos = Movimiento::where('mov_producto_id', $id)
+            ->where('mov_situacion', 1)
+            ->exists();
+
+        // Campos que no se pueden cambiar si ya hay movimientos
+        $camposCriticos = ['producto_categoria_id', 'producto_subcategoria_id'];
+        
+        if ($tieneMovimientos) {
+            foreach ($camposCriticos as $campo) {
+                if ($request->$campo != $producto->$campo) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se puede cambiar la categoría o subcategoría de un producto con movimientos registrados'
+                    ], 422);
+                }
+            }
+        }
+
+        // Actualizar producto
+        $producto->update([
+            'producto_nombre' => $request->producto_nombre,
+            'producto_descripcion' => $request->producto_descripcion,
+            'producto_categoria_id' => $request->producto_categoria_id,
+            'producto_subcategoria_id' => $request->producto_subcategoria_id,
+            'producto_marca_id' => $request->producto_marca_id,
+            'producto_modelo_id' => $request->producto_modelo_id,
+            'producto_calibre_id' => $request->producto_calibre_id,
+            'producto_madein' => $request->producto_madein,
+            'producto_codigo_barra' => $request->producto_codigo_barra,
+            'producto_stock_minimo' => $request->producto_stock_minimo ?? 0,
+            'producto_stock_maximo' => $request->producto_stock_maximo ?? 0
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto actualizado exitosamente',
+            'data' => $producto
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollback();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar producto: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
 }
