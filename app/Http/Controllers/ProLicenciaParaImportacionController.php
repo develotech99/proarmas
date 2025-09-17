@@ -14,30 +14,22 @@ class ProLicenciaParaImportacionController extends Controller
     /** INDEX: lista licencias con sus armas (resumen) o render vista */
     public function index(Request $request)
     {
-        $licencias = Licencia::query()
-            // ->with([
-            //     'armas',
-            //     'armas.subcategoria:subcategoria_id,subcategoria_nombre',
-            //     'armas.modelo:modelo_id,modelo_descripcion', // 👈 cambiar modelo → modelo
-            //     'armas.empresa:empresaimp_id,empresaimp_descripcion',
-            // ])
-
-->with([
-  'armas',
-  'armas.subcategoria:subcategoria_id,subcategoria_nombre',
-  'armas.modelo:modelo_id,modelo_descripcion,modelo_marca_id', // <-- agrega la FK
-  'armas.modelo.marca:marca_id,marca_descripcion',
-   'armas.calibre:calibre_id,calibre_nombre', 
-  'armas.empresa:empresaimp_id,empresaimp_descripcion',
-])
-
-
-            ->orderByDesc('lipaimp_id')
-            ->paginate(15, [
-                'lipaimp_id','lipaimp_poliza','lipaimp_descripcion',
-                'lipaimp_fecha_emision','lipaimp_fecha_vencimiento',
-                'lipaimp_situacion','created_at','updated_at'
-            ]);
+    $licencias = Licencia::query()
+        ->with([
+            'armas', // Relación armas
+            'armas.subcategoria:subcategoria_id,subcategoria_nombre',
+            'armas.modelo:modelo_id,modelo_descripcion,modelo_marca_id',
+            'armas.modelo.marca:marca_id,marca_descripcion',
+            'armas.calibre:calibre_id,calibre_nombre', 
+            'armas.empresa:empresaimp_id,empresaimp_descripcion',
+        ]) 
+        ->orderByDesc('lipaimp_id')
+        ->paginate(15, [
+            'lipaimp_id', 'lipaimp_poliza', 'lipaimp_descripcion',
+            'lipaimp_observaciones', // Asegúrate de incluir esta columna
+            'lipaimp_fecha_emision', 'lipaimp_fecha_vencimiento',
+            'lipaimp_situacion', 'created_at', 'updated_at',
+        ]);
 
         // catálogos
         $subcategorias = \DB::table('pro_subcategorias')
@@ -51,8 +43,11 @@ class ProLicenciaParaImportacionController extends Controller
         $empresas = \DB::table('pro_empresas_de_importacion')
             ->select('empresaimp_id','empresaimp_descripcion')
             ->orderBy('empresaimp_descripcion')->get();
+            $calibresSelect = \DB::table('pro_calibres')   // si tu tabla es plural, usa 'pro_calibres'
+    ->select('calibre_id','calibre_nombre')
+    ->orderBy('calibre_nombre')->get();
 
-        return view('prolicencias.index', compact('licencias','subcategorias','modelosSelect','empresas'));
+        return view('prolicencias.index', compact('licencias','subcategorias','modelosSelect','empresas','calibresSelect'));
     }
 
     /** STORE: crea licencia + armas (array) */
@@ -179,79 +174,76 @@ class ProLicenciaParaImportacionController extends Controller
      * Normaliza aliases de armas -> nombres canónicos y valida
      * En update, puedes pasar $ignoreId si tuvieras reglas unique sobre lipaimp_id (no parece el caso).
      */
-    private function validateCompound(Request $request, ?int $ignoreId = null): array
-    {
-        // Detecta si es CREATE (no hay $ignoreId / o ruta Store) o UPDATE
-        $isUpdate = $ignoreId !== null;
+ private function validateCompound(Request $request, ?int $ignoreId = null): array
+{
+    // Detecta si es CREATE (no hay $ignoreId / o ruta Store) o UPDATE
+    $isUpdate = $ignoreId !== null;
 
-        // 1) Normaliza armas (tu bloque actual)...
-        $armas = collect($request->input('armas', []))->map(function ($a) use ($request) {
-            $a = is_array($a) ? $a : [];
-            $numLic = $a['arma_num_licencia']
-                ?? $a['arma_licencia_id']
-                ?? $request->input('lipaimp_id');
+    // 1) Normaliza armas (tu bloque actual)...
+    $armas = collect($request->input('armas', []))->map(function ($a) use ($request) {
+        $a = is_array($a) ? $a : [];
 
-            return [
-                'arma_lic_id'       => $a['arma_lic_id'] ?? null,
-                'arma_num_licencia' => $numLic !== null ? (int)$numLic : null,
-                'arma_sub_cat'      => isset($a['arma_sub_cat']) ? (int)$a['arma_sub_cat']
-                                            : (isset($a['arma_subcate_id']) ? (int)$a['arma_subcate_id']
-                                            : (isset($a['arma_subcategoria_id']) ? (int)$a['arma_subcategoria_id']
-                                            : (isset($a['subcategoria_id']) ? (int)$a['subcategoria_id'] : null))),
-                'arma_modelo'       => isset($a['arma_modelo']) ? (int)$a['arma_modelo']
-                                            : (isset($a['arma_modelo_id']) ? (int)$a['arma_modelo_id']
-                                            : (isset($a['modelo_id']) ? (int)$a['modelo_id'] : null)),
-                'arma_empresa'      => isset($a['arma_empresa']) ? (int)$a['arma_empresa']
-                                            : (isset($a['arma_empresa_id']) ? (int)$a['arma_empresa_id']
-                                            : (isset($a['empresaimp_id']) ? (int)$a['empresaimp_id']
-                                            : (isset($a['empresa_id']) ? (int)$a['empresa_id'] : null))),
-                'arma_largo_canon'  => isset($a['arma_largo_canon']) ? (float)$a['arma_largo_canon']
-                                            : (isset($a['largo_canon']) ? (float)$a['largo_canon'] : null),
-                'arma_cantidad'     => isset($a['arma_cantidad']) ? (int)$a['arma_cantidad'] : null,
-            ];
-        })->all();
+        $numLic   = $a['arma_num_licencia'] ?? $a['arma_licencia_id'] ?? $request->input('lipaimp_id');
 
-        $request->merge(['armas' => $armas]);
-
-        // 2) Reglas base
-        $rules = [
-            'lipaimp_id'                => ['required','integer'],
-            'armas'                     => ['required','array','min:1'],
-            'armas.*.arma_sub_cat'      => ['required','integer','exists:pro_subcategorias,subcategoria_id'],
-            'armas.*.arma_modelo'       => ['required','integer','exists:pro_modelo,modelo_id'], // ajusta si tu tabla es pro_modelos
-            'armas.*.arma_empresa'      => ['required','integer','exists:pro_empresas_de_importacion,empresaimp_id'],
-            'armas.*.arma_largo_canon'  => ['required','numeric','min:0'],
-            'armas.*.arma_cantidad'     => ['required','integer','min:1'],
+        return [
+            'arma_lic_id'       => $a['arma_lic_id'] ?? null,
+            'arma_num_licencia' => $numLic !== null ? (int)$numLic : null,
+            'arma_sub_cat'      => $a['arma_sub_cat'] ?? null,
+            'arma_modelo'       => $a['arma_modelo'] ?? null,
+            'arma_calibre'      => $a['arma_calibre'] ?? null,
+            'arma_empresa'      => $a['arma_empresa'] ?? null,
+            'arma_largo_canon'  => $a['arma_largo_canon'] ?? null,
+            'arma_cantidad'     => $a['arma_cantidad'] ?? null,
         ];
+    })->all();
 
-        // 3) Regla especial para arma_num_licencia
-        if ($isUpdate) {
-            // En UPDATE, la licencia ya existe → sí podemos usar exists
-            $rules['armas.*.arma_num_licencia'] = ['required','integer','exists:pro_licencias_para_importacion,lipaimp_id'];
-        } else {
-            // En CREATE, aún no existe → valida igualdad con lipaimp_id
-            $rules['armas.*.arma_num_licencia'] = ['required','integer','in:'.$request->input('lipaimp_id')];
-        }
+    $request->merge(['armas' => $armas]);
 
-        $validated = validator($request->all(), $rules)->validate();
+    // 2) Reglas base
+    $rules = [
+        'lipaimp_id'                => ['required','integer'],
+        'armas'                     => ['required','array','min:1'],
+        'lipaimp_observaciones'     => 'nullable|string|max:255',
+        'armas.*.arma_sub_cat'      => ['required','integer','exists:pro_subcategorias,subcategoria_id'],
+        'armas.*.arma_modelo'       => ['required','integer','exists:pro_modelo,modelo_id'], 
+        'armas.*.arma_calibre'      => ['required','integer','exists:pro_calibres,calibre_id'], 
+        'armas.*.arma_empresa'      => ['required','integer','exists:pro_empresas_de_importacion,empresaimp_id'],
+        'armas.*.arma_largo_canon'  => ['required','numeric','min:0'],
+        'armas.*.arma_cantidad'     => ['required','integer','min:1'],
+    ];
 
-        // 4) Separa licencia y armas
-        $licData = $request->only([
-            'lipaimp_id',
-            'lipaimp_poliza',
-            'lipaimp_descripcion',
-            'lipaimp_fecha_emision',
-            'lipaimp_fecha_vencimiento',
-            'lipaimp_observaciones',
-            'lipaimp_situacion',
-        ]);
-        if (isset($licData['lipaimp_id'])) $licData['lipaimp_id'] = (int)$licData['lipaimp_id'];
-        if (isset($licData['lipaimp_poliza']) && $licData['lipaimp_poliza']!=='') $licData['lipaimp_poliza'] = (int)$licData['lipaimp_poliza'];
-        if (isset($licData['lipaimp_situacion']) && $licData['lipaimp_situacion']!=='') $licData['lipaimp_situacion'] = (int)$licData['lipaimp_situacion'];
-
-        $armasData = $validated['armas'];
-        return [$licData, $armasData];
+    // 3) Regla especial para arma_num_licencia
+    if ($isUpdate) {
+        // En UPDATE, se permite actualizar sin validar duplicado, pero aseguramos que exista
+        $rules['armas.*.arma_num_licencia'] = ['required','integer','exists:pro_licencias_para_importacion,lipaimp_id'];
+    } else {
+        // En CREATE, valida que el 'arma_num_licencia' no esté duplicado
+        $rules['armas.*.arma_num_licencia'] = ['required','integer','unique:pro_licencias_para_importacion,lipaimp_id'];
     }
+
+    // Realiza la validación
+    $validated = validator($request->all(), $rules)->validate();
+
+    // 4) Separa los datos de la licencia y las armas
+    $licData = $request->only([
+        'lipaimp_id',
+        'lipaimp_poliza',
+        'lipaimp_descripcion',
+        'lipaimp_fecha_emision',
+        'lipaimp_fecha_vencimiento',
+        'lipaimp_observaciones',
+        'lipaimp_situacion',
+    ]);
+
+    // Asegurarse de que las variables sean del tipo correcto
+    if (isset($licData['lipaimp_id'])) $licData['lipaimp_id'] = (int)$licData['lipaimp_id'];
+    if (isset($licData['lipaimp_poliza']) && $licData['lipaimp_poliza'] !== '') $licData['lipaimp_poliza'] = (int)$licData['lipaimp_poliza'];
+    if (isset($licData['lipaimp_situacion']) && $licData['lipaimp_situacion'] !== '') $licData['lipaimp_situacion'] = (int)$licData['lipaimp_situacion'];
+
+    $armasData = $validated['armas'];
+    return [$licData, $armasData];
+}
+
 
     /** Prepara arreglo de armas para insert masivo */
     protected function prepareArmas(array $armas, int $licenciaId): array
@@ -265,24 +257,25 @@ class ProLicenciaParaImportacionController extends Controller
     }
 
     /** Normaliza/calcula una fila de arma -> campos EXACTOS de tu tabla */
-    protected function prepareUnaArma(array $row, int $licenciaId, bool $forBulk = false): array
-    {
-        $payload = [
-            'arma_num_licencia' => $row['arma_num_licencia'] ?? $licenciaId,
-            'arma_sub_cat'      => (int)$row['arma_sub_cat'],
-            'arma_modelo'       => (int)$row['arma_modelo'],
-            'arma_empresa'      => (int)$row['arma_empresa'],
-            'arma_largo_canon'  => (float)$row['arma_largo_canon'],
-            'arma_cantidad'     => (int)($row['arma_cantidad'] ?? 1),
-        ];
+protected function prepareUnaArma(array $row, int $licenciaId, bool $forBulk = false): array
+{
+    $payload = [
+        'arma_num_licencia' => $row['arma_num_licencia'] ?? $licenciaId,
+        'arma_sub_cat'      => (int)$row['arma_sub_cat'],
+        'arma_modelo'       => (int)$row['arma_modelo'],
+        'arma_calibre'      => (int)$row['arma_calibre'], // 👈 NUEVO
+        'arma_empresa'      => (int)$row['arma_empresa'],
+        'arma_largo_canon'  => (float)$row['arma_largo_canon'],
+        'arma_cantidad'     => (int)($row['arma_cantidad'] ?? 1),
+    ];
 
-        // En update individual podemos necesitar el id
-        if (!$forBulk && !empty($row['arma_lic_id'])) {
-            $payload['arma_lic_id'] = (int)$row['arma_lic_id'];
-        }
-
-        return $payload;
+    if (!$forBulk && !empty($row['arma_lic_id'])) {
+        $payload['arma_lic_id'] = (int)$row['arma_lic_id'];
     }
+
+    return $payload;
+}
+
 
     /* ===================== HELPERS ===================== */
 
@@ -345,9 +338,10 @@ class ProLicenciaParaImportacionController extends Controller
     }
     public function updateEstado(Request $request, int $id)
 {
-    $request->validate([
-        'lipaimp_situacion' => 'required|integer|in:1,2,3,4,5,6',
-    ]);
+$request->validate([
+    'lipaimp_situacion' => 'required|integer|in:1,2,3,4,5,6,7',
+]);
+
 
     $licencia = Licencia::findOrFail($id);
     $licencia->lipaimp_situacion = $request->lipaimp_situacion;

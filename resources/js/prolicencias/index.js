@@ -58,13 +58,13 @@ window.licenciasManager = function () {
 
   const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  // Normaliza una fila de arma que pueda venir del backend (nombres viejos/relaciones) para MOSTRAR en UI
+  // -------- Normalizadores de armas --------
+
+  // MOSTRAR en UI
   const normalizeArmaInput = (raw = {}) => ({
     _rowKey: uid(),
-    // id para UPDATE (en create será null/undefined)
     arma_lic_id: raw.arma_lic_id ?? raw.id ?? null,
 
-    // nombres NUEVOS (caen back a nombres viejos o relaciones si vienen así)
     arma_sub_cat: raw.arma_sub_cat
       ?? raw.arma_subcate_id
       ?? raw.arma_subcategoria_id
@@ -75,6 +75,12 @@ window.licenciasManager = function () {
     arma_modelo: raw.arma_modelo
       ?? raw.modelo_id
       ?? raw.modelo?.modelo_id
+      ?? '',
+
+    // calibre (desde campo, alias o relación)
+    arma_calibre: raw.arma_calibre
+      ?? raw.calibre_id
+      ?? raw.calibre?.calibre_id
       ?? '',
 
     arma_empresa: raw.arma_empresa
@@ -90,19 +96,17 @@ window.licenciasManager = function () {
     arma_cantidad: raw.arma_cantidad ?? 1,
   });
 
-  // Normaliza un arma de la UI para ENVIAR al backend según tu DDL pro_armas_licenciadas
-  const normalizeArmaForBackend = (raw = {}, licId) => {
-    return {
-      arma_num_licencia: Number(licId),
-      arma_sub_cat:      raw.arma_sub_cat != null && raw.arma_sub_cat !== '' ? Number(raw.arma_sub_cat) : null,
-      arma_modelo:       raw.arma_modelo  != null && raw.arma_modelo  !== '' ? Number(raw.arma_modelo)  : null,
-      arma_empresa:      raw.arma_empresa != null && raw.arma_empresa !== '' ? Number(raw.arma_empresa) : null,
-      arma_largo_canon:  raw.arma_largo_canon != null && raw.arma_largo_canon !== '' ? Number(raw.arma_largo_canon) : null,
-      arma_cantidad:     raw.arma_cantidad != null && raw.arma_cantidad !== '' ? Number(raw.arma_cantidad) : 1,
-      // Para UPDATE opcionalmente podrías incluir arma_lic_id si existe:
-      ...(raw.arma_lic_id != null ? { arma_lic_id: Number(raw.arma_lic_id) } : {})
-    };
-  };
+  // ENVIAR al backend
+  const normalizeArmaForBackend = (raw = {}, licId) => ({
+    arma_num_licencia: Number(licId),
+    arma_sub_cat:      raw.arma_sub_cat      !== '' ? Number(raw.arma_sub_cat)      : null,
+    arma_modelo:       raw.arma_modelo       !== '' ? Number(raw.arma_modelo)       : null,
+    arma_calibre:      raw.arma_calibre      !== '' ? Number(raw.arma_calibre)      : null,
+    arma_empresa:      raw.arma_empresa      !== '' ? Number(raw.arma_empresa)      : null,
+    arma_largo_canon:  raw.arma_largo_canon  !== '' ? Number(raw.arma_largo_canon)  : null,
+    arma_cantidad:     raw.arma_cantidad     !== '' ? Number(raw.arma_cantidad)     : 1,
+    ...(raw.arma_lic_id != null ? { arma_lic_id: Number(raw.arma_lic_id) } : {})
+  });
 
   // ---------- estado inicial ----------
   const initialLicencias = getJSONFromScript('licencias-data') || [];
@@ -211,47 +215,67 @@ window.licenciasManager = function () {
       };
       this.showModal = true;
     },
-
+    
     editLicencia(id) {
-      const l = this.licencias.find(x => x.lipaimp_id === id);
-      if (!l) return;
 
-      // Normaliza armas que vengan del backend (nombres nuevos/viejos o relaciones)
-      const armas = Array.isArray(l.armas) ? l.armas.map(normalizeArmaInput) : [];
+const l = this.licencias.find(x => x.lipaimp_id === id);
+    if (!l) return;
 
-      this.isEditing = true;
-      this.formData = {
-        lipaimp_id: l.lipaimp_id,
-        lipaimp_poliza: l.lipaimp_poliza ?? '',
-        lipaimp_descripcion: l.lipaimp_descripcion ?? '',
-        lipaimp_fecha_emision: l.lipaimp_fecha_emision ?? '',
-        lipaimp_fecha_vencimiento: l.lipaimp_fecha_vencimiento ?? '',
-        lipaimp_observaciones: l.lipaimp_observaciones ?? '',
-        lipaimp_situacion: l.lipaimp_situacion ?? '',
-        armas
-      };
-      this.showModal = true;
-    },
+    // Verificar el valor de las observaciones
+    //console.log("Valor de las observaciones:", l.lipaimp_observaciones);
+
+    // Normaliza armas que vengan del backend (nombres nuevos/viejos o relaciones)
+    const armas = Array.isArray(l.armas) ? l.armas.map(normalizeArmaInput) : [];
+
+  // Formatea las fechas a 'YYYY-MM-DD'
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toISOString().split('T')[0]; // Solo devuelve la fecha en formato 'YYYY-MM-DD'
+  };
+
+  this.isEditing = true;
+  this.formData = {
+    lipaimp_id: l.lipaimp_id || '',
+    lipaimp_poliza: l.lipaimp_poliza ?? '',
+    lipaimp_descripcion: l.lipaimp_descripcion ?? '',
+    lipaimp_fecha_emision: formatDate(l.lipaimp_fecha_emision), // Formato adecuado para la fecha
+    lipaimp_fecha_vencimiento: formatDate(l.lipaimp_fecha_vencimiento), // Formato adecuado para la fecha
+    lipaimp_observaciones: l.lipaimp_observaciones ?? '', // Asegúrate que aquí no sea null ni undefined
+    lipaimp_situacion: l.lipaimp_situacion ?? '',
+    armas
+  };
+
+  //console.log('Formulario para edición:', this.formData); // Verificar los datos
+
+  this.showModal = true;
+},
+
+
+
 
     closeModal() {
       this.showModal = false;
     },
 
-    // Validación mínima (si la vista no sobreescribe en x-init, usamos esta)
-    validateForm() {
-      const { lipaimp_id, lipaimp_situacion, armas } = this.formData;
-      const baseOk = (this.isEditing ? true : !!lipaimp_id) && !!lipaimp_situacion;
+    // Validación mínima
+validateForm() {
+  const { lipaimp_id, lipaimp_situacion, armas } = this.formData;
+  const baseOk = (this.isEditing ? true : !!lipaimp_id) && !!lipaimp_situacion;
 
-      if (!this.isEditing) {
-        if (!Array.isArray(armas) || armas.length === 0) return false;
-        const okArmas = armas.every(a =>
-          a.arma_sub_cat && a.arma_modelo && a.arma_empresa &&
-          Number(a.arma_largo_canon) > 0 && Number(a.arma_cantidad) > 0
-        );
-        return baseOk && okArmas;
-      }
-      return baseOk;
-    },
+  // Verificar armas
+  if (!this.isEditing) {
+    if (!Array.isArray(armas) || armas.length === 0) return false;
+    const okArmas = armas.every(a =>
+      a.arma_sub_cat && a.arma_modelo && a.arma_calibre && a.arma_empresa &&
+      Number(a.arma_largo_canon) > 0 && Number(a.arma_cantidad) > 0
+    );
+    return baseOk && okArmas;
+  }
+
+  return baseOk;
+}
+,
     isFormValid() { return this.validateForm(); },
 
     // ---------- Gestión de armas en el form (repetidor) ----------
@@ -261,6 +285,7 @@ window.licenciasManager = function () {
         arma_lic_id: null,      // solo en update
         arma_sub_cat: '',
         arma_modelo: '',
+        arma_calibre: '',       // 👈 incluido
         arma_empresa: '',
         arma_largo_canon: '',
         arma_cantidad: 1
@@ -304,15 +329,17 @@ window.licenciasManager = function () {
         'lipaimp_situacion'
       ]);
 
+      // 2) Normalizamos armas para backend
       const armasUI = Array.from(this.formData.armas || []); 
       const armas = armasUI.map(a => normalizeArmaForBackend(a, base.lipaimp_id));
 
-
+      // 3) Validación defensiva
       for (const [i, a] of armas.entries()) {
         const falta = [];
         if (!a.arma_num_licencia) falta.push('arma_num_licencia');
         if (!a.arma_sub_cat)      falta.push('arma_sub_cat');
         if (!a.arma_modelo)       falta.push('arma_modelo');
+        if (!a.arma_calibre)      falta.push('arma_calibre');
         if (!a.arma_empresa)      falta.push('arma_empresa');
         if (!(a.arma_largo_canon >= 0)) falta.push('arma_largo_canon');
         if (!a.arma_cantidad)     falta.push('arma_cantidad');
@@ -323,14 +350,20 @@ window.licenciasManager = function () {
       }
 
       // 4) Construimos FormData manual para asegurar claves/índices
-      const fd = new FormData();
-      fd.append('_token', csrf());
-      Object.entries(base).forEach(([k, v]) => fd.append(k, v ?? ''));
-      armas.forEach((a, i) => {
-  // ===== claves NUEVAS (DDL actual) =====
+// 4) Construimos FormData manual para asegurar claves/índices
+const fd = new FormData();
+fd.append('_token', csrf());
+Object.entries(base).forEach(([k, v]) => fd.append(k, v ?? ''));
+
+// Asegurarse de que lipaimp_situacion esté incluido en FormData
+fd.append('lipaimp_situacion', this.formData.lipaimp_situacion);
+
+// Procesar armas
+armas.forEach((a, i) => {
   fd.append(`armas[${i}][arma_num_licencia]`, a.arma_num_licencia);
   fd.append(`armas[${i}][arma_sub_cat]`, a.arma_sub_cat);
   fd.append(`armas[${i}][arma_modelo]`, a.arma_modelo);
+  fd.append(`armas[${i}][arma_calibre]`, a.arma_calibre);
   fd.append(`armas[${i}][arma_empresa]`, a.arma_empresa);
   fd.append(`armas[${i}][arma_largo_canon]`, a.arma_largo_canon);
   fd.append(`armas[${i}][arma_cantidad]`, a.arma_cantidad);
@@ -338,34 +371,27 @@ window.licenciasManager = function () {
     fd.append(`armas[${i}][arma_lic_id]`, a.arma_lic_id);
   }
 
-  // ===== ALIAS para validaciones LEGADAS =====
-  // subcategoría
+  // Alias para validaciones legadas
   fd.append(`armas[${i}][arma_subcate_id]`, a.arma_sub_cat);
-  // modelo
   fd.append(`armas[${i}][arma_modelo_id]`, a.arma_modelo);
-  // empresa (varios alias comunes)
+  fd.append(`armas[${i}][arma_calibre_id]`, a.arma_calibre);
+  fd.append(`armas[${i}][calibre_id]`, a.arma_calibre);
   fd.append(`armas[${i}][arma_empresa_id]`, a.arma_empresa);
   fd.append(`armas[${i}][empresaimp_id]`, a.arma_empresa);
-  // largo cañón
   fd.append(`armas[${i}][largo_canon]`, a.arma_largo_canon);
-  // licencia
   fd.append(`armas[${i}][arma_licencia_id]`, a.arma_num_licencia);
 });
 
-// for (const [k, v] of fd.entries()) {
-//   console.log('FD ->', k, v);
-// }
-const res = await fetch(`${BASE}`, {
-  method: 'POST',
-  headers: headersJSON(), // no seteamos Content-Type con FormData
-  body: fd,
-  credentials: 'same-origin'
-});
-      const data = await res.json();
-      console.log('data',data)
-     
 
-if (data?.errors) console.log('validation errors keys:', Object.keys(data.errors));
+      const res = await fetch(`${BASE}`, {
+        method: 'POST',
+        headers: headersJSON(), // no seteamos Content-Type con FormData
+        body: fd,
+        credentials: 'same-origin'
+      });
+
+      const data = await res.json().catch(() => ({}));
+console.log(data)
       if (res.ok) {
         this.closeModal();
         await this.swalOk('¡Licencia creada exitosamente!');
@@ -377,94 +403,95 @@ if (data?.errors) console.log('validation errors keys:', Object.keys(data.errors
       }
     },
 
-    async updateLicencia() {
-      const id = this.formData.lipaimp_id;
-      if (!id) throw new Error('ID requerido para actualizar');
+  async updateLicencia() {
+    const id = this.formData.lipaimp_id;
+    if (!id) throw new Error('ID requerido para actualizar');
 
-      // 1) Campos editables de la licencia
-      const base = pick(this.formData, [
+    // 1) Clonamos y preparamos campos base
+    const base = pick(this.formData, [
+        'lipaimp_id',
         'lipaimp_poliza',
         'lipaimp_descripcion',
         'lipaimp_fecha_emision',
         'lipaimp_fecha_vencimiento',
         'lipaimp_observaciones',
         'lipaimp_situacion'
-      ]);
+    ]);
 
-      // 2) Normalizamos armas (incluimos arma_lic_id si existe para que el backend haga upsert)
-      const armasUI = Array.from(this.formData.armas || []);
-      const armas = armasUI.map(a => normalizeArmaForBackend(a, id));
+    // 2) Normalizamos armas para backend
+    const armasUI = Array.from(this.formData.armas || []); 
+    const armas = armasUI.map(a => normalizeArmaForBackend(a, base.lipaimp_id));
 
-      // 3) Validación defensiva
-      for (const [i, a] of armas.entries()) {
+    // 3) Validación defensiva
+    for (const [i, a] of armas.entries()) {
         const falta = [];
         if (!a.arma_num_licencia) falta.push('arma_num_licencia');
         if (!a.arma_sub_cat)      falta.push('arma_sub_cat');
         if (!a.arma_modelo)       falta.push('arma_modelo');
+        if (!a.arma_calibre)      falta.push('arma_calibre');
         if (!a.arma_empresa)      falta.push('arma_empresa');
         if (!(a.arma_largo_canon >= 0)) falta.push('arma_largo_canon');
         if (!a.arma_cantidad)     falta.push('arma_cantidad');
         if (falta.length) {
-          await this.swalError('Faltan datos', `Arma #${i + 1}: ${falta.join(', ')}`);
-          return;
+            await this.swalError('Faltan datos', `Arma #${i + 1}: ${falta.join(', ')}`);
+            return;
         }
-      }
+    }
 
-      // 4) FormData
-      const fd = new FormData();
-      fd.append('_token', csrf());
-      fd.append('_method', 'PUT');
-      Object.entries(base).forEach(([k, v]) => fd.append(k, v ?? ''));
-      armas.forEach((a, i) => {
-  // ===== claves NUEVAS (DDL actual) =====
-  fd.append(`armas[${i}][arma_num_licencia]`, a.arma_num_licencia);
-  fd.append(`armas[${i}][arma_sub_cat]`, a.arma_sub_cat);
-  fd.append(`armas[${i}][arma_modelo]`, a.arma_modelo);
-  fd.append(`armas[${i}][arma_empresa]`, a.arma_empresa);
-  fd.append(`armas[${i}][arma_largo_canon]`, a.arma_largo_canon);
-  fd.append(`armas[${i}][arma_cantidad]`, a.arma_cantidad);
-  if (a.arma_lic_id != null) {
-    fd.append(`armas[${i}][arma_lic_id]`, a.arma_lic_id);
-  }
+    // 4) Construimos FormData manual para asegurar claves/índices
+    const fd = new FormData();
+    fd.append('_token', csrf());
+    fd.append('_method', 'PUT');  // Método PUT para la actualización
 
-  // ===== ALIAS para validaciones LEGADAS =====
-  // subcategoría
-  fd.append(`armas[${i}][arma_subcate_id]`, a.arma_sub_cat);
-  // modelo
-  fd.append(`armas[${i}][arma_modelo_id]`, a.arma_modelo);
-  // empresa (varios alias comunes)
-  fd.append(`armas[${i}][arma_empresa_id]`, a.arma_empresa);
-  fd.append(`armas[${i}][empresaimp_id]`, a.arma_empresa);
-  // largo cañón
-  fd.append(`armas[${i}][largo_canon]`, a.arma_largo_canon);
-  // licencia
-  fd.append(`armas[${i}][arma_licencia_id]`, a.arma_num_licencia);
-});
+    Object.entries(base).forEach(([k, v]) => fd.append(k, v ?? ''));
 
-      const res = await fetch(`${BASE}/${encodeURIComponent(id)}`, {
+    // Asegurarse de que lipaimp_situacion esté incluido en FormData
+    fd.append('lipaimp_situacion', this.formData.lipaimp_situacion);
+
+    // Procesar armas
+    armas.forEach((a, i) => {
+        fd.append(`armas[${i}][arma_num_licencia]`, a.arma_num_licencia);
+        fd.append(`armas[${i}][arma_sub_cat]`, a.arma_sub_cat);
+        fd.append(`armas[${i}][arma_modelo]`, a.arma_modelo);
+        fd.append(`armas[${i}][arma_calibre]`, a.arma_calibre);
+        fd.append(`armas[${i}][arma_empresa]`, a.arma_empresa);
+        fd.append(`armas[${i}][arma_largo_canon]`, a.arma_largo_canon);
+        fd.append(`armas[${i}][arma_cantidad]`, a.arma_cantidad);
+        if (a.arma_lic_id != null) {
+            fd.append(`armas[${i}][arma_lic_id]`, a.arma_lic_id);  // Solo para actualizar
+        }
+
+        // Alias para validaciones legadas
+        fd.append(`armas[${i}][arma_subcate_id]`, a.arma_sub_cat);
+        fd.append(`armas[${i}][arma_modelo_id]`, a.arma_modelo);
+        fd.append(`armas[${i}][arma_calibre_id]`, a.arma_calibre);
+        fd.append(`armas[${i}][calibre_id]`, a.arma_calibre);
+        fd.append(`armas[${i}][arma_empresa_id]`, a.arma_empresa);
+        fd.append(`armas[${i}][empresaimp_id]`, a.arma_empresa);
+        fd.append(`armas[${i}][largo_canon]`, a.arma_largo_canon);
+        fd.append(`armas[${i}][arma_licencia_id]`, a.arma_num_licencia);
+    });
+
+    const res = await fetch(`${BASE}/${encodeURIComponent(id)}`, {
         method: 'POST',
-        headers: headersJSON(),
+        headers: headersJSON(), // no seteamos Content-Type con FormData
         body: fd,
         credentials: 'same-origin'
-      });
+    });
 
-      const ct = res.headers.get('content-type') || '';
-      if (!ct.includes('application/json')) {
-        if (res.ok) { window.location.reload(); return; }
-        throw new Error('Error update (no json)');
-      }
-
-      const data = await res.json();
-      if (res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
         this.closeModal();
         await this.swalOk('¡Licencia actualizada exitosamente!');
         window.location.reload();
-      } else {
-        const msg = this.firstError(data) || data?.message || 'Error al actualizar';
+    } else {
+        const msg = this.firstError(data) || data?.message || 'Validación fallida';
         await this.swalError('Error al actualizar', msg);
         throw new Error(msg);
-      }
-    },
+    }
+},
+
+
 
     async deleteLicencia(id) {
       const confirmed = await this.swalConfirmDelete('¿Seguro que desea eliminar esta licencia?', 'Esta acción no se puede deshacer.');
@@ -488,7 +515,7 @@ if (data?.errors) console.log('validation errors keys:', Object.keys(data.errors
         return;
       }
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         await this.swalOk('¡Licencia eliminada exitosamente!');
         window.location.reload();
