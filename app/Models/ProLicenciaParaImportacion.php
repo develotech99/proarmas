@@ -25,6 +25,7 @@ class ProLicenciaParaImportacion extends Model
 
         // ✅ Mapa de estados
     public const ESTADOS = [
+
             1 => 'Pendiente',
         2 => 'Autorizado',
         3 => 'Rechazado',
@@ -32,6 +33,7 @@ class ProLicenciaParaImportacion extends Model
         5 => 'Recibido',
         6 => 'Vencido',
         7 => 'Recibido vencido',
+
     ];
 
     protected $fillable = [

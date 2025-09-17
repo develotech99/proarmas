@@ -185,6 +185,7 @@
       </div>
       <div class="mt-2 text-[12px] text-gray-500 dark:text-gray-400 leading-none">Rechazadas</div>
       <div class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">{{ $rechazadas }}</div>
+
     </div>
   </div>
 
@@ -201,6 +202,7 @@
       <div class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">{{ $vencidas }}</div>
     </div>
   </div>
+
 
 </div>
 
@@ -247,6 +249,7 @@
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
+
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No. Licencia</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No. Poliza</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cantidad</th>
@@ -257,6 +260,7 @@
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Largo de cañón</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+
                               
                             </tr>
                         </thead>
@@ -287,6 +291,7 @@
 
         // Estado (fallback por si no agregaste los accessors en el modelo)
         $estadoMap = [
+
                  1 => 'Pendiente',
         2 => 'Autorizado',
         3 => 'Rechazado',
@@ -294,6 +299,7 @@
         5 => 'Recibido',
         6 => 'Vencido',
         7 => 'Recibido vencido',
+
         ];
         $estadoClassMap = [
             1 => 'bg-amber-100 text-amber-800 ring-1 ring-amber-200',
@@ -302,7 +308,9 @@
             4 => 'bg-blue-100 text-blue-800 ring-1 ring-blue-200',
             5 => 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200',
             6 => 'bg-gray-300 text-gray-800 ring-1 ring-gray-400',
+
             7 => 'bg-gray-300 text-gray-800 ring-1 ring-gray-400',
+
         ];
         $estadoTexto = $licencia->lipaimp_situacion_texto ?? ($estadoMap[$licencia->lipaimp_situacion] ?? '—');
         $estadoClase = $licencia->lipaimp_situacion_badge_class ?? ($estadoClassMap[$licencia->lipaimp_situacion] ?? 'bg-slate-100 text-slate-700 ring-1 ring-slate-200');
@@ -317,9 +325,11 @@
     <tr x-show="showLicencia({{ $licencia->lipaimp_id }})" x-transition>
         <!-- No. Licencia -->
         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+
              <!--<div class="font-medium">{{ $licencia->lipaimp_id }}</div>-->
             @if($licencia->lipaimp_id)
                 <div class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{{ $licencia->lipaimp_id }}</div>
+
             @endif
         </td>
 
@@ -382,6 +392,7 @@
     }"
     x-init="paint($refs.sel, val)"
 >
+
  <select x-ref="sel"
         :value="val"
         @change="
@@ -434,6 +445,7 @@
     </option>
   @endforeach
 </select>
+
 
 
 </td>

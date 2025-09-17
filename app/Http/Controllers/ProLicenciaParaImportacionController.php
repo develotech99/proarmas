@@ -338,9 +338,11 @@ protected function prepareUnaArma(array $row, int $licenciaId, bool $forBulk = f
     }
     public function updateEstado(Request $request, int $id)
 {
+
 $request->validate([
     'lipaimp_situacion' => 'required|integer|in:1,2,3,4,5,6,7',
 ]);
+
 
 
     $licencia = Licencia::findOrFail($id);

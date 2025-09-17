@@ -29,11 +29,16 @@ Route::middleware('auth')->group(function () {
     Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
     Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
-      Route::redirect('/dashboard', '/prolicencias')->name('dashboard');
-      Route::patch('/prolicencias/{id}/estado', [ProLicenciaParaImportacionController::class, 'updateEstado'])
-    ->name('prolicencias.updateEstado');
 
 
+
+
+      Route::get('/dashboard', function () {
+            return view('dashboard');
+        })->name('dashboard');
+
+        Route::put('/prolicencias/{id}/estado', [ProLicenciaParaImportacionController::class, 'updateEstado'])
+      ->name('prolicencias.updateEstado');
     
     Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
     Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
