@@ -185,6 +185,7 @@
       </div>
       <div class="mt-2 text-[12px] text-gray-500 dark:text-gray-400 leading-none">Rechazadas</div>
       <div class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">{{ $rechazadas }}</div>
+
     </div>
   </div>
 
@@ -201,6 +202,7 @@
       <div class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">{{ $vencidas }}</div>
     </div>
   </div>
+
 
 </div>
 
@@ -247,16 +249,18 @@
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No. Licencia</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No. Poliza</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cantidad</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Subcat</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Marca</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Calibre</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Modelo</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Largo de cañón</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No. Licencia</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No. Poliza</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cantidad</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Subcat</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Marca</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Calibre</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Modelo</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Largo de cañón</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+
                               
                             </tr>
                         </thead>
@@ -287,12 +291,15 @@
 
         // Estado (fallback por si no agregaste los accessors en el modelo)
         $estadoMap = [
-            1 => 'Pendiente',
-            2 => 'Autorizado',
-            3 => 'Rechazado',
-            4 => 'En tránsito',
-            5 => 'Recibido',
-            6 => 'Recibido vencido',
+
+                 1 => 'Pendiente',
+        2 => 'Autorizado',
+        3 => 'Rechazado',
+        4 => 'En tránsito',
+        5 => 'Recibido',
+        6 => 'Vencido',
+        7 => 'Recibido vencido',
+
         ];
         $estadoClassMap = [
             1 => 'bg-amber-100 text-amber-800 ring-1 ring-amber-200',
@@ -301,6 +308,9 @@
             4 => 'bg-blue-100 text-blue-800 ring-1 ring-blue-200',
             5 => 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200',
             6 => 'bg-gray-300 text-gray-800 ring-1 ring-gray-400',
+
+            7 => 'bg-gray-300 text-gray-800 ring-1 ring-gray-400',
+
         ];
         $estadoTexto = $licencia->lipaimp_situacion_texto ?? ($estadoMap[$licencia->lipaimp_situacion] ?? '—');
         $estadoClase = $licencia->lipaimp_situacion_badge_class ?? ($estadoClassMap[$licencia->lipaimp_situacion] ?? 'bg-slate-100 text-slate-700 ring-1 ring-slate-200');
@@ -315,9 +325,11 @@
     <tr x-show="showLicencia({{ $licencia->lipaimp_id }})" x-transition>
         <!-- No. Licencia -->
         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-            <div class="font-medium">{{ $licencia->lipaimp_id }}</div>
-            @if($licencia->lipaimp_descripcion)
-                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $licencia->lipaimp_descripcion }}</div>
+
+             <!--<div class="font-medium">{{ $licencia->lipaimp_id }}</div>-->
+            @if($licencia->lipaimp_id)
+                <div class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{{ $licencia->lipaimp_id }}</div>
+
             @endif
         </td>
 
@@ -380,57 +392,62 @@
     }"
     x-init="paint($refs.sel, val)"
 >
-  <select x-ref="sel"
-          :value="val"
-          @change="
-            const nuevo = $event.target.value;
-            paint($refs.sel, nuevo);
 
-            fetch('{{ route('prolicencias.updateEstado', $licencia->lipaimp_id) }}', {
-              method: 'PATCH',
-              headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ lipaimp_situacion: nuevo }),
-              cache: 'no-store'
-            })
-            .then(r => r.json())
-            .then(data => {
-              if (data.ok) {
-                val = parseInt(nuevo);
-                return Swal.fire('Actualizado', data.message || 'Estado actualizado', 'success')
-                  .then(() => window.location.reload());   // 👈 recarga la página
-              } else {
-                Swal.fire('Error', data.message || 'No se pudo actualizar', 'error');
-              }
-            })
-            .catch(() => Swal.fire('Error', 'No se pudo actualizar', 'error'));
-          "
-          class="rounded-md border-gray-300 text-sm"
-          style="transition: background-color .15s ease, color .15s ease;"
-  >
-    @php
-      $optionStyles = [
-        1 => 'background-color:#FEF3C7;color:#92400E;',
-        2 => 'background-color:#DCFCE7;color:#166534;',
-        3 => 'background-color:#FEE2E2;color:#991B1B;',
-        4 => 'background-color:#DBEAFE;color:#1E40AF;',
-        5 => 'background-color:#D1FAE5;color:#065F46;',
-        6 => 'background-color:#E5E7EB;color:#111827;',
-      ];
-    @endphp
+ <select x-ref="sel"
+        :value="val"
+        @change="
+          const nuevo = $event.target.value;
+          paint($refs.sel, nuevo);
 
-    @foreach (App\Models\ProLicenciaParaImportacion::ESTADOS as $valor => $texto)
-      <option value="{{ $valor }}"
-              @selected($licencia->lipaimp_situacion == $valor)
-              style="{{ $optionStyles[$valor] ?? '' }}">
-        {{ $texto }}
-      </option>
-    @endforeach
-  </select>
+          fetch('{{ route('prolicencias.updateEstado', $licencia->lipaimp_id) }}', {
+            method: 'PATCH',
+            headers: {
+              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+              'X-Requested-With': 'XMLHttpRequest',
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ lipaimp_situacion: nuevo }),
+            cache: 'no-store'
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.ok) {
+              val = parseInt(nuevo);
+              return Swal.fire('Actualizado', data.message || 'Estado actualizado', 'success')
+                .then(() => window.location.reload());   // 👈 recarga la página
+            } else {
+              Swal.fire('Error', data.message || 'No se pudo actualizar', 'error');
+            }
+          })
+          .catch(() => Swal.fire('Error', 'No se pudo actualizar', 'error'));
+        "
+        class="rounded-md border-gray-300 text-sm"
+        style="transition: background-color .15s ease, color .15s ease;">
+
+  @php
+    $optionStyles = [
+      1 => 'background-color:#FEF3C7;color:#92400E;',      // Pendiente
+      2 => 'background-color:#DCFCE7;color:#166534;',      // Autorizado
+      3 => 'background-color:#FEE2E2;color:#991B1B;',      // Rechazado
+      4 => 'background-color:#DBEAFE;color:#1E40AF;',      // En tránsito
+      5 => 'background-color:#D1FAE5;color:#065F46;',      // Recibido
+      6 => 'background-color:#E5E7EB;color:#111827;',      // Vencido
+      7 => 'background-color:#F3F4F6;color:#4B5563;',      // Recibido vencido (nuevo)
+    ];
+  @endphp
+
+  @foreach (App\Models\ProLicenciaParaImportacion::ESTADOS as $valor => $texto)
+    <option value="{{ $valor }}"
+            @selected($licencia->lipaimp_situacion == $valor)
+            style="{{ $optionStyles[$valor] ?? '' }}">
+      {{ $texto }}
+    </option>
+  @endforeach
+</select>
+
+
+
 </td>
 
 
@@ -566,17 +583,20 @@
     <!-- Estado -->
     <div>
       <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado *</label>
-      <select x-model="formData.lipaimp_situacion"
-              required
-              @change="validateForm()"
-              class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-        <option value="">Seleccionar estado</option>
-        <option value="1">Pendiente</option>
-        <option value="2">Autorizado</option>
-        <option value="3">Rechazado</option>
-        <option value="4">En Tránsito</option>
-        <option value="5">Recibido</option>
-      </select>
+<select x-ref="sel"
+        x-model="formData.lipaimp_situacion"
+        required
+        class="rounded-md border-gray-300 text-sm"
+        style="transition: background-color .15s ease, color .15s ease;">
+  <option value="">Seleccionar estado</option>
+  @foreach (App\Models\ProLicenciaParaImportacion::ESTADOS as $valor => $texto)
+    <option value="{{ $valor }}" style="{{ $optionStyles[$valor] ?? '' }}">
+      {{ $texto }}
+    </option>
+  @endforeach
+</select>
+
+
     </div>
 
     <!-- Observaciones -->
@@ -654,13 +674,25 @@
             </select>
           </div>
 
+          <div class="md:col-span-2">
+
+  <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">Calibre *</label>
+  <select x-model="a.arma_calibre" required
+          class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+    <option value="">Seleccione…</option>
+    @foreach ($calibresSelect as $c)
+      <option value="{{ $c->calibre_id }}">{{ $c->calibre_nombre }}</option>
+    @endforeach
+  </select>
+</div>
+
           <!-- Largo de cañón -->
           <div>
             <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">Largo de cañón *</label>
             <input type="number" step="0.01" min="0.01" x-model="a.arma_largo_canon" required
                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
           </div>
-
+          
           <!-- Cantidad -->
           <div>
             <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">Cantidad *</label>
