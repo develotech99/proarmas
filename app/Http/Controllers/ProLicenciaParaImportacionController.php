@@ -310,4 +310,59 @@ class ProLicenciaParaImportacionController extends Controller
         }
         return back()->with('error', $friendlyMessage)->with('detalle', $e->getMessage());
     }
+
+
+    protected $table = 'pro_licencias_para_importacion';
+    protected $primaryKey = 'lipaimp_id';
+
+    // Mapa de estados
+    public const ESTADOS = [
+        1 => 'Pendiente',
+        2 => 'Autorizado',
+        3 => 'Rechazado',
+        4 => 'En tránsito',
+        5 => 'Recibido',
+        6 => 'Vencido',
+        7 => 'Recibido vencido',
+    ];
+
+    public function getLipaimpSituacionTextoAttribute(): string
+    {
+        return self::ESTADOS[$this->lipaimp_situacion] ?? '—';
+    }
+
+    public function getLipaimpSituacionBadgeClassAttribute(): string
+    {
+        return match ((int)$this->lipaimp_situacion) {
+            1 => 'bg-amber-100 text-amber-800 ring-1 ring-amber-200',   // Pendiente
+            2 => 'bg-green-100 text-green-800 ring-1 ring-green-200',   // Autorizado
+            3 => 'bg-red-100 text-red-800 ring-1 ring-red-200',         // Rechazado
+            4 => 'bg-blue-100 text-blue-800 ring-1 ring-blue-200',      // En tránsito
+            5 => 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200', // Recibido
+            6 => 'bg-gray-300 text-gray-800 ring-1 ring-gray-400',      // Recibido vencido
+            default => 'bg-slate-100 text-slate-700 ring-1 ring-slate-200',
+        };
+    }
+    public function updateEstado(Request $request, int $id)
+{
+    $request->validate([
+        'lipaimp_situacion' => 'required|integer|in:1,2,3,4,5,6',
+    ]);
+
+    $licencia = Licencia::findOrFail($id);
+    $licencia->lipaimp_situacion = $request->lipaimp_situacion;
+    $licencia->save();
+
+    if ($request->wantsJson()) {
+        return response()->json([
+            'ok' => true,
+            'message' => 'Estado actualizado',
+            'estado' => $licencia->lipaimp_situacion,
+        ]);
+    }
+
+    return back()->with('success', 'Estado actualizado correctamente');
 }
+
+}
+

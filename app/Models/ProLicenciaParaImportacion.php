@@ -23,6 +23,16 @@ class ProLicenciaParaImportacion extends Model
     public const SITUACION_EN_TRANSITO = 4;
     public const SITUACION_RECIBIDO    = 5;
 
+        // ✅ Mapa de estados
+    public const ESTADOS = [
+        1 => 'Pendiente',
+        2 => 'Autorizado',
+        3 => 'Rechazado',
+        4 => 'En Tránsito',
+        5 => 'Recibido',
+        6 => 'Recibido vencido',
+    ];
+
     protected $fillable = [
         'lipaimp_id',
         'lipaimp_poliza',
