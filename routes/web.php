@@ -29,8 +29,11 @@ Route::middleware('auth')->group(function () {
     Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
     Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
-      Route::redirect('/dashboard', '/prolicencias')->name('dashboard');
 
+
+      Route::get('/dashboard', function () {
+            return view('dashboard');
+        })->name('dashboard');
     
     Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
     Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
