@@ -1,5 +1,9 @@
 /* resources/js/prolicencias/index.js */
 window.licenciasManager = function () {
+
+
+
+  
   // ---------- helpers ----------
   const getJSONFromScript = (id) => {
     const el = document.getElementById(id);
