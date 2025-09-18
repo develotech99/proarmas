@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\ProLicenciaParaImportacion as Licencia;
 use App\Models\ProArmaLicenciada as Arma;
-use App\Models\ProModelo; // 👈 Agregar este import
+use App\Models\ProModelo; 
+use App\Models\ProDocumentacionLicImport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -51,29 +54,25 @@ class ProLicenciaParaImportacionController extends Controller
     }
 
     /** STORE: crea licencia + armas (array) */
-    public function store(Request $request)
+ public function store(Request $request)
     {
         try {
+            \Log::info('=== CREAR LICENCIA (sin archivos) ===');
+            \Log::info('Request data:', $request->except(['_token']));
+
             // Normaliza aliases de armas y valida
             [$licData, $armasData] = $this->validateCompound($request);
 
-            // (OPCIONAL) Debug rápido: ?debug=1 devuelve lo recibido sin escribir en DB
-            if ($request->boolean('debug')) {
-                return response()->json([
-                    'debug'   => true,
-                    'licencia'=> $licData,
-                    'armas'   => $armasData,
-                ], 200);
-            }
-
             $licencia = DB::transaction(function () use ($licData, $armasData) {
-                // Crea/actualiza licencia por PK manual (si ya existe, puedes usar updateOrCreate)
+                // Crear licencia
                 $lic = Licencia::create($licData);
+                \Log::info('Licencia created', ['lipaimp_id' => $lic->lipaimp_id]);
 
-                // Inserta armas
+                // Insertar armas
                 $prepared = $this->prepareArmas($armasData, (int)$lic->lipaimp_id);
                 if (!empty($prepared)) {
                     Arma::insert($prepared);
+                    \Log::info('Armas inserted', ['count' => count($prepared)]);
                 }
 
                 return $lic;
@@ -81,15 +80,220 @@ class ProLicenciaParaImportacionController extends Controller
 
             return $this->jsonOrRedirect(
                 $request,
-                ['licencia' => $licencia->load('armas'), 'message' => 'Creado'],
+                [
+                    'licencia' => $licencia->load('armas'), 
+                    'lipaimp_id' => $licencia->lipaimp_id,
+                    'message' => 'Licencia creada exitosamente'
+                ],
                 201,
-                back()->with('success', 'Licencia y armas creadas correctamente')
+                back()->with('success', 'Licencia creada correctamente')
             );
 
         } catch (Throwable $e) {
-            return $this->handleException($request, $e, 'Error al crear la licencia/armas');
+            \Log::error('Error creating licencia', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            
+            return $this->handleException($request, $e, 'Error al crear la licencia');
         }
     }
+
+    /**
+     * Subir PDFs por separado - FUNCIÓN NUEVA
+     */
+ public function getDocumentos($licenciaId)
+    {
+        try {
+            $documentos = ProDocumentacionLicImport::where('doclicimport_num_lic', $licenciaId)
+                ->where('doclicimport_situacion', 1)
+                ->get();
+
+            return response()->json([
+                'documentos' => $documentos,
+                'count' => $documentos->count()
+            ]);
+
+        } catch (Throwable $e) {
+            \Log::error('Error obteniendo documentos', [
+                'licencia_id' => $licenciaId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Error obteniendo documentos',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function uploadPdfs(Request $request, $licenciaId)
+    {
+        try {
+            \Log::info('=== UPLOAD PDFS ===');
+            \Log::info('Licencia ID: ' . $licenciaId);
+            \Log::info('Has files pdfs: ' . ($request->hasFile('pdfs') ? 'YES' : 'NO'));
+            \Log::info('All files:', $request->allFiles());
+
+            // Verificar que la licencia existe
+            $licencia = Licencia::findOrFail($licenciaId);
+            \Log::info('Licencia found: ' . $licencia->lipaimp_id);
+
+            // Validar archivos
+            $request->validate([
+                'pdfs.*' => 'required|file|mimes:pdf|max:10240', // 10MB max por archivo
+            ]);
+
+            $processedFiles = 0;
+
+            if ($request->hasFile('pdfs')) {
+                $pdfFiles = $request->file('pdfs');
+                
+                // Convertir a array si es un solo archivo
+                if (!is_array($pdfFiles)) {
+                    $pdfFiles = [$pdfFiles];
+                }
+
+                \Log::info('Processing files:', [
+                    'count' => count($pdfFiles),
+                    'files' => array_map(function($file) {
+                        return [
+                            'name' => $file->getClientOriginalName(),
+                            'size' => $file->getSize(),
+                            'mime' => $file->getMimeType(),
+                            'is_valid' => $file->isValid()
+                        ];
+                    }, $pdfFiles)
+                ]);
+
+                $processedFiles = $this->procesarPdfs($pdfFiles, $licenciaId);
+            }
+
+            return response()->json([
+                'message' => 'Archivos procesados exitosamente',
+                'processed_files' => $processedFiles,
+                'licencia_id' => $licenciaId
+            ]);
+
+        } catch (Throwable $e) {
+            \Log::error('Error uploading PDFs', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'licencia_id' => $licenciaId
+            ]);
+
+            return response()->json([
+                'error' => 'Error procesando archivos',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    protected function procesarPdfs($pdfFiles, $licenciaId)
+    {
+        $processedCount = 0;
+        
+        \Log::info('=== PROCESAR PDFS ===');
+        \Log::info('Licencia ID: ' . $licenciaId);
+        \Log::info('Files to process: ' . count($pdfFiles));
+
+        try {
+            $disk = 'public';
+            $baseDir = 'documentacion';
+
+            // Crear directorio base
+            if (!Storage::disk($disk)->exists($baseDir)) {
+                Storage::disk($disk)->makeDirectory($baseDir, 0755, true);
+                \Log::info('Base directory created: ' . $baseDir);
+            }
+
+            // Crear subdirectorio por licencia
+            $licenciaDir = $baseDir.'/licencia_'.$licenciaId;
+            if (!Storage::disk($disk)->exists($licenciaDir)) {
+                Storage::disk($disk)->makeDirectory($licenciaDir, 0755, true);
+                \Log::info('Licencia directory created: ' . $licenciaDir);
+            }
+
+            // Procesar cada archivo
+            foreach ($pdfFiles as $index => $pdfFile) {
+                \Log::info("Processing file {$index}:", [
+                    'name' => $pdfFile->getClientOriginalName(),
+                    'size' => $pdfFile->getSize(),
+                    'mime' => $pdfFile->getMimeType(),
+                    'is_valid' => $pdfFile->isValid(),
+                    'error' => $pdfFile->getError()
+                ]);
+
+                // Validar archivo individual
+                if (!$pdfFile->isValid()) {
+                    \Log::error("Invalid file at index {$index}: " . $pdfFile->getError());
+                    continue;
+                }
+
+                // Generar nombre único
+                $originalName = $pdfFile->getClientOriginalName();
+                $safeOriginal = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+                $fileName = time().'_'.rand(1000,9999).'_'.$safeOriginal;
+
+                // Guardar archivo
+                \Log::info('Storing file: ' . $fileName);
+                $path = $pdfFile->storeAs($licenciaDir, $fileName, $disk);
+                
+                if (!$path) {
+                    \Log::error('Failed to store file: ' . $fileName);
+                    continue;
+                }
+
+                \Log::info('File stored at: ' . $path);
+
+                // Verificar que se guardó
+                if (!Storage::disk($disk)->exists($path)) {
+                    \Log::error("File not found after storing: " . $path);
+                    continue;
+                }
+
+                // Obtener información del archivo guardado
+                $storedSize = Storage::disk($disk)->size($path);
+                $storedMime = $pdfFile->getMimeType();
+
+                // Guardar registro en BD
+                \Log::info('Creating database record');
+                $doc = ProDocumentacionLicImport::create([
+                    'doclicimport_ruta'            => $path,
+                    'doclicimport_num_lic'         => $licenciaId,
+                    'doclicimport_situacion'       => 1,
+                    'doclicimport_nombre_original' => $originalName,
+                    'doclicimport_size_bytes'      => $storedSize,
+                    'doclicimport_mime'            => $storedMime,
+                ]);
+
+                \Log::info('Document saved to DB:', [
+                    'id' => $doc->doclicimport_id,
+                    'path' => $path,
+                    'size' => $storedSize,
+                    'original_name' => $originalName
+                ]);
+                
+                $processedCount++;
+            }
+            
+        } catch (Throwable $e) {
+            \Log::error('Error in procesarPdfs:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+        
+        \Log::info('PDF processing completed', [
+            'total_processed' => $processedCount,
+            'licencia_id' => $licenciaId
+        ]);
+        
+        return $processedCount;
+    }
+
 
     /** SHOW: una licencia con sus armas (útil para modal de edición) */
     public function show(Request $request, int $id)
@@ -138,7 +342,7 @@ class ProLicenciaParaImportacionController extends Controller
                 $request,
                 ['licencia' => $licencia->fresh()->load('armas'), 'message' => 'Actualizado'],
                 200,
-                back()->with('success', 'Licencia y armas actualizadas correctamente')
+                back()->with('success', 'Licencia actualizada correctamente')
             );
 
         } catch (Throwable $e) {
@@ -147,26 +351,63 @@ class ProLicenciaParaImportacionController extends Controller
     }
 
     /** DESTROY: borra licencia (armas se borran por FK CASCADE) */
-    public function destroy(Request $request, int $id)
+  public function destroy($id)
     {
         try {
-            $licencia = Licencia::findOrFail($id);
+            \Log::info('Eliminando licencia y archivos', ['licencia_id' => $id]);
 
-            DB::transaction(function () use ($licencia) {
+            return DB::transaction(function () use ($id) {
+                // Buscar la licencia
+                $licencia = Licencia::findOrFail($id);
+
+                // 1. Obtener y eliminar todos los documentos físicos
+                $documentos = ProDocumentacionLicImport::where('doclicimport_num_lic', $id)->get();
+                
+                foreach ($documentos as $doc) {
+                    // Eliminar archivo físico
+                    if (Storage::disk('public')->exists($doc->doclicimport_ruta)) {
+                        Storage::disk('public')->delete($doc->doclicimport_ruta);
+                        \Log::info('Archivo eliminado: ' . $doc->doclicimport_ruta);
+                    }
+                    
+                    // Eliminar registro de BD
+                    $doc->delete();
+                }
+
+                // 2. Eliminar directorio de la licencia si existe
+                $licenciaDir = 'documentacion/licencia_' . $id;
+                if (Storage::disk('public')->exists($licenciaDir)) {
+                    Storage::disk('public')->deleteDirectory($licenciaDir);
+                    \Log::info('Directorio eliminado: ' . $licenciaDir);
+                }
+
+                // 3. Eliminar armas asociadas
+                $armasEliminadas = Arma::where('arma_lic_id', $id)->delete();
+                \Log::info('Armas eliminadas: ' . $armasEliminadas);
+
+                // 4. Eliminar la licencia
                 $licencia->delete();
+                \Log::info('Licencia eliminada: ' . $id);
+
+                return response()->json([
+                    'message' => 'Licencia eliminada exitosamente',
+                    'documentos_eliminados' => $documentos->count(),
+                    'armas_eliminadas' => $armasEliminadas
+                ]);
             });
 
-            return $this->jsonOrRedirect(
-                $request,
-                ['ok' => true, 'message' => 'Eliminado'],
-                200,
-                back()->with('success', 'Licencia eliminada correctamente')
-            );
-
         } catch (Throwable $e) {
-            return $this->handleException($request, $e, 'No se pudo eliminar la licencia');
-        }
-    }
+            \Log::error('Error eliminando licencia', [
+                'licencia_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Error eliminando licencia',
+                'message' => $e->getMessage()
+            ], 500);
+        }}
 
     /* ===================== VALIDACIÓN COMPUESTA ===================== */
 
@@ -336,6 +577,7 @@ protected function prepareUnaArma(array $row, int $licenciaId, bool $forBulk = f
             default => 'bg-slate-100 text-slate-700 ring-1 ring-slate-200',
         };
     }
+
     public function updateEstado(Request $request, int $id)
 {
 
@@ -359,6 +601,104 @@ $request->validate([
 
     return back()->with('success', 'Estado actualizado correctamente');
 }
+
+public function listDocumentos($licenciaId)
+{
+    try {
+        $licencia = Licencia::findOrFail($licenciaId);
+        $docs = $licencia->documentos()
+            ->latest('doclicimport_id')
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'docs' => $docs->map(function($doc) {
+                return [
+                    'doclicimport_id' => $doc->doclicimport_id,
+                    'doclicimport_ruta' => $doc->doclicimport_ruta,
+                    'doclicimport_num_lic' => $doc->doclicimport_num_lic,
+                    'doclicimport_nombre_original' => $doc->doclicimport_nombre_original,
+                    'created_at' => $doc->created_at->format('Y-m-d H:i:s'),
+                    'url' => asset('storage/' . $doc->doclicimport_ruta)
+                ];
+            })
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'ok' => false,
+            'message' => 'Error al cargar documentos'
+        ], 500);
+    }
+}
+
+
+
+
+public function destroyDocumento($documento)
+{
+    try {
+        \Log::info('Eliminando documento', ['documento_id' => $documento]);
+
+        return DB::transaction(function () use ($documento) {
+            // Buscar el documento
+            $doc = ProDocumentacionLicImport::findOrFail($documento);
+
+            // 1. Eliminar archivo físico si existe
+            if (!empty($doc->doclicimport_ruta) && Storage::disk('public')->exists($doc->doclicimport_ruta)) {
+                Storage::disk('public')->delete($doc->doclicimport_ruta);
+                \Log::info('Archivo eliminado', ['ruta' => $doc->doclicimport_ruta]);
+            }
+
+            // 2. Eliminar registro de BD
+            $doc->delete();
+
+            // 3. (Opcional) borrar carpeta si quedó vacía
+            $carpeta = dirname($doc->doclicimport_ruta);
+            if ($carpeta && $carpeta !== '.' && Storage::disk('public')->exists($carpeta)) {
+                $archivos = Storage::disk('public')->files($carpeta);
+                $subdirs  = Storage::disk('public')->directories($carpeta);
+                if (empty($archivos) && empty($subdirs)) {
+                    Storage::disk('public')->deleteDirectory($carpeta);
+                    \Log::info('Carpeta eliminada', ['carpeta' => $carpeta]);
+                }
+            }
+
+            return response()->json([
+                'ok'      => true,
+                'message' => 'Documento eliminado correctamente.'
+            ]);
+        });
+
+    } catch (\Throwable $e) {
+        \Log::error('Error eliminando documento', [
+            'documento_id' => $documento,
+            'error'        => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'ok'      => false,
+            'message' => 'Error eliminando documento',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
+
+private function formatBytes($bytes, $precision = 2)
+{
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+    // fuerza a número
+    $bytes = is_numeric($bytes) ? (float)$bytes : 0.0;
+
+    $pow = ($bytes > 0) ? floor(log($bytes, 1024)) : 0;
+    $pow = min($pow, count($units) - 1);
+
+    $bytes = $bytes / (1024 ** $pow);
+
+    return round($bytes, (int)$precision).' '.$units[$pow];
+}
+
 
 }
 

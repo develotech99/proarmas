@@ -127,4 +127,10 @@ class ProLicenciaParaImportacion extends Model
                 ->orWhere('lipaimp_id', $q); // búsqueda por ID exacto
         });
     }
+    // app/Models/ProLicenciaParaImportacion.php
+public function documentos()
+{
+    return $this->hasMany(\App\Models\ProDocumentacionLicImport::class, 'doclicimport_num_lic', 'lipaimp_id');
+}
+
 }

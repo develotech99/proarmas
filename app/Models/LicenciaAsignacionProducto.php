@@ -326,4 +326,5 @@ class LicenciaAsignacionProducto extends Model
             'licencias_pendientes' => $asignaciones->where('esta_completa', false)->count()
         ];
     }
+    
 }
