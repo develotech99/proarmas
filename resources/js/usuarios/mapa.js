@@ -1,11 +1,13 @@
 // resources/js/usuarios/mapa.js
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
-// Fix de iconos con Vite
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import Swal from 'sweetalert2';
+import { validarFormulario } from '../app';
+
+
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
@@ -29,12 +31,11 @@ const btnBuscarLugar = () => $('btn_buscar_lugar');
 const inputBusqueda = () => $('busqueda_lugar');
 const statusMapa = () => $('status_mapa');
 const zoomLevel = () => $('zoom_level');
-
-// NUEVOS selectores para fullscreen
 const btnFullscreen = () => $('btn_fullscreen');
 const iconExpand = () => $('icon_expand');
 const iconCompress = () => $('icon_compress');
 const mapCard = () => $('map_card');
+const FormRegistroUser = document.getElementById('FormRegistroUbicaciones');
 
 // --------- Estado ----------
 const DEFAULT_CENTER = [14.6349, -90.5069];
@@ -42,7 +43,7 @@ const DEFAULT_ZOOM = 13;
 
 let map;
 let marker = null;
-let clickEnabled = true; // click en mapa siempre actualiza por defecto
+let clickEnabled = true;
 
 // --------- Map HUD (overlay + progress) ----------
 function mountMapHUD() {
@@ -420,23 +421,17 @@ async function toggleFullscreen() {
 function onFullscreenChange() {
   const inFS = !!document.fullscreenElement;
 
-  // Forzar recálculo del mapa con múltiples intentos
-  if (map) {
-    // Primer recálculo inmediato
-    map.invalidateSize();
+  const card = mapCard();
+  if (card) card.classList.toggle('in-fullscreen', inFS);
 
-    // Segundo recálculo después de que el layout se estabilice
+  if (map) {
+    map.invalidateSize();
     setTimeout(() => {
       map.invalidateSize();
-
-      // Tercer recálculo para asegurar que todo esté correcto
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 200);
+      setTimeout(() => map.invalidateSize(), 200);
     }, 100);
   }
 
-  // Cambiar iconos
   const exp = iconExpand();
   const comp = iconCompress();
 
@@ -479,22 +474,7 @@ function bindUI() {
   btnFullscreen()?.addEventListener('click', toggleFullscreen);
 }
 
-// --------- Bootstrap ----------
-document.addEventListener('DOMContentLoaded', () => {
-  if (!elMap()) return;
 
-  initMap();
-  bindUI();
-
-  // Monta HUD para que esté listo (invisible hasta que lo uses)
-  mountMapHUD();
-
-  // Escuchar cambios de fullscreen
-  document.addEventListener('fullscreenchange', onFullscreenChange);
-  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-  document.addEventListener('mozfullscreenchange', onFullscreenChange);
-  document.addEventListener('MSFullscreenChange', onFullscreenChange);
-});
 
 function toggleVentaInfo() {
   const estadoVisita = visitadoSelect.value;
@@ -505,8 +485,26 @@ function toggleVentaInfo() {
   }
 }
 
-// Evento para cambiar la visibilidad cuando se cambia la selección
-visitadoSelect.addEventListener('change', toggleVentaInfo);
 
-// Inicializar el estado al cargar la página
+const GuardarRegistro = async (e) => {
+  e.preventDefault();
+
+  if (!validarFormulario(FormRegistroUser, ['ubi_id', 'busqueda_lugar'])) {
+    return;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!elMap()) return;
+
+  initMap();
+  bindUI();
+  mountMapHUD();
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  document.addEventListener('mozfullscreenchange', onFullscreenChange);
+  document.addEventListener('MSFullscreenChange', onFullscreenChange);
+});
+visitadoSelect.addEventListener('change', toggleVentaInfo);
 toggleVentaInfo();
+FormRegistroUser.addEventListener('submit', GuardarRegistro)
