@@ -25,12 +25,15 @@ class ProLicenciaParaImportacion extends Model
 
         // ✅ Mapa de estados
     public const ESTADOS = [
-        1 => 'Pendiente',
+
+            1 => 'Pendiente',
         2 => 'Autorizado',
         3 => 'Rechazado',
-        4 => 'En Tránsito',
+        4 => 'En tránsito',
         5 => 'Recibido',
-        6 => 'Recibido vencido',
+        6 => 'Vencido',
+        7 => 'Recibido vencido',
+
     ];
 
     protected $fillable = [
@@ -124,4 +127,10 @@ class ProLicenciaParaImportacion extends Model
                 ->orWhere('lipaimp_id', $q); // búsqueda por ID exacto
         });
     }
+    // app/Models/ProLicenciaParaImportacion.php
+public function documentos()
+{
+    return $this->hasMany(\App\Models\ProDocumentacionLicImport::class, 'doclicimport_num_lic', 'lipaimp_id');
+}
+
 }
