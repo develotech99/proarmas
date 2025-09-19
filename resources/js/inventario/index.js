@@ -10,6 +10,9 @@ class InventarioManager {
         this.modelos = [];
         this.paises = [];
         this.calibres = [];
+        this.productoSeleccionadoEgreso = null;
+        this.seriesSeleccionadasEgreso = [];
+        this.origenEgresoSeleccionado = null;
         this.licenciaSeleccionada = null;
         this.licenciaSeleccionadaRegistro = null;
         this.lotePreview = '';
@@ -282,6 +285,7 @@ renderResultadosBusquedaEgreso(productos) {
     
     container.classList.remove('hidden');
 }
+
 async seleccionarProductoEgreso(productoId) {
     try {
         const response = await fetch(`/inventario/productos/${productoId}`);
@@ -300,13 +304,27 @@ async seleccionarProductoEgreso(productoId) {
             const seriesSection = document.getElementById('series_section_egreso');
             
             if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
+                // PRODUCTO CON SERIE: Mostrar series para seleccionar
                 cantidadSection.classList.add('hidden');
                 seriesSection.classList.remove('hidden');
-                // Cargar series disponibles
                 this.cargarSeriesDisponibles(productoId);
+                
+                // Cambiar label para series
+                const label = seriesSection.querySelector('label');
+                if (label) {
+                    label.textContent = 'Seleccionar series a egresar *';
+                }
             } else {
-                cantidadSection.classList.remove('hidden');
-                seriesSection.classList.add('hidden');
+                // PRODUCTO SIN SERIE: Mostrar lotes + stock sin lote
+                cantidadSection.classList.add('hidden');
+                seriesSection.classList.remove('hidden');
+                this.cargarStockPorLotes(productoId);
+                
+                // Cambiar label para lotes
+                const label = seriesSection.querySelector('label');
+                if (label) {
+                    label.textContent = 'Seleccionar origen del egreso *';
+                }
             }
             
             document.getElementById('productos_encontrados_egreso').classList.add('hidden');
@@ -314,6 +332,141 @@ async seleccionarProductoEgreso(productoId) {
     } catch (error) {
         console.error('Error:', error);
         this.showAlert('error', 'Error', 'Error al cargar el producto');
+    }
+}
+
+
+
+// Nueva función para stock por lotes
+renderStockPorLotes(stockData) {
+    const container = document.getElementById('series_disponibles_container');
+    this.origenEgresoSeleccionado = null;
+    
+    if (!stockData.lotes && !stockData.sin_lote) {
+        container.innerHTML = `
+            <div class="p-4 text-center text-gray-500">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
+                <p class="text-sm">No hay stock disponible para egreso</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="p-3 border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+            <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Stock total disponible: ${stockData.total_disponible} unidades
+            </div>
+        </div>
+    `;
+    
+    // Mostrar lotes disponibles
+    if (stockData.lotes && stockData.lotes.length > 0) {
+        html += `
+            <div class="p-2 bg-blue-50 dark:bg-blue-900">
+                <h4 class="text-sm font-medium text-blue-700 dark:text-blue-300">Stock en Lotes</h4>
+            </div>
+        `;
+        
+        stockData.lotes.forEach(lote => {
+            html += `
+                <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <div class="flex items-center">
+                        <input type="radio" 
+                               name="origen_egreso" 
+                               value="lote_${lote.lote_id}" 
+                               class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 mr-3"
+                               onchange="inventarioManager.seleccionarOrigenEgreso('lote', ${lote.lote_id}, ${lote.cantidad_disponible}, '${lote.lote_codigo}')">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-gray-100">${lote.lote_codigo}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                Ingreso: ${new Date(lote.fecha_ingreso).toLocaleDateString()}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        ${lote.cantidad_disponible} uds
+                    </span>
+                </div>
+            `;
+        });
+    }
+    
+    // Mostrar stock sin lote
+    if (stockData.sin_lote > 0) {
+        html += `
+            <div class="p-2 bg-gray-50 dark:bg-gray-800">
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">Stock Sin Lote</h4>
+            </div>
+            <div class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <div class="flex items-center">
+                    <input type="radio" 
+                           name="origen_egreso" 
+                           value="sin_lote" 
+                           class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 mr-3"
+                           onchange="inventarioManager.seleccionarOrigenEgreso('sin_lote', null, ${stockData.sin_lote}, 'Stock General')">
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-gray-100">Stock General</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            Sin asignación de lote específico
+                        </div>
+                    </div>
+                </div>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    ${stockData.sin_lote} uds
+                </span>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Mostrar campo de cantidad después de la selección
+    this.mostrarCamposCantidad();
+}
+
+// Nueva función para manejar selección de origen (solo para productos sin serie)
+seleccionarOrigenEgreso(tipo, loteId, cantidadMaxima, nombre) {
+    this.origenEgresoSeleccionado = {
+        tipo: tipo,
+        lote_id: loteId,
+        cantidad_maxima: cantidadMaxima,
+        nombre: nombre
+    };
+    
+    // Mostrar campos de cantidad
+    this.mostrarCamposCantidad();
+    
+    // Actualizar información
+    const infoElement = document.getElementById('origen_seleccionado_info');
+    if (infoElement) {
+        infoElement.innerHTML = `
+            <div class="mt-3 p-2 bg-blue-50 dark:bg-blue-900 rounded">
+                <span class="text-sm text-blue-700 dark:text-blue-300">
+                    Origen seleccionado: <strong>${nombre}</strong> (${cantidadMaxima} disponibles)
+                </span>
+            </div>
+        `;
+    }
+}
+
+// Función para mostrar campos de cantidad (solo para productos sin serie)
+mostrarCamposCantidad() {
+    if (this.productoSeleccionadoEgreso.producto_requiere_serie) return;
+    
+    const cantidadSection = document.getElementById('cantidad_section_egreso');
+    const cantidadInput = document.getElementById('egr_cantidad');
+    
+    cantidadSection.classList.remove('hidden');
+    
+    if (this.origenEgresoSeleccionado) {
+        cantidadInput.max = this.origenEgresoSeleccionado.cantidad_maxima;
+        cantidadInput.placeholder = `Máximo: ${this.origenEgresoSeleccionado.cantidad_maxima}`;
+        
+        const label = cantidadSection.querySelector('label');
+        if (label) {
+            label.textContent = `Cantidad a egresar (máx: ${this.origenEgresoSeleccionado.cantidad_maxima}) *`;
+        }
     }
 }
 
@@ -442,7 +595,6 @@ actualizarContadorSeries() {
     }
 }
 
-
 async handleEgresoSubmit() {
     if (!this.productoSeleccionadoEgreso) {
         this.showAlert('error', 'Error', 'Debe seleccionar un producto');
@@ -453,16 +605,50 @@ async handleEgresoSubmit() {
         return;
     }
 
+    // MOVER LA DECLARACIÓN DE formData AQUÍ AL INICIO
     const formData = new FormData();
     formData.append('producto_id', this.productoSeleccionadoEgreso.producto_id);
-    formData.append('mov_tipo', document.getElementById('egr_tipo').value);
-    formData.append('mov_destino', document.getElementById('egr_destino').value);
-    formData.append('mov_observaciones', document.getElementById('egr_observaciones').value);
+    
+    // Verificar que los elementos existen antes de acceder a value
+    const tipoElement = document.getElementById('egr_tipo');
+    const destinoElement = document.getElementById('egr_destino');
+    const observacionesElement = document.getElementById('egr_observaciones');
+    
+    if (!tipoElement || !destinoElement) {
+        this.showAlert('error', 'Error', 'Error en el formulario. Recarga la página e intenta de nuevo.');
+        return;
+    }
+    
+    formData.append('mov_tipo', tipoElement.value);
+    formData.append('mov_destino', destinoElement.value);
+    formData.append('mov_observaciones', observacionesElement ? observacionesElement.value : '');
 
     if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
-        formData.append('numeros_series', document.getElementById('numeros_series_egreso').value);
+        // PRODUCTO CON SERIE
+        if (!this.seriesSeleccionadasEgreso || this.seriesSeleccionadasEgreso.length === 0) {
+            this.showAlert('error', 'Error', 'Debe seleccionar al menos una serie');
+            return;
+        }
+        formData.append('series_seleccionadas', JSON.stringify(this.seriesSeleccionadasEgreso));
     } else {
-        formData.append('mov_cantidad', document.getElementById('egr_cantidad').value);
+        // PRODUCTO SIN SERIE CON LOTES
+        const cantidadElement = document.getElementById('egr_cantidad');
+        if (!cantidadElement) {
+            this.showAlert('error', 'Error', 'Campo cantidad no encontrado');
+            return;
+        }
+        
+        if (!this.origenEgresoSeleccionado) {
+            this.showAlert('error', 'Error', 'Debe seleccionar el origen del egreso');
+            return;
+        }
+        
+        formData.append('mov_cantidad', cantidadElement.value);
+        formData.append('origen_tipo', this.origenEgresoSeleccionado.tipo);
+        
+        if (this.origenEgresoSeleccionado.lote_id) {
+            formData.append('lote_especifico_id', this.origenEgresoSeleccionado.lote_id);
+        }
     }
 
     this.setLoading('egreso', true);
@@ -502,12 +688,12 @@ async handleEgresoSubmit() {
         this.setLoading('egreso', false);
     }
 }
+
 validateEgresoForm() {
     const tipo = document.getElementById('egr_tipo').value;
     const destino = document.getElementById('egr_destino').value.trim();
     
     this.clearErrors('egreso');
-    
     let isValid = true;
     
     if (!tipo) {
@@ -521,25 +707,34 @@ validateEgresoForm() {
     }
     
     if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
-        if (this.seriesSeleccionadasEgreso.length === 0) {
+        // VALIDACIÓN PARA SERIES
+        if (!this.seriesSeleccionadasEgreso || this.seriesSeleccionadasEgreso.length === 0) {
             this.showFieldError('numeros_series_egreso', 'Debe seleccionar al menos una serie');
             isValid = false;
         }
     } else {
-        const cantidad = document.getElementById('egr_cantidad').value;
-        const stockDisponible = this.productoSeleccionadoEgreso.stock_cantidad_disponible || 0;
+        // VALIDACIÓN PARA LOTES/CANTIDAD
+        if (!this.origenEgresoSeleccionado) {
+            this.showFieldError('egr_cantidad', 'Debe seleccionar el origen del egreso');
+            isValid = false;
+        }
         
+        const cantidad = document.getElementById('egr_cantidad').value;
         if (!cantidad || parseInt(cantidad) <= 0) {
             this.showFieldError('egr_cantidad', 'La cantidad debe ser mayor a 0');
             isValid = false;
-        } else if (parseInt(cantidad) > stockDisponible) {
-            this.showFieldError('egr_cantidad', `No hay suficiente stock. Disponible: ${stockDisponible}`);
+        } else if (parseInt(cantidad) > this.origenEgresoSeleccionado.cantidad_maxima) {
+            this.showFieldError('egr_cantidad', `Cantidad excede el máximo disponible: ${this.origenEgresoSeleccionado.cantidad_maxima}`);
             isValid = false;
         }
     }
     
     return isValid;
 }
+
+
+
+
 resetEgresoForm() {
     document.getElementById('egreso-form').reset();
     this.clearErrors('egreso');
@@ -549,7 +744,8 @@ resetEgresoForm() {
     document.getElementById('productos_encontrados_egreso').classList.add('hidden');
     
     this.productoSeleccionadoEgreso = null;
-    this.seriesSeleccionadasEgreso = []; // Resetear series seleccionadas
+    this.seriesSeleccionadasEgreso = [];
+    this.origenEgresoSeleccionado = null; // AGREGAR ESTA LÍNEA
 }
 
 

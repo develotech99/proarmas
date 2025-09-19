@@ -1674,9 +1674,7 @@
                                 <select id="egr_tipo" name="egr_tipo" required
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
                                     <option value="">Seleccionar tipo...</option>
-                                    <option value="venta">Venta</option>
                                     <option value="egreso">Egreso</option>
-                                    <option value="ajuste_negativo">Ajuste Negativo</option>
                                     <option value="transferencia">Transferencia</option>
                                     <option value="devolución_proveedor">Devolución a Proveedor</option>
                                     <option value="baja">Baja por deterioro</option>
@@ -1686,9 +1684,19 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Destino *</label>
-                                <input type="text" id="egr_destino" name="egr_destino" required
-                                    placeholder="Cliente, Sucursal, etc."
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                                <select id="egr_destino" name="egr_destino" required
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                                    <option value="">Seleccionar destino...</option>
+                                    <option value="sucursal_zona10">Traslado (otra tienda)</option>
+                                    <option value="bodega_externa">Bodega Externa</option>
+                                    <option value="transferencia_proveedor">Transferencia a Proveedor</option>
+                                    <option value="devolucion_garantia">Devolución por Garantía</option>
+                                    <option value="baja_deterioro">Baja por Deterioro</option>
+                                    <option value="muestra_comercial">Muestra Comercial</option>
+                                    <option value="prestamo_temporal">Préstamo Temporal</option>
+                                    <option value="exhibicion_feria">Exhibición en Feria</option>
+                                    <option value="otro">Otro</option>
+                                </select>
                                 <div id="egr_destino_error" class="mt-1 text-sm text-red-600 hidden"></div>
                             </div>
                         </div>
@@ -1730,7 +1738,8 @@
                             <!-- Input hidden para enviar las series seleccionadas -->
                             <input type="hidden" id="series_seleccionadas_input" name="series_seleccionadas">
                         </div>
-
+                        <!-- Agregar después del container de series/lotes -->
+                        <div id="origen_seleccionado_info"></div>
                         <!-- Observaciones -->
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Observaciones</label>

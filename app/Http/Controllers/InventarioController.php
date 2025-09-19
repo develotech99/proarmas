@@ -128,9 +128,6 @@ public function getProductosStock(Request $request): JsonResponse
         ], 500);
     }
 }
-
-
-
 public function egresar(Request $request): JsonResponse
 {
     try {
@@ -139,49 +136,208 @@ public function egresar(Request $request): JsonResponse
             'mov_tipo' => 'required|string',
             'mov_destino' => 'required|string',
             'mov_cantidad' => 'nullable|integer|min:1',
-            'numeros_series' => 'nullable|string',
+            'series_seleccionadas' => 'nullable|string',
+            'origen_tipo' => 'nullable|in:lote,sin_lote',
+            'lote_especifico_id' => 'nullable|integer|exists:pro_lotes,lote_id',
             'mov_observaciones' => 'nullable|string|max:250'
         ]);
 
-        $producto = Producto::findOrFail($request->producto_id);
+        $producto = DB::table('pro_productos')->where('producto_id', $request->producto_id)->first();
         
+        if (!$producto) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Producto no encontrado'
+            ], 404);
+        }
+
+        DB::beginTransaction();
+
         if ($producto->producto_requiere_serie) {
-            // Lógica para productos con serie
-            $series = array_filter(array_map('trim', explode("\n", $request->numeros_series)));
-            // Implementar egreso por series
+            // ===============================
+            // PRODUCTO CON SERIE
+            // ===============================
+            $seriesSeleccionadas = json_decode($request->series_seleccionadas, true);
+            
+            if (empty($seriesSeleccionadas)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe seleccionar al menos una serie'
+                ], 400);
+            }
+
+            $seriesIds = array_column($seriesSeleccionadas, 'id');
+            
+            // Verificar que todas las series existen y están disponibles
+            $seriesValidas = DB::table('pro_series_productos')
+                ->whereIn('serie_id', $seriesIds)
+                ->where('serie_producto_id', $producto->producto_id)
+                ->where('serie_estado', 'disponible')
+                ->where('serie_situacion', 1)
+                ->count();
+
+            if ($seriesValidas !== count($seriesIds)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Una o más series no están disponibles para egreso'
+                ], 400);
+            }
+
+            // Actualizar las series: cambiar estado y situación
+            DB::table('pro_series_productos')
+                ->whereIn('serie_id', $seriesIds)
+                ->update([
+                    'serie_estado' => 'egreso',
+                    'serie_situacion' => 0,
+                    'updated_at' => now()
+                ]);
+
+            // Registrar movimiento por cada serie
+            foreach ($seriesSeleccionadas as $serie) {
+                DB::table('pro_movimientos')->insert([
+                    'mov_producto_id' => $producto->producto_id,
+                    'mov_tipo' => $request->mov_tipo,
+                    'mov_destino' => $request->mov_destino,
+                    'mov_cantidad' => -1,
+                    'mov_fecha' => now(),
+                    'mov_usuario_id' => auth()->id(),
+                    'mov_serie_id' => $serie['id'],
+                    'mov_observaciones' => $request->mov_observaciones . " - Serie: " . $serie['numero'],
+                    'mov_situacion' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+
+            // Actualizar stock
+            $stockActual = DB::table('pro_stock_actual')->where('stock_producto_id', $producto->producto_id)->first();
+            if ($stockActual) {
+                DB::table('pro_stock_actual')
+                    ->where('stock_producto_id', $producto->producto_id)
+                    ->decrement('stock_cantidad_disponible', count($seriesIds));
+                
+                DB::table('pro_stock_actual')
+                    ->where('stock_producto_id', $producto->producto_id)
+                    ->decrement('stock_cantidad_total', count($seriesIds));
+            }
+
+            $mensaje = "Egreso registrado: " . count($seriesIds) . " serie(s) procesada(s)";
+
         } else {
-            // Lógica para productos sin serie
+            // ===============================
+            // PRODUCTO SIN SERIE (CON LOTES)
+            // ===============================
             $cantidad = $request->mov_cantidad;
             
             // Verificar stock disponible
-            $stockActual = StockActual::where('stock_producto_id', $producto->producto_id)->first();
+            $stockActual = DB::table('pro_stock_actual')->where('stock_producto_id', $producto->producto_id)->first();
+            
             if (!$stockActual || $stockActual->stock_cantidad_disponible < $cantidad) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Stock insuficiente para realizar el egreso'
                 ], 400);
             }
+
+            if ($request->origen_tipo === 'lote' && $request->lote_especifico_id) {
+                // ===============================
+                // EGRESO DESDE LOTE ESPECÍFICO
+                // ===============================
+                $lote = DB::table('pro_lotes')->where('lote_id', $request->lote_especifico_id)->first();
+                
+                if (!$lote || $lote->lote_cantidad_disponible < $cantidad) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El lote no tiene suficiente stock disponible'
+                    ], 400);
+                }
+
+                // Actualizar lote específico
+                DB::table('pro_lotes')
+                    ->where('lote_id', $request->lote_especifico_id)
+                    ->decrement('lote_cantidad_disponible', $cantidad);
+
+                // Registrar movimiento con referencia al lote
+                DB::table('pro_movimientos')->insert([
+                    'mov_producto_id' => $producto->producto_id,
+                    'mov_tipo' => $request->mov_tipo,
+                    'mov_origen' => $request->mov_destino,
+                    'mov_cantidad' => -$cantidad,
+                    'mov_fecha' => now(),
+                    'mov_usuario_id' => auth()->id(),
+                    'mov_lote_id' => $request->lote_especifico_id,
+                    'mov_observaciones' => $request->mov_observaciones . " - Lote: {$lote->lote_codigo}",
+                    'mov_situacion' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                // Si el lote se agotó, marcarlo como cerrado
+                $loteActualizado = DB::table('pro_lotes')->where('lote_id', $request->lote_especifico_id)->first();
+                if ($loteActualizado->lote_cantidad_disponible <= 0) {
+                    DB::table('pro_lotes')
+                        ->where('lote_id', $request->lote_especifico_id)
+                        ->update(['lote_situacion' => 0]);
+                }
+
+                $mensaje = "Egreso registrado: {$cantidad} unidades del lote {$lote->lote_codigo}";
+
+            } else {
+                // ===============================
+                // EGRESO DESDE STOCK SIN LOTE
+                // ===============================
+                
+                // Registrar movimiento sin lote específico
+                DB::table('pro_movimientos')->insert([
+                    'mov_producto_id' => $producto->producto_id,
+                    'mov_tipo' => $request->mov_tipo,
+                    'mov_origen' => $request->mov_destino,
+                    'mov_cantidad' => -$cantidad,
+                    'mov_fecha' => now(),
+                    'mov_usuario_id' => auth()->id(),
+                    'mov_lote_id' => null,
+                    'mov_observaciones' => $request->mov_observaciones . " - Stock general",
+                    'mov_situacion' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                $mensaje = "Egreso registrado: {$cantidad} unidades del stock general";
+            }
             
-            // Registrar movimiento de egreso
-            ProMovimiento::create([
-                'mov_producto_id' => $producto->producto_id,
-                'mov_tipo' => $request->mov_tipo,
-                'mov_origen' => $request->mov_destino,
-                'mov_cantidad' => -$cantidad, // Negativo para egreso
-                'mov_usuario_id' => auth()->id(),
-                'mov_observaciones' => $request->mov_observaciones
-            ]);
-            
-            // Actualizar stock
-            $stockActual->decrement('stock_cantidad_disponible', $cantidad);
+            // Actualizar stock total (común para ambos casos)
+            DB::table('pro_stock_actual')
+                ->where('stock_producto_id', $producto->producto_id)
+                ->decrement('stock_cantidad_disponible', $cantidad);
         }
+
+        DB::commit();
+
+        $producto = Producto::find($request->producto_id);
+        $stockActual = StockActual::where('stock_producto_id', $request->producto_id)->first();
+        if ($producto && $stockActual) {
+            $this->verificarAlertasStock($producto, $stockActual);
+}
 
         return response()->json([
             'success' => true,
-            'message' => 'Egreso registrado exitosamente'
+            'message' => $mensaje
         ]);
 
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Datos de validación incorrectos',
+            'errors' => $e->errors()
+        ], 422);
+
     } catch (\Exception $e) {
+        DB::rollBack();
         return response()->json([
             'success' => false,
             'message' => 'Error al procesar egreso: ' . $e->getMessage()
@@ -189,11 +345,85 @@ public function egresar(Request $request): JsonResponse
     }
 }
 
+// En InventarioController.php
+public function getStockPorLotes($id): JsonResponse
+{
+    try {
+        $producto = DB::table('pro_productos')->where('producto_id', $id)->first();
+        
+        if (!$producto) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Producto no encontrado'
+            ], 404);
+        }
+
+        $stockDetallado = [];
+
+        if ($producto->producto_requiere_serie) {
+            // Para productos con serie, mostrar series agrupadas por lote
+            $seriesDisponibles = DB::table('pro_series_productos')
+                ->where('serie_producto_id', $id)
+                ->where('serie_estado', 'disponible')
+                ->where('serie_situacion', 1)
+                ->get();
+
+            $stockDetallado = [
+                'tipo' => 'series',
+                'total_disponible' => $seriesDisponibles->count(),
+                'series' => $seriesDisponibles
+            ];
+        } else {
+            // Para productos sin serie, mostrar lotes + stock sin lote
+            
+            // 1. Stock por lotes
+            $lotes = DB::table('pro_lotes')
+                ->where('lote_producto_id', $id)
+                ->where('lote_cantidad_disponible', '>', 0)
+                ->where('lote_situacion', 1)
+                ->orderBy('lote_fecha', 'asc')
+                ->get();
+
+            // 2. Calcular stock sin lote
+            $stockTotal = DB::table('pro_stock_actual')
+                ->where('stock_producto_id', $id)
+                ->value('stock_cantidad_disponible') ?? 0;
+
+            $stockEnLotes = $lotes->sum('lote_cantidad_disponible');
+            $stockSinLote = max(0, $stockTotal - $stockEnLotes);
+
+            $stockDetallado = [
+                'tipo' => 'cantidad',
+                'total_disponible' => $stockTotal,
+                'lotes' => $lotes->map(function($lote) {
+                    return [
+                        'lote_id' => $lote->lote_id,
+                        'lote_codigo' => $lote->lote_codigo,
+                        'cantidad_disponible' => $lote->lote_cantidad_disponible,
+                        'fecha_ingreso' => $lote->lote_fecha
+                    ];
+                })->toArray(),
+                'sin_lote' => $stockSinLote
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $stockDetallado
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar stock: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
 public function getSeriesDisponibles($id): JsonResponse
 {
     try {
-        $series = ProSeriesProducto::where('serie_producto_id', $id)
+        $series = SerieProducto::where('serie_producto_id', $id)
             ->where('serie_estado', 'disponible')
             ->where('serie_situacion', 1)
             ->orderBy('serie_numero_serie')
@@ -471,7 +701,7 @@ public function getPaisesActivos(): JsonResponse
             ], 404);
         }
     
-        // PASO 2: Definir reglas de validación condicionales (SIN PRECIOS)
+        // PASO 2: Definir reglas de validación condicionales
         $rules = [
             'producto_id' => 'required|integer|exists:pro_productos,producto_id',
             'mov_tipo' => 'required|in:ingreso,ajuste_positivo,devolucion,transferencia',
@@ -487,13 +717,9 @@ public function getPaisesActivos(): JsonResponse
     
         // PASO 3: Agregar validaciones específicas según tipo de producto
         if ($producto->producto_requiere_serie) {
-            // PRODUCTO CON SERIE: Solo validar números de serie
             $rules['numeros_series'] = 'required|string';
         } else {
-            // PRODUCTO SIN SERIE: Validar cantidad y manejo opcional de lotes
             $rules['mov_cantidad'] = 'required|integer|min:1';
-            
-            // Validaciones de lotes (solo si se activa el checkbox usar_lotes)
             $rules['usar_lotes'] = 'nullable|boolean';
             
             if ($request->filled('usar_lotes') && $request->usar_lotes) {
@@ -530,7 +756,9 @@ public function getPaisesActivos(): JsonResponse
     
             // PASO 5: Procesar según tipo de producto
             if ($producto->producto_requiere_serie) {
-                // PROCESAMIENTO DE PRODUCTOS CON SERIE
+                // ===============================
+                // PRODUCTOS CON SERIE - CORREGIDO
+                // ===============================
                 $series = array_filter(array_map('trim', explode("\n", $request->numeros_series)));
                 
                 if (empty($series)) {
@@ -551,14 +779,29 @@ public function getPaisesActivos(): JsonResponse
                     ], 422);
                 }
     
-                // Crear registros de series
+                // CREAR UN MOVIMIENTO POR CADA SERIE
                 foreach ($series as $numeroSerie) {
-                    SerieProducto::create([
+                    // 1. Crear el registro de serie
+                    $serieCreada = SerieProducto::create([
                         'serie_producto_id' => $producto->producto_id,
                         'serie_numero_serie' => $numeroSerie,
-                        'serie_estado' => SerieProducto::ESTADO_DISPONIBLE,
+                        'serie_estado' => 'disponible',
                         'serie_fecha_ingreso' => now(),
                         'serie_situacion' => 1
+                    ]);
+    
+                    // 2. IMPORTANTE: Crear movimiento individual por cada serie
+                    Movimiento::create([
+                        'mov_producto_id' => $producto->producto_id,
+                        'mov_tipo' => $request->mov_tipo,
+                        'mov_origen' => $request->mov_origen,
+                        'mov_cantidad' => 1, // SIEMPRE 1 para productos con serie
+                        'mov_fecha' => now(),
+                        'mov_usuario_id' => Auth::id() ?? 1,
+                        'mov_serie_id' => $serieCreada->serie_id, // CRÍTICO: Relacionar la serie
+                        'mov_lote_id' => null, // Series no usan lotes
+                        'mov_observaciones' => $request->mov_observaciones . " - Serie: {$numeroSerie}",
+                        'mov_situacion' => 1
                     ]);
                 }
     
@@ -566,7 +809,9 @@ public function getPaisesActivos(): JsonResponse
                 $mensajeAdicional = " ({$cantidadIngreso} series procesadas)";
     
             } else {
-                // PROCESAMIENTO DE PRODUCTOS SIN SERIE
+                // ===============================
+                // PRODUCTOS SIN SERIE
+                // ===============================
                 $cantidadIngreso = $request->mov_cantidad;
     
                 // GESTIÓN DE LOTES (solo si está activada)
@@ -588,7 +833,6 @@ public function getPaisesActivos(): JsonResponse
                             $mensajeAdicional = " (Lote: {$request->numero_lote})";
                             break;
                         
-                        // CASO 2: Lote automático  
                         case 'automatico':
                             $codigoLoteAuto = $this->generarNumeroLoteAutomatico($producto);
                             $lote = Lote::create([
@@ -605,7 +849,6 @@ public function getPaisesActivos(): JsonResponse
                             $mensajeAdicional = " (Lote: {$codigoLoteAuto})";
                             break;
                         
-                        // CASO 3: Buscar lote existente
                         case 'buscar':
                             $loteId = $request->lote_id;
                             $loteExistente = Lote::find($loteId);
@@ -618,28 +861,29 @@ public function getPaisesActivos(): JsonResponse
                             break;
                     }
                 }
+    
+                // CREAR UN SOLO MOVIMIENTO PARA PRODUCTOS SIN SERIE
+                Movimiento::create([
+                    'mov_producto_id' => $producto->producto_id,
+                    'mov_tipo' => $request->mov_tipo,
+                    'mov_origen' => $request->mov_origen,
+                    'mov_cantidad' => $cantidadIngreso,
+                    'mov_fecha' => now(),
+                    'mov_usuario_id' => Auth::id() ?? 1,
+                    'mov_lote_id' => $loteId,
+                    'mov_serie_id' => null, // Productos sin serie no tienen serie_id
+                    'mov_observaciones' => $request->mov_observaciones,
+                    'mov_situacion' => 1
+                ]);
             }
     
-            // PASO 6: Registrar movimiento de inventario
-            $movimiento = Movimiento::create([
-                'mov_producto_id' => $producto->producto_id,
-                'mov_tipo' => $request->mov_tipo,
-                'mov_origen' => $request->mov_origen,
-                'mov_cantidad' => $cantidadIngreso,
-                'mov_fecha' => now(),
-                'mov_usuario_id' => Auth::id() ?? 1,
-                'mov_lote_id' => $loteId,
-                'mov_observaciones' => $request->mov_observaciones,
-                'mov_situacion' => 1
-            ]);
-    
-            // PASO 7: Procesar licencias si es producto importado
+            // PASO 6: Procesar licencias si es producto importado
             if ($request->filled('producto_es_importado') && $request->producto_es_importado) {
                 // Aquí manejar la asignación a licencia
                 $mensajeAdicional .= " (asignado a licencia: {$request->licencia_id_registro})";
             }
     
-            // PASO 8: Actualizar stock
+            // PASO 7: Actualizar stock (SIN PRECIOS)
             $this->actualizarStock($producto->producto_id);
     
             DB::commit();
@@ -648,7 +892,6 @@ public function getPaisesActivos(): JsonResponse
                 'success' => true,
                 'message' => "Ingreso procesado exitosamente{$mensajeAdicional}",
                 'data' => [
-                    'movimiento_id' => $movimiento->mov_id,
                     'cantidad_ingresada' => $cantidadIngreso,
                     'lote_id' => $loteId,
                     'producto_requiere_serie' => $producto->producto_requiere_serie
@@ -1400,7 +1643,6 @@ public function destroy($id): JsonResponse
         // Soft delete del producto (cambiar situación a 0)
         $producto->update([
             'producto_situacion' => 0,
-            'producto_fecha_eliminacion' => now() // Si tienes este campo
         ]);
 
         DB::commit();

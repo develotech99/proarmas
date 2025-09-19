@@ -219,8 +219,9 @@ Route::middleware('auth')->group(function () {
       Route::post('/inventario/egresar', [InventarioController::class, 'egresar'])
       ->name('inventario.egresar');
 
+      Route::get('/inventario/productos/{id}/stock-lotes', [InventarioController::class, 'getStockPorLotes'])
+      ->name('inventario.producto.stock-lotes');
 
-      // En web.php, agregar:
       Route::get('/inventario/productos/{id}/series-disponibles', [InventarioController::class, 'getSeriesDisponibles'])
       ->name('inventario.producto.series-disponibles');
       // ================================
