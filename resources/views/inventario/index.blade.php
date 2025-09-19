@@ -1196,8 +1196,7 @@
 
                                     <!-- Buscar lote existente -->
                                     <div id="lote_buscar_input" class="hidden">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar
-                                            lote</label>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar lote</label>
                                         <input type="text" id="buscar_lote" placeholder="Buscar por código de lote..."
                                             class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
 
@@ -1207,16 +1206,19 @@
                                             <!-- Resultados dinámicos -->
                                         </div>
 
-                                        <!-- Lote seleccionado -->
-                                        <div class="mt-2">
-                                            <label
-                                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Lote
-                                                seleccionado</label>
-                                            <div id="lote_seleccionado"
-                                                class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                                        <!-- Lote seleccionado - AGREGAR ESTE CONTENEDOR -->
+                                        <div class="mt-3">
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Lote seleccionado</label>
+                                            <div id="lote_seleccionado" class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
                                                 Ningún lote seleccionado
                                             </div>
                                             <input type="hidden" id="lote_id" name="lote_id">
+                                        </div>
+
+                                        <!-- Información adicional del lote -->
+                                        <div class="mt-2 p-2 bg-blue-50 dark:bg-blue-900 rounded text-xs text-blue-700 dark:text-blue-300">
+                                            <i class="fas fa-info-circle mr-1"></i>
+                                            Al seleccionar un lote existente, los productos se agregarán a ese lote específico
                                         </div>
                                     </div>
                                 </div>

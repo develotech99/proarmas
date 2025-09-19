@@ -2445,4 +2445,126 @@ public function getMovimientos(Request $request): JsonResponse
         ]);
     }
 }
+
+
+
+/**
+ * Buscar lotes existentes
+ */
+public function buscarLotes(Request $request)
+{
+    try {
+        $query = $request->get('q');
+        
+        if (empty($query) || strlen($query) < 2) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'message' => 'Query muy corto'
+            ]);
+        }
+
+        $lotes = DB::table('pro_lotes as l')
+            ->select([
+                'l.lote_id',
+                'l.lote_codigo',
+                'l.lote_descripcion',
+                'l.lote_fecha',
+                'l.lote_situacion',
+                DB::raw('COALESCE(stock_info.cantidad_total, 0) as cantidad_total'),
+                DB::raw('COALESCE(stock_info.cantidad_disponible, 0) as cantidad_disponible')
+            ])
+            ->leftJoin(DB::raw('(
+                SELECT 
+                    mov_lote_id,
+                    SUM(CASE WHEN mov_tipo IN ("ingreso", "ajuste_positivo") THEN mov_cantidad ELSE 0 END) as cantidad_total,
+                    SUM(CASE 
+                        WHEN mov_tipo IN ("ingreso", "ajuste_positivo") THEN mov_cantidad 
+                        WHEN mov_tipo IN ("egreso", "venta", "ajuste_negativo") THEN -mov_cantidad
+                        ELSE 0 
+                    END) as cantidad_disponible
+                FROM pro_movimientos 
+                WHERE mov_situacion = 1 AND mov_lote_id IS NOT NULL
+                GROUP BY mov_lote_id
+            ) as stock_info'), 'l.lote_id', '=', 'stock_info.mov_lote_id')
+            ->where('l.lote_situacion', 1) // Solo lotes activos
+            ->where('l.lote_codigo', 'LIKE', "%{$query}%")
+            ->orderBy('l.lote_fecha', 'desc')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $lotes,
+            'message' => 'Lotes encontrados'
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Error buscando lotes: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno del servidor',
+            'data' => []
+        ], 500);
+    }
+}
+
+/**
+ * Obtener detalle de un lote específico
+ */
+public function obtenerLote($id)
+{
+    try {
+        $lote = DB::table('pro_lotes as l')
+            ->select([
+                'l.lote_id',
+                'l.lote_codigo',
+                'l.lote_descripcion', 
+                'l.lote_fecha',
+                'l.lote_situacion',
+                DB::raw('COALESCE(stock_info.cantidad_total, 0) as cantidad_total'),
+                DB::raw('COALESCE(stock_info.cantidad_disponible, 0) as cantidad_disponible'),
+                DB::raw('COUNT(movimientos.mov_id) as total_movimientos')
+            ])
+            ->leftJoin(DB::raw('(
+                SELECT 
+                    mov_lote_id,
+                    SUM(CASE WHEN mov_tipo IN ("ingreso", "ajuste_positivo") THEN mov_cantidad ELSE 0 END) as cantidad_total,
+                    SUM(CASE 
+                        WHEN mov_tipo IN ("ingreso", "ajuste_positivo") THEN mov_cantidad 
+                        WHEN mov_tipo IN ("egreso", "venta", "ajuste_negativo") THEN -mov_cantidad
+                        ELSE 0 
+                    END) as cantidad_disponible
+                FROM pro_movimientos 
+                WHERE mov_situacion = 1 AND mov_lote_id IS NOT NULL
+                GROUP BY mov_lote_id
+            ) as stock_info'), 'l.lote_id', '=', 'stock_info.mov_lote_id')
+            ->leftJoin('pro_movimientos as movimientos', 'l.lote_id', '=', 'movimientos.mov_lote_id')
+            ->where('l.lote_id', $id)
+            ->where('l.lote_situacion', 1)
+            ->groupBy(['l.lote_id', 'l.lote_codigo', 'l.lote_descripcion', 'l.lote_fecha', 'l.lote_situacion', 'stock_info.cantidad_total', 'stock_info.cantidad_disponible'])
+            ->first();
+
+        if (!$lote) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lote no encontrado'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $lote,
+            'message' => 'Lote obtenido exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Error obteniendo lote: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno del servidor'
+        ], 500);
+    }
+}
+
 }

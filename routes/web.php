@@ -268,6 +268,9 @@ Route::middleware('auth')->group(function () {
       Route::get('/calibres/activos', [InventarioController::class, 'getCalibresActivos'])
             ->name('calibres.activos');
 
+      Route::get('/inventario/lotes/buscar', [InventarioController::class, 'buscarLotes'])->name('inventario.lotes.buscar');
+      Route::get('/inventario/lotes/{id}', [InventarioController::class, 'obtenerLote'])->name('inventario.lote.detalle');
+
       // ================================
       // LICENCIAS
       // ================================

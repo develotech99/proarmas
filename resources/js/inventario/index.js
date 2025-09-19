@@ -193,6 +193,12 @@ class InventarioManager {
             this.buscarProductosEgreso(e.target.value);
         });
 
+        const buscarLoteInput = document.getElementById('buscar_lote');
+        if (buscarLoteInput) {
+            buscarLoteInput.addEventListener('input', (e) => {
+                this.buscarLotesExistentes(e.target.value);
+            });
+        }
     }
 
     /**
@@ -662,6 +668,9 @@ actualizarContadorSeries() {
     }
 }
 
+
+
+
 async handleEgresoSubmit() {
     if (!this.productoSeleccionadoEgreso) {
         this.showAlert('error', 'Error', 'Debe seleccionar un producto');
@@ -866,6 +875,183 @@ async loadProductos() {
     }
 }
 
+
+/**
+ * Buscar lotes existentes
+ */
+async buscarLotesExistentes(query) {
+    const container = document.getElementById('lotes_encontrados');
+    
+    if (!query || query.length < 2) {
+        if (container) {
+            container.classList.add('hidden');
+        }
+        return;
+    }
+
+    // Mostrar loading
+    if (container) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-gray-500 dark:text-gray-400">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+                Buscando lotes...
+            </div>
+        `;
+        container.classList.remove('hidden');
+    }
+
+    try {
+        const response = await fetch(`/inventario/lotes/buscar?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderResultadosLotes(data.data || []);
+        } else {
+            this.renderResultadosLotes([]);
+        }
+    } catch (error) {
+        console.error('Error buscando lotes:', error);
+        if (container) {
+            container.innerHTML = `
+                <div class="p-3 text-center text-red-500 dark:text-red-400">
+                    Error al buscar lotes
+                </div>
+            `;
+        }
+    }
+}
+
+/**
+ * Renderizar resultados de búsqueda de lotes
+ */
+renderResultadosLotes(lotes) {
+    const container = document.getElementById('lotes_encontrados');
+    if (!container) return;
+    
+    if (lotes.length === 0) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-gray-500 dark:text-gray-400">
+                No se encontraron lotes
+            </div>
+        `;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    container.innerHTML = lotes.map(lote => `
+        <div onclick="inventarioManager.seleccionarLoteExistente(${lote.lote_id})" 
+             class="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <div class="font-medium text-gray-900 dark:text-gray-100">${lote.lote_codigo}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                        ${lote.lote_descripcion || 'Sin descripción'}
+                    </div>
+                    <div class="text-xs text-gray-400 dark:text-gray-500">
+                        Creado: ${new Date(lote.lote_fecha).toLocaleDateString()}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                                 ${lote.lote_situacion === 1 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">
+                        ${lote.lote_situacion === 1 ? 'Activo' : 'Cerrado'}
+                    </span>
+                    <div class="text-xs text-gray-500 mt-1">
+                        Disponible: ${lote.cantidad_disponible || 0}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.classList.remove('hidden');
+}
+
+/**
+ * Seleccionar lote existente
+ */
+async seleccionarLoteExistente(loteId) {
+    try {
+        const response = await fetch(`/inventario/lotes/${loteId}`);
+        if (response.ok) {
+            const data = await response.json();
+            const lote = data.data;
+            
+            // Actualizar interfaz
+            const container = document.getElementById('lote_seleccionado');
+            const inputHidden = document.getElementById('lote_id');
+            const searchInput = document.getElementById('buscar_lote');
+            
+            if (container) {
+                container.innerHTML = `
+                    <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg">
+                        <div class="flex-1">
+                            <div class="font-medium text-green-900 dark:text-green-100">
+                                ${lote.lote_codigo}
+                            </div>
+                            <div class="text-sm text-green-700 dark:text-green-300">
+                                ${lote.lote_descripcion || 'Lote seleccionado'}
+                            </div>
+                            <div class="text-xs text-green-600 dark:text-green-400">
+                                Disponible: ${lote.cantidad_disponible || 0} unidades
+                            </div>
+                        </div>
+                        <button onclick="inventarioManager.limpiarLoteSeleccionado()" 
+                                class="ml-3 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            
+            if (inputHidden) {
+                inputHidden.value = loteId;
+            }
+            
+            if (searchInput) {
+                searchInput.value = lote.lote_codigo;
+            }
+            
+            // Ocultar resultados de búsqueda
+            document.getElementById('lotes_encontrados').classList.add('hidden');
+            
+            // Mostrar mensaje de éxito
+            this.showToast(`Lote seleccionado: ${lote.lote_codigo}`, 'success');
+            
+        } else {
+            this.showAlert('error', 'Error', 'No se pudo obtener la información del lote');
+        }
+    } catch (error) {
+        console.error('Error obteniendo lote:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Limpiar lote seleccionado
+ */
+limpiarLoteSeleccionado() {
+    const container = document.getElementById('lote_seleccionado');
+    const inputHidden = document.getElementById('lote_id');
+    const searchInput = document.getElementById('buscar_lote');
+    
+    if (container) {
+        container.innerHTML = `
+            <div class="p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                Ningún lote seleccionado
+            </div>
+        `;
+    }
+    
+    if (inputHidden) {
+        inputHidden.value = '';
+    }
+    
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    this.showToast('Lote deseleccionado', 'info');
+}
 
 
 /**
