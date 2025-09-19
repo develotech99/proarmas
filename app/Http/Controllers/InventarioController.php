@@ -2336,4 +2336,113 @@ public function getHistorialPrecios($id): JsonResponse
     }
 }
 
+
+/**
+ * Obtener historial de movimientos con paginación
+ */
+/**
+ * Datos para DataTable de movimientos
+ */// En InventarioController.php
+public function getMovimientos(Request $request): JsonResponse
+{
+    try {
+        // Parámetros de DataTables
+        $draw = $request->get('draw', 1);
+        $start = $request->get('start', 0);
+        $length = $request->get('length', 25);
+        $search = $request->get('search.value', '');
+        
+        // Filtros personalizados
+        $filtroProducto = $request->get('filtro_producto', '');
+        $filtroTipo = $request->get('filtro_tipo', '');
+        $filtroFecha = $request->get('filtro_fecha', '');
+
+        $query = DB::table('pro_movimientos')
+            ->leftJoin('pro_productos', 'pro_movimientos.mov_producto_id', '=', 'pro_productos.producto_id')
+            ->leftJoin('users', 'pro_movimientos.mov_usuario_id', '=', 'users.user_id')
+            ->leftJoin('pro_lotes', 'pro_movimientos.mov_lote_id', '=', 'pro_lotes.lote_id')
+            ->leftJoin('pro_series_productos', 'pro_movimientos.mov_serie_id', '=', 'pro_series_productos.serie_id')
+            ->where('pro_movimientos.mov_situacion', 1)
+            ->select([
+                'pro_movimientos.mov_id',
+                'pro_movimientos.mov_fecha',
+                'pro_movimientos.mov_tipo',
+                'pro_movimientos.mov_origen',
+                'pro_movimientos.mov_cantidad',
+                'pro_productos.producto_nombre',
+                'pro_productos.pro_codigo_sku as producto_sku',
+                'users.user_primer_nombre',
+                'users.user_primer_apellido',
+                'pro_lotes.lote_codigo',
+                'pro_series_productos.serie_numero_serie as serie_numero'
+            ]);
+
+        // Búsqueda general
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('pro_productos.producto_nombre', 'LIKE', "%{$search}%")
+                  ->orWhere('pro_productos.pro_codigo_sku', 'LIKE', "%{$search}%")
+                  ->orWhere('pro_movimientos.mov_tipo', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Filtros específicos
+        if (!empty($filtroProducto)) {
+            $query->where(function($q) use ($filtroProducto) {
+                $q->where('pro_productos.producto_nombre', 'LIKE', "%{$filtroProducto}%")
+                  ->orWhere('pro_productos.pro_codigo_sku', 'LIKE', "%{$filtroProducto}%");
+            });
+        }
+
+        if (!empty($filtroTipo)) {
+            $query->where('pro_movimientos.mov_tipo', $filtroTipo);
+        }
+
+        if (!empty($filtroFecha)) {
+            $query->whereDate('pro_movimientos.mov_fecha', $filtroFecha);
+        }
+
+        // Contar total sin filtros
+        $totalRecords = DB::table('pro_movimientos')->where('mov_situacion', 1)->count();
+        
+        // Contar total con filtros
+        $filteredRecords = $query->count();
+
+        // Obtener datos paginados
+        $movimientos = $query->orderBy('pro_movimientos.mov_fecha', 'desc')
+            ->skip($start)
+            ->take($length)
+            ->get()
+            ->map(function($mov) {
+                return [
+                    'mov_fecha' => $mov->mov_fecha,
+                    'producto_nombre' => $mov->producto_nombre,
+                    'producto_sku' => $mov->producto_sku,
+                    'mov_tipo' => ucfirst($mov->mov_tipo),
+                    'mov_cantidad' => $mov->mov_cantidad,
+                    'mov_origen' => $mov->mov_origen,
+                    'lote_codigo' => $mov->lote_codigo,
+                    'serie_numero' => $mov->serie_numero,
+                    'usuario_nombre' => $mov->user_primer_nombre ? 
+                        $mov->user_primer_nombre . ' ' . $mov->user_primer_apellido : 'Sistema'
+                ];
+            });
+
+        return response()->json([
+            'draw' => intval($draw),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $movimientos
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'draw' => 0,
+            'recordsTotal' => 0,
+            'recordsFiltered' => 0,
+            'data' => [],
+            'error' => $e->getMessage()
+        ]);
+    }
+}
 }
