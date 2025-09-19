@@ -634,8 +634,11 @@
                                     </button>
                                 </div>
                             </div>
-                            
-                            <!-- Mensaje de límite -->
+                              <!-- ✅ AGREGAR ESTE CONTENEDOR DE PREVIEW -->
+                            <div id="preview_nuevas_fotos" class="mt-4 flex flex-wrap gap-3">
+                                <!-- Las previews de nuevas fotos aparecerán aquí -->
+                            </div>
+                                                    <!-- Mensaje de límite -->
                             <p id="mensaje_limite_fotos" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                                 Máximo 5 fotos por producto
                             </p>
@@ -703,11 +706,6 @@
                 </div>
                 
                 <div class="flex space-x-3">
-                    <button onclick="inventarioManager.verVistaPrevia()"
-                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <i class="fas fa-eye mr-2"></i>
-                        Vista Previa
-                    </button>
                     <button onclick="inventarioManager.closeModal('fotos')"
                             class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                         <i class="fas fa-check mr-2"></i>

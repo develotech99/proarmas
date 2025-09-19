@@ -975,27 +975,48 @@ private function procesarPreciosIngreso(Request $request, $productoId, $movimien
     public function getAlertasStock(): JsonResponse
     {
         try {
-            $alertas = StockActual::stockBajo()
-                ->orWhere('stock_cantidad_disponible', '<=', 0)
-                ->with('producto:producto_id,producto_nombre')
+            $page = request()->get('page', 1);
+            $limit = request()->get('limit', 20); // 20 alertas por página
+            
+            $alertas = StockActual::with([
+                    'producto:producto_id,producto_nombre,pro_codigo_sku,producto_stock_minimo'
+                ])
                 ->select([
                     'stock_producto_id',
                     'stock_cantidad_disponible'
                 ])
                 ->get()
-                ->map(function($stock) {
+                ->filter(function($stock) {
+                    $stockMinimo = $stock->producto->producto_stock_minimo ?? 0;
+                    return $stock->stock_cantidad_disponible <= $stockMinimo;
+                })
+                ->values();
+    
+            // Paginación manual
+            $total = $alertas->count();
+            $totalPages = ceil($total / $limit);
+            $offset = ($page - 1) * $limit;
+            $alertasPaginadas = $alertas->slice($offset, $limit)->values();
+    
+            return response()->json([
+                'success' => true,
+                'data' => $alertasPaginadas->map(function($stock) {
                     return [
                         'producto_id' => $stock->stock_producto_id,
                         'producto_nombre' => $stock->producto->producto_nombre ?? 'Producto desconocido',
-                        'stock_actual' => $stock->stock_cantidad_disponible
+                        'pro_codigo_sku' => $stock->producto->pro_codigo_sku ?? 'N/A',
+                        'stock_actual' => $stock->stock_cantidad_disponible,
+                        'producto_stock_minimo' => $stock->producto->producto_stock_minimo ?? 0
                     ];
-                });
-
-            return response()->json([
-                'success' => true,
-                'data' => $alertas
+                }),
+                'pagination' => [
+                    'current_page' => $page,
+                    'total_pages' => $totalPages,
+                    'total_items' => $total,
+                    'per_page' => $limit
+                ]
             ]);
-
+    
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

@@ -585,6 +585,9 @@ limpiarLicenciaSeleccionadaRegistro() {
  /**
  * Manejar fotos seleccionadas
  */
+/**
+ * Manejar fotos seleccionadas
+ */
 handleFotosSeleccionadas(archivos) {
     if (archivos.length > 5) {
         this.showAlert('warning', 'Límite excedido', 'Máximo 5 fotos por producto');
@@ -602,19 +605,55 @@ handleFotosSeleccionadas(archivos) {
         return;
     }
 
-    // Determinar dónde mostrar el preview
+    // ✅ Determinar qué contenedor usar
     const previewContainerRegistro = document.getElementById('preview_fotos');
-    const previewContainerGestion = document.getElementById('preview_nuevas_fotos'); // Necesitas este elemento en tu HTML
+    const previewContainerGestion = document.getElementById('preview_nuevas_fotos');
     
-    if (previewContainerGestion && !previewContainerGestion.closest('.hidden')) {
+    // Verificar cuál modal está activo
+    const modalRegistro = document.getElementById('registro-modal');
+    const modalGestion = document.getElementById('fotos-modal');
+    
+    if (modalGestion && !modalGestion.classList.contains('hidden')) {
         // Estamos en el modal de gestión
         this.previewFotosGestion(archivos);
-    } else if (previewContainerRegistro) {
+    } else if (modalRegistro && !modalRegistro.classList.contains('hidden')) {
         // Estamos en el modal de registro
         this.previewFotos(archivos);
     }
 }
 
+/**
+ * ✅ NUEVA FUNCIÓN: Preview específico para gestión de fotos
+ */
+previewFotosGestion(archivos) {
+    const container = document.getElementById('preview_nuevas_fotos');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    Array.from(archivos).forEach((archivo, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const previewDiv = document.createElement('div');
+            previewDiv.className = 'relative group';
+            previewDiv.innerHTML = `
+                <div class="relative">
+                    <img src="${e.target.result}" 
+                        alt="Preview ${index + 1}"
+                        class="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-600">
+                    <button type="button" 
+                            onclick="this.closest('.relative.group').remove()"
+                            class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        ×
+                    </button>
+                  
+                </div>
+            `;
+            container.appendChild(previewDiv);
+        };
+        reader.readAsDataURL(archivo);
+    });
+}
     /**
      * Mostrar preview de fotos
      */
@@ -711,33 +750,36 @@ handleFotosSeleccionadas(archivos) {
     /**
      * Abrir modal de gestión de fotos
      */
-    async openFotosModal(productoId) {
-        this.currentProductoId = productoId;
-        
-        try {
-            // Cargar fotos existentes
-            const response = await fetch(`/inventario/productos/${productoId}/fotos`);
-            if (response.ok) {
-                const data = await response.json();
-                this.renderFotosExistentes(data.data || []);
-                this.showModal('fotos');
+/**
+ * Abrir modal de gestión de fotos
+ */
+async openFotosModal(productoId) {
+    this.currentProductoId = productoId;
+    
+    try {
+        // Cargar fotos existentes
+        const response = await fetch(`/inventario/productos/${productoId}/fotos`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderFotosExistentes(data.data || []);
+            this.showModal('fotos');
 
-                const inputNuevasFotos = document.getElementById('nuevas_fotos');
-                if (inputNuevasFotos) {
-                    inputNuevasFotos.addEventListener('change', (e) => {
-                        this.handleFotosSeleccionadas(e.target.files);
-                    });
-                }
-                
-                
-                // Cargar información del producto
-                this.cargarInfoProductoFotos(productoId);
+          
+            const inputNuevasFotos = document.getElementById('nuevas_fotos');
+            if (inputNuevasFotos) {
+                inputNuevasFotos.addEventListener('change', (e) => {
+                    this.handleFotosSeleccionadas(e.target.files);
+                });
             }
-        } catch (error) {
-            console.error('Error cargando fotos:', error);
-            this.showAlert('error', 'Error', 'No se pudieron cargar las fotos');
+            
+            // Cargar información del producto
+            this.cargarInfoProductoFotos(productoId);
         }
+    } catch (error) {
+        console.error('Error cargando fotos:', error);
+        this.showAlert('error', 'Error', 'No se pudieron cargar las fotos');
     }
+}
 /**
  * Cargar información del producto en modal de fotos
  */
@@ -882,29 +924,11 @@ calcularTamañoTotal(fotos) {
             return;
         }
     
-        // Obtener fotos actuales para validar límite
-        const fotosActuales = document.querySelectorAll('#fotos_existentes .relative.group').length;
-        const fotosNuevas = inputFile.files.length;
-        
-        if (fotosActuales + fotosNuevas > 5) {
-            this.showAlert('warning', 'Límite excedido', 
-                `Solo puedes subir ${5 - fotosActuales} fotos más. Has seleccionado ${fotosNuevas}.`);
-            return;
-        }
-    
-        // Validar archivos
-        const errores = this.validarArchivos(inputFile.files);
-        if (errores.length > 0) {
-            this.showAlert('error', 'Archivos inválidos', errores.join('\n'));
-            return;
-        }
-    
         const formData = new FormData();
         Array.from(inputFile.files).forEach(archivo => {
             formData.append('fotos[]', archivo);
         });
     
-        // Mostrar progreso
         this.mostrarProgresoSubida();
         
         try {
@@ -929,8 +953,12 @@ calcularTamañoTotal(fotos) {
                     this.renderFotosExistentes(fotosData.data || []);
                 }
                 
-                // Limpiar input
+                // Limpiar input y preview
                 inputFile.value = '';
+                const previewContainer = document.getElementById('preview_nuevas_fotos');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '';
+                }
                 
             } else {
                 this.showAlert('error', 'Error', data.message || 'Error al subir fotos');
@@ -965,54 +993,24 @@ calcularTamañoTotal(fotos) {
     }
 
 
-    /**
- * Mostrar barra de progreso durante subida
- */
-mostrarProgresoSubida() {
-    const container = document.getElementById('seccion_subir_fotos');
-    if (!container) return;
-    
-    const existingProgress = document.getElementById('upload_progress');
-    if (existingProgress) existingProgress.remove();
-    
-    const progressBar = document.createElement('div');
-    progressBar.id = 'upload_progress';
-    progressBar.className = 'mt-3 bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden';
-    progressBar.innerHTML = `
-        <div class="bg-blue-500 h-full transition-all duration-300 rounded-full" style="width: 0%">
-            <div class="h-full bg-gradient-to-r from-blue-400 to-blue-600 animate-pulse"></div>
-        </div>
-    `;
-    
-    container.appendChild(progressBar);
-    
-    // Simular progreso
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += Math.random() * 20 + 10;
-        if (progress > 90) progress = 90;
-        
-        const bar = progressBar.querySelector('.bg-blue-500');
-        if (bar) bar.style.width = `${progress}%`;
-        
-        if (progress >= 90) clearInterval(interval);
-    }, 200);
-}
-
-/**
- * Ocultar barra de progreso
- */
-ocultarProgresoSubida() {
-    const progressBar = document.getElementById('upload_progress');
-    if (progressBar) {
-        const bar = progressBar.querySelector('.bg-blue-500');
-        if (bar) bar.style.width = '100%';
-        
-        setTimeout(() => {
-            progressBar.remove();
-        }, 500);
+    mostrarProgresoSubida() {
+        const botonSubir = document.querySelector('[onclick="inventarioManager.subirNuevasFotos()"]');
+        if (botonSubir) {
+            botonSubir.disabled = true;
+            botonSubir.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Subiendo...';
+        }
     }
-}
+    
+    /**
+     * Ocultar progreso y restaurar botón
+     */
+    ocultarProgresoSubida() {
+        const botonSubir = document.querySelector('[onclick="inventarioManager.subirNuevasFotos()"]');
+        if (botonSubir) {
+            botonSubir.disabled = false;
+            botonSubir.innerHTML = '<i class="fas fa-upload mr-2"></i>Subir Fotos';
+        }
+    }
     actualizarEstadoSubida(fotosActuales) {
         const seccionSubida = document.getElementById('seccion_subir_fotos');
         const inputFile = document.getElementById('nuevas_fotos');
@@ -3638,6 +3636,145 @@ renderHistorialPrecios(precios) {
 
 //termina actualizar precios
 
+
+
+
+// mostrar las alertas
+
+
+/**
+ * Mostrar alertas en SweetAlert
+ */
+async toggleAlertas() {
+    try {
+        const response = await fetch('/inventario/alertas-stock');
+        if (response.ok) {
+            const data = await response.json();
+            this.mostrarAlertasDetalladas(data.data || []);
+        } else {
+            this.showAlert('error', 'Error', 'No se pudieron cargar las alertas');
+        }
+    } catch (error) {
+        console.error('Error cargando alertas:', error);
+        this.showAlert('error', 'Error', 'Error de conexión al cargar alertas');
+    }
+}
+
+/**
+ * Mostrar alertas detalladas en SweetAlert
+ */
+/**
+ * Mostrar alertas detalladas en SweetAlert
+ */
+/**
+ * Mostrar alertas detalladas con paginación
+ */
+async mostrarAlertasDetalladas(alertas, pagination = null) {
+    if (!pagination && alertas.length === 0) {
+        Swal.fire({
+            title: 'Sin alertas pendientes',
+            html: `
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle text-green-500 text-4xl mb-3"></i>
+                    <p class="text-gray-600">¡Perfecto! No hay productos con stock bajo.</p>
+                </div>
+            `,
+            icon: 'success',
+            confirmButtonColor: '#10b981',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+
+    // Header con información de paginación
+    const headerInfo = pagination ? 
+        `Mostrando ${alertas.length} de ${pagination.total_items} alertas (Página ${pagination.current_page} de ${pagination.total_pages})` :
+        `${alertas.length} productos requieren atención`;
+
+    let contenidoHTML = `
+        <div class="text-left">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 class="font-medium text-yellow-800 mb-3 flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Productos que requieren atención
+                </h4>
+                <div class="space-y-2 max-h-64 overflow-y-auto">
+                    ${alertas.map(producto => {
+                        const stock = producto.stock_cantidad_disponible || producto.stock_actual || 0;
+                        const minimo = producto.producto_stock_minimo || 0;
+                        const isAgotado = stock <= 0;
+                        
+                        return `
+                            <div class="flex justify-between items-center py-2 px-3 ${isAgotado ? 'bg-red-100 border border-red-200' : 'bg-white border border-gray-200'} rounded">
+                                <div>
+                                    <div class="font-medium ${isAgotado ? 'text-red-800' : 'text-yellow-800'}">${producto.producto_nombre}</div>
+                                    <div class="text-xs text-gray-600">SKU: ${producto.pro_codigo_sku || 'N/A'}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-medium ${isAgotado ? 'text-red-600' : 'text-yellow-600'}">
+                                        ${stock} / ${minimo}
+                                    </div>
+                                    <div class="text-xs ${isAgotado ? 'text-red-500' : 'text-yellow-500'}">
+                                        ${isAgotado ? 'AGOTADO' : 'STOCK BAJO'}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Agregar controles de paginación si hay múltiples páginas
+    if (pagination && pagination.total_pages > 1) {
+        contenidoHTML += `
+            <div class="mt-4 flex justify-between items-center">
+                <button onclick="inventarioManager.cargarAlertasPagina(${pagination.current_page - 1})" 
+                        ${pagination.current_page <= 1 ? 'disabled' : ''} 
+                        class="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50">
+                    ← Anterior
+                </button>
+                <span class="text-sm text-gray-600">
+                    Página ${pagination.current_page} de ${pagination.total_pages}
+                </span>
+                <button onclick="inventarioManager.cargarAlertasPagina(${pagination.current_page + 1})" 
+                        ${pagination.current_page >= pagination.total_pages ? 'disabled' : ''} 
+                        class="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50">
+                    Siguiente →
+                </button>
+            </div>
+        `;
+    }
+
+    Swal.fire({
+        title: headerInfo,
+        html: contenidoHTML,
+        icon: 'warning',
+        width: '650px',
+        confirmButtonColor: '#f59e0b',
+        confirmButtonText: 'Cerrar',
+        customClass: {
+            popup: 'text-left'
+        }
+    });
+}
+
+/**
+ * Cargar alertas por página
+ */
+async cargarAlertasPagina(page) {
+    try {
+        const response = await fetch(`/inventario/alertas-stock?page=${page}&limit=20`);
+        if (response.ok) {
+            const data = await response.json();
+            this.mostrarAlertasDetalladas(data.data || [], data.pagination);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error al cargar la página');
+    }
+}
 ///aquí terminarán los vergazos de las acciones 
 
     /**
