@@ -334,7 +334,21 @@ async seleccionarProductoEgreso(productoId) {
         this.showAlert('error', 'Error', 'Error al cargar el producto');
     }
 }
-
+// Nueva función para cargar stock por lotes
+async cargarStockPorLotes(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}/stock-lotes`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderStockPorLotes(data.data || {});
+        } else {
+            this.renderStockPorLotes({});
+        }
+    } catch (error) {
+        console.error('Error cargando stock por lotes:', error);
+        this.renderStockPorLotes({});
+    }
+}
 
 
 // Nueva función para stock por lotes
