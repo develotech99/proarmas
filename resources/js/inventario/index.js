@@ -570,6 +570,8 @@ limpiarLicenciaSeleccionadaRegistro() {
             });
         }
 
+     
+
         // Drag & Drop
         const dropZone = document.getElementById('foto_drop_zone');
         if (dropZone) {
@@ -580,25 +582,38 @@ limpiarLicenciaSeleccionadaRegistro() {
     /**
      * Manejar fotos seleccionadas
      */
-    handleFotosSeleccionadas(archivos) {
-        if (archivos.length > 5) {
-            this.showAlert('warning', 'Límite excedido', 'Máximo 5 fotos por producto');
-            return;
-        }
+ /**
+ * Manejar fotos seleccionadas
+ */
+handleFotosSeleccionadas(archivos) {
+    if (archivos.length > 5) {
+        this.showAlert('warning', 'Límite excedido', 'Máximo 5 fotos por producto');
+        return;
+    }
 
-        // Validar tipos de archivo
-        const tiposValidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        const archivosInvalidos = Array.from(archivos).filter(archivo => 
-            !tiposValidos.includes(archivo.type) || archivo.size > 2048000
-        );
+    // Validar tipos de archivo
+    const tiposValidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const archivosInvalidos = Array.from(archivos).filter(archivo => 
+        !tiposValidos.includes(archivo.type) || archivo.size > 2048000
+    );
 
-        if (archivosInvalidos.length > 0) {
-            this.showAlert('error', 'Archivos inválidos', 'Solo se permiten JPG, PNG, WebP hasta 2MB');
-            return;
-        }
+    if (archivosInvalidos.length > 0) {
+        this.showAlert('error', 'Archivos inválidos', 'Solo se permiten JPG, PNG, WebP hasta 2MB');
+        return;
+    }
 
+    // Determinar dónde mostrar el preview
+    const previewContainerRegistro = document.getElementById('preview_fotos');
+    const previewContainerGestion = document.getElementById('preview_nuevas_fotos'); // Necesitas este elemento en tu HTML
+    
+    if (previewContainerGestion && !previewContainerGestion.closest('.hidden')) {
+        // Estamos en el modal de gestión
+        this.previewFotosGestion(archivos);
+    } else if (previewContainerRegistro) {
+        // Estamos en el modal de registro
         this.previewFotos(archivos);
     }
+}
 
     /**
      * Mostrar preview de fotos
@@ -706,69 +721,192 @@ limpiarLicenciaSeleccionadaRegistro() {
                 const data = await response.json();
                 this.renderFotosExistentes(data.data || []);
                 this.showModal('fotos');
+
+                const inputNuevasFotos = document.getElementById('nuevas_fotos');
+                if (inputNuevasFotos) {
+                    inputNuevasFotos.addEventListener('change', (e) => {
+                        this.handleFotosSeleccionadas(e.target.files);
+                    });
+                }
+                
+                
+                // Cargar información del producto
+                this.cargarInfoProductoFotos(productoId);
             }
         } catch (error) {
             console.error('Error cargando fotos:', error);
             this.showAlert('error', 'Error', 'No se pudieron cargar las fotos');
         }
     }
-
-    /**
-     * Renderizar fotos existentes en modal - Corregido para tu modelo
-     */
-    renderFotosExistentes(fotos) {
-        const container = document.getElementById('fotos_existentes');
-        if (!container) return;
-
-        if (fotos.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-8">
-                    <i class="fas fa-image text-gray-400 text-3xl mb-2"></i>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">No hay fotos para este producto</p>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = fotos.map(foto => `
-            <div class="relative group">
-                <img src="${foto.foto_url}" 
-                    alt="Foto producto"
-                    class="w-24 h-24 object-cover rounded-lg border-2 ${foto.foto_principal ? 'border-blue-500' : 'border-gray-200 dark:border-gray-600'}">
-                
-                ${foto.foto_principal ? 
-                    '<span class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-1 rounded">Principal</span>' : 
-                    `<button onclick="inventarioManager.establecerPrincipal(${foto.foto_id})"
-                            class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gray-500 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500">
-                        Hacer Principal
-                    </button>`
+/**
+ * Cargar información del producto en modal de fotos
+ */
+    async cargarInfoProductoFotos(productoId) {
+        try {
+            const response = await fetch(`/inventario/productos/${productoId}`);
+            if (response.ok) {
+                const data = await response.json();
+                const infoElement = document.getElementById('fotos_producto_info');
+                if (infoElement) {
+                    infoElement.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-box text-blue-500"></i>
+                            <div>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100">${data.data.producto_nombre}</h4>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">SKU: ${data.data.pro_codigo_sku}</p>
+                            </div>
+                        </div>
+                    `;
                 }
-                
-                <button onclick="inventarioManager.eliminarFotoProducto(${foto.foto_id})"
-                        class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    ×
-                </button>
-            </div>
-        `).join('');
+            }
+        } catch (error) {
+            console.error('Error cargando info del producto:', error);
+        }
     }
 
+    /**
+     * Renderizar fotos existentes en modal
+     */
+ 
+
+    renderFotosExistentes(fotos) {
+        const container = document.getElementById('fotos_existentes');
+        const countElement = document.getElementById('fotos_count');
+        
+        if (!container) return;
+    
+        // Actualizar contador
+        if (countElement) {
+            countElement.textContent = `${fotos.length}/5 fotos`;
+            countElement.className = fotos.length >= 5 ? 'text-red-600 font-medium' : 'text-gray-600';
+        }
+    
+        if (fotos.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-image text-gray-400 text-4xl mb-3"></i>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">No hay fotos para este producto</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">Sube hasta 5 fotos para mostrar tu producto</p>
+                </div>
+            `;
+            this.actualizarEstadoSubida(0);
+            return;
+        }
+    
+        // Estructura mejorada con botones SIEMPRE visibles
+        container.innerHTML = fotos.map((foto, index) => `
+            <div class="relative group" style="min-height: 120px; min-width: 120px;">
+                <img src="${foto.foto_url}"
+                     alt="Foto producto"
+                     class="w-24 h-24 object-cover rounded-lg border-2 ${foto.foto_principal ? 'border-blue-500' : 'border-gray-200 dark:border-gray-600'}"
+                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIGltYWdlbjwvdGV4dD48L3N2Zz4=';">
+                
+                <!-- Botón eliminar - MÁS VISIBLE -->
+                <button onclick="inventarioManager.eliminarFotoProducto(${foto.foto_id})"
+                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 transition-colors z-10 flex items-center justify-center shadow-lg"
+                title="Eliminar foto">
+            ×
+        </button>
+                ${foto.foto_principal ? 
+                    '<span class="absolute -top-1 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-1 rounded z-10">Principal</span>' : 
+                    `<button onclick="inventarioManager.establecerPrincipal(${foto.foto_id})" 
+                             class="absolute -top-1 left-1/2 transform -translate-x-1/2 bg-gray-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-500 transition-colors z-10 opacity-80 hover:opacity-100">
+                        Hacer Principal
+                     </button>`
+                }
+                
+                <!-- Número de orden -->
+                <div class="absolute bottom-1 left-1">
+                <span class="bg-black bg-opacity-70 text-white text-xs px-1 py-0.5 rounded">
+                    ${index + 1}
+                </span>
+            </div>
+            </div>
+        `).join('');
+        
+        // Actualizar estado del botón de subir
+        this.actualizarEstadoSubida(fotos.length);
+        this.actualizarEstadisticasFotos({
+            total_fotos: fotos.length,
+            tamaño_total: this.calcularTamañoTotal(fotos)
+        });
+    }
+    /**
+ * Actualizar estadísticas en el modal
+ */
+actualizarEstadisticasFotos(stats) {
+    const container = document.getElementById('fotos_estadisticas');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+            <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center">
+                <div class="font-medium text-gray-900 dark:text-gray-100">${stats.total_fotos}/5</div>
+                <div class="text-gray-500 dark:text-gray-400">Fotos</div>
+            </div>
+            <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center">
+                <div class="font-medium text-gray-900 dark:text-gray-100">${stats.tamaño_total || '0 KB'}</div>
+                <div class="text-gray-500 dark:text-gray-400">Tamaño</div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Calcular tamaño total (placeholder)
+ */
+calcularTamañoTotal(fotos) {
+    // Si las fotos tienen información de tamaño, la sumamos
+    let totalKB = 0;
+    fotos.forEach(foto => {
+        if (foto.size_info) {
+            const match = foto.size_info.match(/(\d+(?:\.\d+)?)\s*KB/);
+            if (match) {
+                totalKB += parseFloat(match[1]);
+            }
+        }
+    });
+    
+    if (totalKB > 1024) {
+        return `${(totalKB / 1024).toFixed(1)} MB`;
+    }
+    return totalKB > 0 ? `${totalKB.toFixed(0)} KB` : '0 KB';
+}
     /**
      * Subir nuevas fotos
      */
     async subirNuevasFotos() {
         const inputFile = document.getElementById('nuevas_fotos');
         if (!inputFile.files || inputFile.files.length === 0) {
-            this.showAlert('warning', 'Sin archivos', 'Selecciona al menos una foto');
+            this.showAlert('warning', 'Sin archivos', 'Selecciona al menos una foto para subir');
             return;
         }
-
+    
+        // Obtener fotos actuales para validar límite
+        const fotosActuales = document.querySelectorAll('#fotos_existentes .relative.group').length;
+        const fotosNuevas = inputFile.files.length;
+        
+        if (fotosActuales + fotosNuevas > 5) {
+            this.showAlert('warning', 'Límite excedido', 
+                `Solo puedes subir ${5 - fotosActuales} fotos más. Has seleccionado ${fotosNuevas}.`);
+            return;
+        }
+    
+        // Validar archivos
+        const errores = this.validarArchivos(inputFile.files);
+        if (errores.length > 0) {
+            this.showAlert('error', 'Archivos inválidos', errores.join('\n'));
+            return;
+        }
+    
         const formData = new FormData();
         Array.from(inputFile.files).forEach(archivo => {
             formData.append('fotos[]', archivo);
         });
-
-        this.setLoading('fotos', true);
-
+    
+        // Mostrar progreso
+        this.mostrarProgresoSubida();
+        
         try {
             const response = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`, {
                 method: 'POST',
@@ -778,43 +916,156 @@ limpiarLicenciaSeleccionadaRegistro() {
                     'X-Requested-With': 'XMLHttpRequest',
                 }
             });
-
+    
             const data = await response.json();
-
+    
             if (response.ok && data.success) {
                 this.showAlert('success', 'Éxito', data.message);
-                // Recargar fotos
-                this.openFotosModal(this.currentProductoId);
+                
+                // Recargar fotos existentes
+                const fotosResponse = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`);
+                if (fotosResponse.ok) {
+                    const fotosData = await fotosResponse.json();
+                    this.renderFotosExistentes(fotosData.data || []);
+                }
+                
                 // Limpiar input
                 inputFile.value = '';
+                
             } else {
                 this.showAlert('error', 'Error', data.message || 'Error al subir fotos');
             }
         } catch (error) {
             console.error('Error:', error);
-            this.showAlert('error', 'Error', 'Error de conexión');
+            this.showAlert('error', 'Error', 'Error de conexión al subir fotos');
         } finally {
-            this.setLoading('fotos', false);
+            this.ocultarProgresoSubida();
         }
     }
+    
+/**
+ * Validar archivos antes de subir
+ */
+    validarArchivos(files) {
+        const errores = [];
+        const tiposValidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const tamañoMaximo = 2 * 1024 * 1024; // 2MB
+    
+        Array.from(files).forEach((file, index) => {
+            if (!tiposValidos.includes(file.type)) {
+                errores.push(`Archivo ${index + 1}: Tipo no válido (${file.type})`);
+            }
+            
+            if (file.size > tamañoMaximo) {
+                errores.push(`Archivo ${index + 1}: Tamaño excede 2MB`);
+            }
+        });
+    
+        return errores;
+    }
 
+
+    /**
+ * Mostrar barra de progreso durante subida
+ */
+mostrarProgresoSubida() {
+    const container = document.getElementById('seccion_subir_fotos');
+    if (!container) return;
+    
+    const existingProgress = document.getElementById('upload_progress');
+    if (existingProgress) existingProgress.remove();
+    
+    const progressBar = document.createElement('div');
+    progressBar.id = 'upload_progress';
+    progressBar.className = 'mt-3 bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden';
+    progressBar.innerHTML = `
+        <div class="bg-blue-500 h-full transition-all duration-300 rounded-full" style="width: 0%">
+            <div class="h-full bg-gradient-to-r from-blue-400 to-blue-600 animate-pulse"></div>
+        </div>
+    `;
+    
+    container.appendChild(progressBar);
+    
+    // Simular progreso
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 20 + 10;
+        if (progress > 90) progress = 90;
+        
+        const bar = progressBar.querySelector('.bg-blue-500');
+        if (bar) bar.style.width = `${progress}%`;
+        
+        if (progress >= 90) clearInterval(interval);
+    }, 200);
+}
+
+/**
+ * Ocultar barra de progreso
+ */
+ocultarProgresoSubida() {
+    const progressBar = document.getElementById('upload_progress');
+    if (progressBar) {
+        const bar = progressBar.querySelector('.bg-blue-500');
+        if (bar) bar.style.width = '100%';
+        
+        setTimeout(() => {
+            progressBar.remove();
+        }, 500);
+    }
+}
+    actualizarEstadoSubida(fotosActuales) {
+        const seccionSubida = document.getElementById('seccion_subir_fotos');
+        const inputFile = document.getElementById('nuevas_fotos');
+        const botonSubir = document.querySelector('[onclick="inventarioManager.subirNuevasFotos()"]');
+        const mensajeLimite = document.getElementById('mensaje_limite_fotos');
+        
+        if (fotosActuales >= 5) {
+            if (seccionSubida) seccionSubida.classList.add('opacity-50', 'pointer-events-none');
+            if (inputFile) inputFile.disabled = true;
+            if (botonSubir) {
+                botonSubir.disabled = true;
+                botonSubir.innerHTML = '<i class="fas fa-ban mr-2"></i>Límite alcanzado';
+            }
+            if (mensajeLimite) {
+                mensajeLimite.textContent = 'Límite máximo alcanzado (5/5 fotos). Elimina fotos para subir nuevas.';
+                mensajeLimite.className = 'mt-2 text-xs text-red-500 font-medium';
+            }
+        } else {
+            if (seccionSubida) seccionSubida.classList.remove('opacity-50', 'pointer-events-none');
+            if (inputFile) inputFile.disabled = false;
+            if (botonSubir) {
+                botonSubir.disabled = false;
+                botonSubir.innerHTML = '<i class="fas fa-upload mr-2"></i>Subir Fotos';
+            }
+            if (mensajeLimite) {
+                const restantes = 5 - fotosActuales;
+                mensajeLimite.textContent = `Puedes subir ${restantes} foto${restantes > 1 ? 's' : ''} más`;
+                mensajeLimite.className = 'mt-2 text-xs text-gray-500 dark:text-gray-400';
+            }
+        }
+    }
     /**
      * Eliminar foto del producto
      */
     async eliminarFotoProducto(fotoId) {
         const confirmacion = await Swal.fire({
             title: '¿Eliminar foto?',
-            text: 'Esta acción no se puede deshacer',
+            text: 'Esta acción eliminará permanentemente la foto del producto',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
             cancelButtonColor: '#6b7280',
             confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
+            cancelButtonText: 'Cancelar',
+            customClass: {
+                popup: 'dark:bg-gray-800',
+                title: 'dark:text-gray-100',
+                content: 'dark:text-gray-300'
+            }
         });
-
+    
         if (!confirmacion.isConfirmed) return;
-
+    
         try {
             const response = await fetch(`/inventario/fotos/${fotoId}`, {
                 method: 'DELETE',
@@ -823,13 +1074,18 @@ limpiarLicenciaSeleccionadaRegistro() {
                     'X-Requested-With': 'XMLHttpRequest',
                 }
             });
-
+    
             const data = await response.json();
-
+    
             if (response.ok && data.success) {
                 this.showAlert('success', 'Éxito', data.message);
+                
                 // Recargar fotos
-                this.openFotosModal(this.currentProductoId);
+                const fotosResponse = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`);
+                if (fotosResponse.ok) {
+                    const fotosData = await fotosResponse.json();
+                    this.renderFotosExistentes(fotosData.data || []);
+                }
             } else {
                 this.showAlert('error', 'Error', data.message || 'Error al eliminar foto');
             }
@@ -851,13 +1107,19 @@ limpiarLicenciaSeleccionadaRegistro() {
                     'X-Requested-With': 'XMLHttpRequest',
                 }
             });
-
+    
             const data = await response.json();
-
+    
             if (response.ok && data.success) {
                 this.showAlert('success', 'Éxito', data.message);
-                // Recargar fotos
-                this.openFotosModal(this.currentProductoId);
+                
+                // Recargar fotos para reflejar cambios
+                const fotosResponse = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`);
+                if (fotosResponse.ok) {
+                    const fotosData = await fotosResponse.json();
+                    this.renderFotosExistentes(fotosData.data || []);
+                }
+                
             } else {
                 this.showAlert('error', 'Error', data.message || 'Error al actualizar foto principal');
             }

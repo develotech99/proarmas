@@ -531,53 +531,248 @@
 
 
     <!-- Modal de Gestión de Fotos (agregar después de los modales existentes) -->
-    <div id="fotos-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-                onclick="inventarioManager.closeModal('fotos')"></div>
+    <!-- Modal de Gestión de Fotos Mejorado -->
+<div id="fotos-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+            onclick="inventarioManager.closeModal('fotos')"></div>
 
-            <div
-                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full sm:p-6">
-                <div class="mb-4">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Gestión de Fotos</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Administrar fotos del producto</p>
-                </div>
-
-                <!-- Fotos existentes -->
-                <div class="mb-6">
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Fotos actuales</h4>
-                    <div id="fotos_existentes" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                        <!-- Las fotos se cargarán aquí dinámicamente -->
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full sm:p-6">
+            
+            <!-- Header mejorado -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                            <i class="fas fa-camera mr-2 text-blue-500"></i>
+                            Gestión de Fotos
+                        </h3>
+                        <div id="fotos_producto_info" class="mt-2">
+                            <!-- Info del producto se carga dinámicamente -->
+                        </div>
                     </div>
-                </div>
-
-                <!-- Subir nuevas fotos -->
-                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Agregar nuevas fotos</h4>
                     <div class="flex items-center space-x-4">
-                        <input type="file" id="nuevas_fotos" multiple accept="image/jpeg,image/jpg,image/png,image/webp"
-                            class="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                        <button type="button" onclick="inventarioManager.subirNuevasFotos()"
-                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
-                            <i class="fas fa-upload mr-2"></i>
-                            Subir
+                        <div class="text-right">
+                            <span id="fotos_count" class="text-sm text-gray-600">0/5 fotos</span>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Máximo permitido</div>
+                        </div>
+                        <button onclick="inventarioManager.closeModal('fotos')"
+                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <i class="fas fa-times mr-2"></i>
+                            Cerrar
                         </button>
                     </div>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Máximo 5 fotos total por producto
-                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Columna Izquierda: Fotos Existentes -->
+                <div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                                <i class="fas fa-images mr-2"></i>
+                                Fotos Actuales
+                            </h4>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Haz clic para acciones
+                            </div>
+                        </div>
+
+                        <!-- Grid de fotos existentes -->
+                        <div id="fotos_existentes" class="grid grid-cols-2 sm:grid-cols-3 gap-3 min-h-[250px]">
+                            <!-- Las fotos se cargarán aquí dinámicamente -->
+                            <div class="col-span-full text-center py-12">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Cargando fotos...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
+                <!-- Columna Derecha: Subir Nuevas Fotos -->
+                <div>
+                    <div class="bg-blue-50 dark:bg-blue-900 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                                <i class="fas fa-cloud-upload-alt mr-2"></i>
+                                Agregar Nuevas Fotos
+                            </h4>
+                        </div>
 
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" onclick="inventarioManager.closeModal('fotos')"
-                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        Cerrar
+                        <!-- Zona de subida -->
+                        <div id="seccion_subir_fotos">
+                            <div class="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                                 onclick="document.getElementById('nuevas_fotos').click()">
+                                <div class="space-y-3">
+                                    <div class="mx-auto w-12 h-12 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-images text-blue-600 dark:text-blue-300 text-xl"></i>
+                                    </div>
+                                    
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            Selecciona o arrastra fotos aquí
+                                        </p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            JPG, PNG, WebP hasta 2MB cada una
+                                        </p>
+                                    </div>
+                                    
+                                    <input type="file" 
+                                           id="nuevas_fotos" 
+                                           multiple 
+                                           accept="image/jpeg,image/jpg,image/png,image/webp"
+                                           class="hidden">
+                                    
+                                    <button type="button" 
+                                            onclick="event.stopPropagation(); inventarioManager.subirNuevasFotos()"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                        <i class="fas fa-upload mr-2"></i>
+                                        Subir Fotos
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Mensaje de límite -->
+                            <p id="mensaje_limite_fotos" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Máximo 5 fotos por producto
+                            </p>
+                        </div>
+
+                        <!-- Consejos y ayuda -->
+                        <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                            <h5 class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
+                                Consejos para mejores fotos
+                            </h5>
+                            <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                                <li class="flex items-start">
+                                    <i class="fas fa-star text-blue-500 mr-2 mt-0.5 text-xs"></i>
+                                    La primera foto será la imagen principal
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-sun text-yellow-500 mr-2 mt-0.5 text-xs"></i>
+                                    Usa buena iluminación natural
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-eye text-green-500 mr-2 mt-0.5 text-xs"></i>
+                                    Muestra diferentes ángulos del producto
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-search text-purple-500 mr-2 mt-0.5 text-xs"></i>
+                                    Incluye detalles importantes
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-palette text-indigo-500 mr-2 mt-0.5 text-xs"></i>
+                                    Mantén fondos limpios y neutros
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Estadísticas de fotos -->
+                        <div class="mt-4 bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                            <h5 class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                <i class="fas fa-chart-bar mr-2 text-blue-500"></i>
+                                Estadísticas
+                            </h5>
+                            <div id="fotos_estadisticas" class="text-xs">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center">
+                                        <div class="font-medium text-gray-900 dark:text-gray-100">0/5</div>
+                                        <div class="text-gray-500 dark:text-gray-400">Fotos</div>
+                                    </div>
+                                    <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center">
+                                        <div class="font-medium text-gray-900 dark:text-gray-100">0 KB</div>
+                                        <div class="text-gray-500 dark:text-gray-400">Tamaño</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Acciones del pie -->
+            <div class="mt-6 flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Las fotos se guardan automáticamente
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button onclick="inventarioManager.verVistaPrevia()"
+                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <i class="fas fa-eye mr-2"></i>
+                        Vista Previa
+                    </button>
+                    <button onclick="inventarioManager.closeModal('fotos')"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        <i class="fas fa-check mr-2"></i>
+                        Finalizar
                     </button>
                 </div>
             </div>
+
         </div>
     </div>
+</div>
+
+<!-- Modal de Vista Previa de Fotos (opcional) -->
+<div id="preview-fotos-modal" class="fixed inset-0 z-60 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
+        <div class="fixed inset-0 bg-black bg-opacity-75 transition-opacity"
+            onclick="inventarioManager.closeModal('preview-fotos')"></div>
+
+        <div class="inline-block align-middle bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-4xl sm:w-full">
+            
+            <div class="mb-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                        <i class="fas fa-search mr-2 text-blue-500"></i>
+                        Vista Previa del Producto
+                    </h3>
+                    <button onclick="inventarioManager.closeModal('preview-fotos')"
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Galería de vista previa -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Imagen principal -->
+                <div>
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                        <img id="preview_imagen_principal" 
+                             src="" 
+                             alt="Imagen principal"
+                             class="w-full h-full object-cover">
+                    </div>
+                </div>
+                
+                <!-- Miniaturas -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Todas las fotos</h4>
+                    <div class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto" id="preview_miniaturas">
+                        <!-- Miniaturas se cargan dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="inventarioManager.closeModal('preview-fotos')"
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <i class="fas fa-times mr-2"></i>
+                    Cerrar Vista Previa
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
     <!-- Modal Ingreso a Inventario -->
     <div id="ingreso-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
