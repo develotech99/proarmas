@@ -37,6 +37,22 @@ const iconCompress = () => $('icon_compress');
 const mapCard = () => $('map_card');
 const FormRegistroUser = document.getElementById('FormRegistroUbicaciones');
 
+// Swal Cargando
+
+
+const swalLoadingOpen = (title = 'Procesando...') => {
+  Swal.fire({
+    title,
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    showConfirmButton: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+};
+
+const swalLoadingClose = () => Swal.close();
 // --------- Estado ----------
 const DEFAULT_CENTER = [14.6349, -90.5069];
 const DEFAULT_ZOOM = 13;
@@ -476,22 +492,77 @@ function bindUI() {
 
 
 
+const grupoFecha = document.getElementById('grupo_fecha_visita');
+function toggleFechaVisita() {
+  const v = visitadoSelect.value;
+  const mostrar = v === '1' || v === '2';
+  grupoFecha.classList.toggle('hidden', !mostrar);
+  const fecha = document.getElementById('fecha_visita');
+  if (fecha) fecha.disabled = !mostrar; // opcional, para que no se envíe
+}
+
 function toggleVentaInfo() {
-  const estadoVisita = visitadoSelect.value;
-  if (estadoVisita == '2') { // Si "Visitado, Comprado"
+  if (!ventaInfo || !visitadoSelect) return;
+  if (visitadoSelect.value === '2') {
     ventaInfo.classList.remove('hidden');
   } else {
     ventaInfo.classList.add('hidden');
   }
 }
 
-
 const GuardarRegistro = async (e) => {
   e.preventDefault();
 
-  if (!validarFormulario(FormRegistroUser, ['ubi_id', 'busqueda_lugar'])) {
+  if (!FormRegistroUser || !visitadoSelect) return;
+
+  const excepciones = ['ubi_id', 'busqueda_lugar'];
+
+  const seleccion = (visitadoSelect.value || '').trim();
+
+  switch (seleccion) {
+    case '1':
+      excepciones.push('cantidad_vendida', 'descripcion_venta');
+      break;
+    case '3':
+      excepciones.push('cantidad_vendida', 'descripcion_venta', 'fecha_visita');
+      break;
+    default:
+      break;
+
+  }
+
+  if (!validarFormulario(FormRegistroUser, excepciones)) {
     return;
   }
+
+  const body = new FormData(FormRegistroUser);
+
+  try {
+    const url = `/api/ubicaciones/guardar`;
+    const method = 'POST';
+
+    const config = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      },
+      body
+    };
+
+    swalLoadingOpen('Guardando Información del Cliente');
+    const peticion = await fetch(url, config);
+    const respuesta = peticion.json();
+
+    swalLoadingClose();
+
+
+  } catch (error) {
+    console.error('Error:', error);
+    swalLoadingClose();
+    Swal.fire('Error', 'Error de conexión', 'error');
+  }
+
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -505,6 +576,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('mozfullscreenchange', onFullscreenChange);
   document.addEventListener('MSFullscreenChange', onFullscreenChange);
 });
-visitadoSelect.addEventListener('change', toggleVentaInfo);
-toggleVentaInfo();
+
+visitadoSelect.addEventListener('change', () => {
+  toggleVentaInfo();
+  toggleFechaVisita();
+});
+
+toggleFechaVisita();
 FormRegistroUser.addEventListener('submit', GuardarRegistro)

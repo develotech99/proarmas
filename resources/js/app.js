@@ -9,16 +9,17 @@ window.Alpine = Alpine;
 Alpine.start();
 
 /**
- * Validación simple de formularios
- * @param {HTMLFormElement} formulario 
- * @param {string[]} excepciones 
- * @returns {boolean} 
+ * Validación simple de formularios (modo exclusión por "excepciones")
+ * - Ignora inputs hidden y disabled por defecto
+ * - Agrega clase/estilos al campo inválido y limpia al escribir
+ * - Muestra TODOS los campos faltantes en un alerta
+ *
+ * @param {HTMLFormElement} formulario
+ * @param {string[]} excepciones  // ids o names a EXCLUIR de la validación
+ * @returns {boolean}
  */
 export const validarFormulario = (formulario, excepciones = []) => {
-    const elements = formulario.querySelectorAll("input, select, textarea");
-    let hayErrores = false;
-    let primerCampoInvalido = null;
-
+    const elements = Array.from(formulario.querySelectorAll('input, select, textarea'));
 
     elements.forEach(element => {
         element.style.borderColor = '';
@@ -26,65 +27,91 @@ export const validarFormulario = (formulario, excepciones = []) => {
         element.style.backgroundColor = '';
         element.style.boxShadow = '';
         element.classList.remove('error-field');
+
+        const label = formulario.querySelector(`label[for="${element.id}"]`);
+        if (label) {
+            label.style.color = '';
+            label.style.fontWeight = '';
+        }
+        const errNode = element.parentElement?.querySelector?.('[data-error-node]');
+        if (errNode) errNode.textContent = '';
     });
 
+    const faltantes = [];
+
     elements.forEach(element => {
-        const estaVacio = !element.value.trim();
-        const estaExcluido = excepciones.includes(element.id) || excepciones.includes(element.name);
-        
-        if (estaVacio && !estaExcluido) {
-            element.style.borderColor = '#3b82f6'; 
+
+        if (element.type === 'hidden') return;
+        if (element.disabled) return;
+
+        if (element.hasAttribute('data-optional')) return;
+
+        const excluido = excepciones.includes(element.id) || excepciones.includes(element.name);
+        if (excluido) return;
+
+        let estaVacio = false;
+        const tipo = (element.type || '').toLowerCase();
+        if (tipo === 'checkbox' || tipo === 'radio') {
+            const group = formulario.querySelectorAll(`input[name="${element.name}"]`);
+            const algunoMarcado = Array.from(group).some(i => i.checked);
+            estaVacio = !algunoMarcado;
+        } else {
+            estaVacio = !String(element.value || '').trim();
+        }
+
+        if (estaVacio) {
+            element.style.borderColor = '#3b82f6';
             element.style.borderWidth = '2px';
-            element.style.backgroundColor = '#eff6ff'; 
-            element.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.12)'; 
+            element.style.backgroundColor = '#eff6ff';
+            element.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.12)';
             element.classList.add('error-field');
-            
-            // Marcar label si existe
+
             const label = formulario.querySelector(`label[for="${element.id}"]`);
             if (label) {
-                label.style.color = '#1d4ed8'; 
-                label.style.fontWeight = '500'; 
+                label.style.color = '#1d4ed8';
+                label.style.fontWeight = '500';
             }
-            
-            hayErrores = true;
-            if (!primerCampoInvalido) {
-                primerCampoInvalido = element;
-            }
-            
 
-            element.addEventListener('input', function limpiar() {
+            const nombreCampo = element.id || element.name || 'Campo';
+            const textoLabel = label?.textContent?.trim() || nombreCampo;
+            faltantes.push({ element, texto: textoLabel });
+
+            const limpiar = () => {
                 element.style.borderColor = '';
                 element.style.borderWidth = '';
                 element.style.backgroundColor = '';
                 element.style.boxShadow = '';
                 element.classList.remove('error-field');
-                
-                const label = formulario.querySelector(`label[for="${element.id}"]`);
                 if (label) {
                     label.style.color = '';
                     label.style.fontWeight = '';
                 }
                 element.removeEventListener('input', limpiar);
-            });
+                element.removeEventListener('change', limpiar);
+            };
+            element.addEventListener('input', limpiar);
+            element.addEventListener('change', limpiar);
         }
     });
 
-    if (hayErrores) {
-        const nombreCampo = primerCampoInvalido.id || primerCampoInvalido.name || 'Campo';
-        const label = formulario.querySelector(`label[for="${primerCampoInvalido.id}"]`);
-        const textoLabel = label?.textContent?.trim() || nombreCampo;
+    if (faltantes.length > 0) {
+        const lista = faltantes
+            .map(f => `<li style="margin:.2rem 0;">• ${f.texto}</li>`)
+            .join('');
 
         Swal.fire({
             icon: 'error',
-            title: 'Revisa los datos',
-            text: `Falta completar: ${textoLabel}`,
+            title: 'Faltan campos por completar',
+            html: `<ul style="text-align:left; margin:0; padding-left:1rem;">${lista}</ul>`,
             confirmButtonColor: '#dc2626',
             confirmButtonText: 'Entendido'
         });
 
-        primerCampoInvalido.focus();
-        primerCampoInvalido.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
+        const primero = faltantes[0]?.element;
+        if (primero) {
+            primero.focus();
+            primero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         return false;
     }
 
