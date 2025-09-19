@@ -476,15 +476,24 @@ function bindUI() {
 
 
 
+const grupoFecha = document.getElementById('grupo_fecha_visita');
+function toggleFechaVisita() {
+  const v = visitadoSelect.value;
+  const mostrar = v === '1' || v === '2';
+  grupoFecha.classList.toggle('hidden', !mostrar);
+  const fecha = document.getElementById('fecha_visita');
+  if (fecha) fecha.disabled = !mostrar; // opcional, para que no se envíe
+}
+
 function toggleVentaInfo() {
-  const estadoVisita = visitadoSelect.value;
-  if (estadoVisita == '2') { // Si "Visitado, Comprado"
+  if (!ventaInfo || !visitadoSelect) return;
+  // Muestra info de venta sólo cuando "Visitado, Comprado" (valor '2')
+  if (visitadoSelect.value === '2') {
     ventaInfo.classList.remove('hidden');
   } else {
     ventaInfo.classList.add('hidden');
   }
 }
-
 
 const GuardarRegistro = async (e) => {
   e.preventDefault();
@@ -505,6 +514,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('mozfullscreenchange', onFullscreenChange);
   document.addEventListener('MSFullscreenChange', onFullscreenChange);
 });
-visitadoSelect.addEventListener('change', toggleVentaInfo);
-toggleVentaInfo();
+
+visitadoSelect.addEventListener('change', () => {
+  toggleVentaInfo();
+  toggleFechaVisita();
+});
+
+toggleFechaVisita();
 FormRegistroUser.addEventListener('submit', GuardarRegistro)
