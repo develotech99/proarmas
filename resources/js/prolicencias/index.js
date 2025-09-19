@@ -116,6 +116,17 @@ window.licenciasManager = function () {
   const initialLicencias = getJSONFromScript('licencias-data') || [];
 
   return {
+
+        showPagosModal: false,
+    selectedLicenciaId: null,
+    isSubmittingPago: false,
+    pagosList: [],           
+selectedPagoId: null,
+    pagoData: {
+      pago_lic_total: 0,
+      pago_lic_situacion: 1,
+      metodos: []
+    },
  licencias: initialLicencias,
     alerts: [],
     showModal: false,
@@ -144,7 +155,590 @@ window.licenciasManager = function () {
       armas: []
     },
 
-// En tu función addPdf, crea URLs temporales
+
+
+
+// Convierte cualquier URL a una URL RELATIVA /storage/...
+
+
+// Convierte el JSON del API a tu estructura (marcando remotos)
+mapPagoFromApi(api, licId) {
+  return {
+    pago_lic_id: api?.pago_lic_id ?? null,
+    pago_lic_licencia_id: licId,
+    pago_lic_total: Number(api?.pago_lic_total || 0),
+    pago_lic_situacion: Number(api?.pago_lic_situacion ?? 1),
+    _deleted_metodos: [],
+    metodos: (api?.metodos || []).map(m => ({
+      _rowKey: `${m.pagomet_id || ''}-${Math.random()}`,
+      pagomet_id: m.pagomet_id ?? null,
+      pagomet_metodo: m.pagomet_metodo ?? '',
+      pagomet_monto: Number(m.pagomet_monto || 0),
+      pagomet_moneda: m.pagomet_moneda || 'GTQ',
+      pagomet_referencia: m.pagomet_referencia || '',
+      pagomet_banco: m.pagomet_banco || '',
+      pagomet_situacion: Number(m.pagomet_situacion ?? 1),
+      pagomet_nota: m.pagomet_nota || '',
+      _deleted_comprobantes: [],
+      comprobantes: (m.comprobantes || []).map(c => {
+        const url = this.toRelativeStorage(c.comprob_url || c.comprob_ruta || '');
+        return {
+          comprob_id: c.comprob_id,
+          comprob_nombre_original: c.comprob_nombre_original || 'archivo',
+          comprob_size_bytes: Number(c.comprob_size_bytes || 0),
+          comprob_mime: c.comprob_mime || '',
+          file: null,                 // es remoto, no hay File
+          _url: url,                  // se reemplazará por blob: más abajo
+          _remoteUrl: url,            // guardamos la original
+          _isRemote: true
+        };
+      })
+    }))
+  };
+},
+
+async loadPagosList(licId) {
+  try {
+    const res = await fetch(`/prolicencias/${licId}/pagos`, { 
+      headers: { 'Accept': 'application/json' }, 
+      credentials: 'same-origin' 
+    });
+    
+    const list = res.ok ? await res.json() : [];
+    
+    // Normaliza las URLs en todos los comprobantes
+    list.forEach(p => 
+      (p.metodos || []).forEach(m => 
+        (m.comprobantes || []).forEach(c => {
+          const normalizedUrl = this.toRelativeStorage(c.comprob_url || c.comprob_ruta || '');
+          c.comprob_url = normalizedUrl;
+          c.comprob_ruta = normalizedUrl; // Por si acaso se usa en otro lado
+        })
+      )
+    );
+    
+    this.pagosList = list;
+  } catch (error) {
+    console.error('Error cargando lista de pagos:', error);
+    this.pagosList = [];
+  }
+},
+
+// Convierte URLs a usar las rutas del controlador
+toRelativeStorage(u) {
+  if (!u) return '';
+  u = String(u).replace(/\\/g, '/'); // quita backslashes de Windows
+  
+  try {
+    const url = new URL(u);
+    const p = url.pathname || '';
+    
+    // Si ya es una ruta de nuestro controlador, déjala así
+    if (p.includes('/prolicencias/comprobante/') || p.includes('/prolicencias/file/')) {
+      return p;
+    }
+    
+    // Extraer solo el nombre del archivo para comprobantes
+    if (p.includes('pagos/comprobantes/') || p.includes('/storage/pagos/comprobantes/')) {
+      const fileName = p.split('/').pop();
+      if (fileName && fileName.includes('.')) {
+        return `/prolicencias/comprobante/${fileName}`;
+      }
+    }
+    
+    // Para otros archivos, usar la ruta genérica
+    if (p.includes('/storage/')) {
+      const storageIndex = p.indexOf('/storage/');
+      const relativePath = p.substring(storageIndex + 9); // 9 = length of '/storage/'
+      return `/prolicencias/file/${encodeURIComponent(relativePath)}`;
+    }
+    
+    // Si es una ruta relativa que parece ser un archivo
+    if (p.includes('.')) {
+      const fileName = p.split('/').pop();
+      return `/prolicencias/comprobante/${fileName}`;
+    }
+    
+    return `/prolicencias/file/${encodeURIComponent(p.replace(/^\/+/, ''))}`;
+    
+  } catch {
+    // Si no parsea como URL, trata u como ruta
+    if (u.includes('/prolicencias/comprobante/') || u.includes('/prolicencias/file/')) {
+      return u;
+    }
+    
+    // Si parece ser un comprobante (contiene nombre de archivo con extensión)
+    if (u.includes('pagos/comprobantes/') || (u.includes('.') && !u.includes('/'))) {
+      const fileName = u.split('/').pop();
+      return `/prolicencias/comprobante/${fileName}`;
+    }
+    
+    // Para cualquier otra cosa, usar ruta genérica
+    return `/prolicencias/file/${encodeURIComponent(u.replace(/^\/+/, ''))}`;
+  }
+},
+
+// Actualizar normalizeUrl
+normalizeUrl(u) {
+  if (!u) return '';
+  u = String(u).replace(/\\/g, '/');
+  
+  // Si ya es una ruta de nuestro controlador, úsala
+  if (u.includes('/prolicencias/comprobante/') || u.includes('/prolicencias/file/')) {
+    return u;
+  }
+  
+  return this.toRelativeStorage(u);
+},
+
+// Método de prueba actualizado
+async testControllerRoute() {
+  const fileName = 'C47QNDvAnKyAzP5vmszLRAJAVik4gX8OZPITja4Y.pdf';
+  const testUrl = `/prolicencias/comprobante/${fileName}`;
+  
+  console.log('🧪 Probando ruta del controlador:', window.location.origin + testUrl);
+  
+  try {
+    const response = await fetch(window.location.origin + testUrl, {
+      method: 'HEAD',
+      credentials: 'same-origin'
+    });
+    
+    if (response.ok) {
+      console.log('✅ Ruta del controlador funciona correctamente');
+      console.log('📁 Content-Type:', response.headers.get('Content-Type'));
+      console.log('📏 Content-Length:', response.headers.get('Content-Length'));
+      return true;
+    } else {
+      console.error('❌ Error en ruta del controlador:', response.status, response.statusText);
+      
+      // Intentar diagnóstico adicional
+      if (response.status === 404) {
+        console.log('💡 Posibles causas del 404:');
+        console.log('   - El archivo no existe en storage/app/public/pagos/comprobantes/');
+        console.log('   - La ruta no está registrada correctamente');
+        console.log('   - Caché de rutas necesita limpiarse: php artisan route:clear');
+      }
+      return false;
+    }
+  } catch (e) {
+    console.error('❌ Error de conexión:', e.message);
+    return false;
+  }
+},
+
+// Método mejorado para cargar previews
+async hydrateRemotePreviews() {
+  const tasks = [];
+  
+  (this.pagoData?.metodos || []).forEach(m => {
+    (m.comprobantes || []).forEach(comp => {
+      const needsBlob = comp && 
+                       comp._isRemote && 
+                       comp._remoteUrl && 
+                       !String(comp._url).startsWith('blob:');
+      
+      if (!needsBlob) return;
+
+      tasks.push((async () => {
+        try {
+          let fetchUrl = comp._remoteUrl;
+          if (fetchUrl.startsWith('/')) {
+            fetchUrl = window.location.origin + fetchUrl;
+          }
+          
+          console.log(`🔄 Cargando preview: ${comp.comprob_nombre_original} desde ${fetchUrl}`);
+          
+          const res = await fetch(fetchUrl, { 
+            credentials: 'same-origin',
+            headers: {
+              'Accept': '*/*'
+            }
+          });
+          
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          
+          const blob = await res.blob();
+          
+          // Revoca blob anterior si había
+          if (comp._url && String(comp._url).startsWith('blob:')) {
+            try { 
+              URL.revokeObjectURL(comp._url); 
+            } catch (e) {
+              console.warn('Error revocando blob anterior:', e);
+            }
+          }
+          
+          comp._url = URL.createObjectURL(blob);
+          comp._blob = blob;
+          
+          console.log(`✅ Preview cargado: ${comp.comprob_nombre_original}`);
+          
+        } catch (e) {
+          console.error(`❌ Error cargando preview de ${comp.comprob_nombre_original}:`, e.message);
+          
+          // En caso de error, usar la URL original como fallback para que se pueda abrir en nueva pestaña
+          comp._url = comp._remoteUrl;
+          comp._error = `Error: ${e.message}`;
+        }
+      })());
+    });
+  });
+  
+  const results = await Promise.allSettled(tasks);
+  
+  const successful = results.filter(r => r.status === 'fulfilled').length;
+  const failed = results.filter(r => r.status === 'rejected').length;
+  
+  console.log(`📊 Previews procesados: ${successful} exitosos, ${failed} fallidos de ${results.length} total`);
+  
+  // Mostrar estadísticas detalladas si hay errores
+  if (failed > 0) {
+    console.group('❌ Errores detallados:');
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`Preview ${index + 1}:`, result.reason?.message || result.reason);
+      }
+    });
+    console.groupEnd();
+  }
+},
+// Método auxiliar para limpiar blobs cuando sea necesario
+cleanupBlobUrls() {
+  (this.pagoData?.metodos || []).forEach(m => {
+    (m.comprobantes || []).forEach(comp => {
+      if (comp._url && String(comp._url).startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(comp._url);
+        } catch (e) {
+          console.warn('Error limpiando blob URL:', e);
+        }
+      }
+    });
+  });
+},
+
+
+
+// Limpia blobs al cerrar/cambiar
+cleanupPreviews() {
+  (this.pagoData?.metodos || []).forEach(m => {
+    (m.comprobantes || []).forEach(comp => {
+      if (comp && comp._url && String(comp._url).startsWith('blob:')) {
+        try { URL.revokeObjectURL(comp._url); } catch {}
+      }
+    });
+  });
+},
+
+// Abre modal y pinta lo guardado (último pago por defecto)
+async openPagosModal(licenciaId) {
+  this.selectedLicenciaId = licenciaId;
+  this.showPagosModal = true;
+  await this.loadPagosList(licenciaId);
+
+  if (Array.isArray(this.pagosList) && this.pagosList.length > 0) {
+    this.selectedPagoId = this.pagosList[0].pago_lic_id;
+    this.pagoData = this.mapPagoFromApi(this.pagosList[0], licenciaId);
+  } else {
+    this.selectedPagoId = 'new';
+    this.initNewPago(licenciaId);
+  }
+},
+
+// Trae TODOS los pagos de la licencia (formato JSON)
+async loadPagosList(licId) {
+  try {
+    const res = await fetch(`/prolicencias/${licId}/pagos`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+    if (!res.ok) { this.pagosList = []; return; }
+    this.pagosList = await res.json();
+  } catch {
+    this.pagosList = [];
+  }
+},
+
+// Inicializa pago vacío
+initNewPago(licId) {
+  this.pagoData = {
+    pago_lic_id: null,
+    pago_lic_licencia_id: licId,
+    pago_lic_total: 0,
+    pago_lic_situacion: 1,
+    metodos: [],
+    _deleted_metodos: []
+  };
+},
+
+onSelectPagoChange() {
+  if (this.selectedPagoId === 'new') {
+    this.initNewPago(this.selectedLicenciaId);
+    return;
+  }
+  // Puedes evitar otro fetch: usa el objeto ya cargado en pagosList
+  const found = this.pagosList.find(p => p.pago_lic_id == this.selectedPagoId);
+  if (found) {
+    this.pagoData = this.mapPagoFromApi(found, this.selectedLicenciaId);
+  } else {
+    // fallback: fetch individual
+    this.loadPagoById(this.selectedPagoId);
+  }
+},
+
+async loadPagoById(pagoId) {
+  const res = await fetch(`/prolicencias/pagos/${pagoId}`, { headers: { 'Accept':'application/json' } });
+  if (!res.ok) return;
+  const api = await res.json();
+  this.pagoData = this.mapPagoFromApi(api, this.selectedLicenciaId);
+},
+
+async loadPago(licId, pagoId) {
+  try {
+    const url = pagoId
+      ? `/prolicencias/pagos/${pagoId}`
+      : `/prolicencias/${licId}/pagos/actual`;
+
+    const res = await fetch(url, { 
+      headers: { 
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      } 
+    });
+
+    // Si la respuesta es 404 (no encontrado), simplemente retornamos sin hacer nada
+    if (res.status === 404) {
+      console.log('No se encontró el recurso solicitado');
+      return;
+    }
+
+    // Si hay otro error, lanzamos excepción
+    if (!res.ok) throw new Error(`Error ${res.status}: No se pudo cargar el pago`);
+
+    // Si todo está bien, procesamos la respuesta
+    const api = await res.json();
+    this.pagoData = this.mapPagoFromApi(api, licId);
+  } catch (e) {
+    console.error('Error en loadPago:', e);
+    // En caso de error, no resetear los datos, solo loguear el error
+  }
+},
+
+ closePagosModal() {
+  // Revoca blobs temporales
+  this.pagoData.metodos?.forEach(m => m.comprobantes?.forEach(c => {
+    if (c.file && c._url) URL.revokeObjectURL(c._url);
+  }));
+  this.showPagosModal = false;
+},
+
+    // Reset datos
+    resetPagoData() {
+      this.pagoData = {
+        pago_lic_total: 0,
+        pago_lic_situacion: 1,
+        metodos: []
+      };
+    },
+
+
+addMetodoPago() {
+  this.pagoData.metodos.push({
+    _rowKey: Date.now() + Math.random(),
+    pagomet_id: null,
+    pagomet_metodo: '',
+    pagomet_monto: 0,
+    pagomet_moneda: 'GTQ',
+    pagomet_referencia: '',
+    pagomet_banco: '',
+    pagomet_situacion: 1,
+    pagomet_nota: '',
+    comprobantes: [],
+    _deleted_comprobantes: [] // ✅ Esto está bien
+  });
+},
+
+
+  removeMetodoPago(idx) {
+  const m = this.pagoData.metodos[idx];
+  if (m.pagomet_id) (this.pagoData._deleted_metodos ||= []).push(m.pagomet_id);
+  this.pagoData.metodos.splice(idx, 1);
+},
+
+    // Agregar comprobante
+addComprobante(metodoIndex) {
+  const input = document.getElementById('fileInput' + metodoIndex);
+  if (!input) return;
+
+  input.value = '';
+  input.onchange = e => {
+    const files = Array.from(e.target.files || []);
+    const list = this.pagoData.metodos[metodoIndex].comprobantes;
+
+    files.forEach(file => {
+      list.push({
+        _fileKey: Date.now() + Math.random(),
+        file,
+        _url: URL.createObjectURL(file),
+        comprob_nombre_original: file.name,
+        comprob_size_bytes: file.size,
+        comprob_mime: file.type
+      });
+    });
+  };
+  input.click();
+},
+
+
+    // Eliminar comprobante
+removeComprobante(mIdx, cIdx) {
+  const comp = this.pagoData.metodos[mIdx].comprobantes[cIdx];
+  if (comp.comprob_id) {
+    (this.pagoData.metodos[mIdx]._deleted_comprobantes ||= []).push(comp.comprob_id);
+  }
+  if (comp.file && comp._url) URL.revokeObjectURL(comp._url);
+  this.pagoData.metodos[mIdx].comprobantes.splice(cIdx, 1);
+},
+
+
+async savePago() {
+  this.isSubmittingPago = true;
+  
+  try {
+    const fd = new FormData();
+
+    const payload = JSON.parse(JSON.stringify(this.pagoData));
+    payload.metodos.forEach(m => {
+      delete m._rowKey;
+      m.comprobantes = (m.comprobantes || [])
+        .filter(c => !c.file)
+        .map(c => ({
+          comprob_id: c.comprob_id,
+          comprob_nombre_original: c.comprob_nombre_original,
+          comprob_size_bytes: c.comprob_size_bytes,
+          comprob_mime: c.comprob_mime
+        }));
+    });
+
+    fd.append('payload', JSON.stringify(payload));
+    
+    // ✅ CORREGIR: Enviar archivos con formato plano, no como arrays
+    this.pagoData.metodos.forEach((m, metodoIndex) => {
+      (m.comprobantes || []).forEach((c, comprobIndex) => { 
+        if (c.file) {
+          // Usar formato: files[metodoIndex][comprobIndex] en lugar de files[metodoIndex][]
+          fd.append(`files[${metodoIndex}][${comprobIndex}]`, c.file);
+        }
+      });
+    });
+
+    const isUpdate = !!this.pagoData.pago_lic_id;
+    const url = isUpdate
+      ? `/prolicencias/pagos/${this.pagoData.pago_lic_id}`
+      : `/prolicencias/${this.selectedLicenciaId}/pagos`;
+
+    if (isUpdate) fd.append('_method', 'PUT');
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    // ✅ DEBUG: Verificar qué se está enviando
+    console.log('Enviando FormData:');
+    for (let [key, value] of fd.entries()) {
+      console.log(key, value);
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 
+        'X-CSRF-TOKEN': csrfToken,
+        'Accept': 'application/json'
+      },
+      body: fd
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('Response text:', text);
+      throw new Error(`Error ${res.status}: ${text}`);
+    }
+
+    const saved = await res.json();
+
+    // Rehidrata editor con lo que devolvió el backend
+    this.pagoData = this.mapPagoFromApi(saved, this.selectedLicenciaId);
+
+    // Refresca la lista y selecciona el guardado
+    await this.loadPagosList(this.selectedLicenciaId);
+    this.selectedPagoId = this.pagoData.pago_lic_id;
+
+  } catch (e) {
+    console.error('Error completo:', e);
+  } finally {
+    this.isSubmittingPago = false;
+  }
+  this.closePagosModal();
+},
+    // Formatear tamaño de archivo
+    formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+async deletePagoActual() {
+  if (!this.pagoData.pago_lic_id) return;
+ 
+
+  this.isDeleting = true;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort('timeout'), 20000);
+
+  try {
+    // toma el token desde el meta
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    // manda POST con method spoofing
+    const fd = new FormData();
+    fd.append('_method', 'DELETE');
+    fd.append('_token', csrf);
+
+    const res = await fetch(`/prolicencias/pagos/${this.pagoData.pago_lic_id}`, {
+      method: 'POST',                  // 👈 POST + _method=DELETE
+      body: fd,
+      credentials: 'same-origin',      // envía cookies de sesión
+      signal: controller.signal
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `HTTP ${res.status}`);
+    }
+
+    await this.loadPagosList(this.selectedLicenciaId);
+    if (this.pagosList.length) {
+      this.selectedPagoId = this.pagosList[0].pago_lic_id;
+      this.pagoData = this.mapPagoFromApi(this.pagosList[0], this.selectedLicenciaId);
+    } else {
+      this.selectedPagoId = 'new';
+      this.initNewPago(this.selectedLicenciaId);
+    }
+    this.notice = { type: 'success', text: 'Pago eliminado' };
+    setTimeout(() => { if (this.notice?.type==='success') this.notice = null; }, 1500);
+
+  } catch (e) {
+    console.error('Error al eliminar:', e);
+    this.notice = { type: 'error', text: e.message || 'No se pudo eliminar' };
+  } finally {
+    clearTimeout(timer);
+    this.isDeleting = false;
+  }
+ // this.closePagosModal();
+},
+
+ 
+
 addPdf() {
   const input = this.$refs.inputPdf || document.getElementById('inputPdf');
   if (!input) {

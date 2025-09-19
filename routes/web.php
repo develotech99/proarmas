@@ -14,6 +14,7 @@ use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
 use App\Http\Controllers\ProLicenciaParaImportacionController;
 use App\Http\Controllers\ProEmpresaDeImportacionController;
+use App\Http\Controllers\PagoLicenciaController;
 use App\Http\Controllers\VentasController;
 
 
@@ -34,11 +35,30 @@ Route::middleware('auth')->group(function () {
       })->name('dashboard');
       Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
+
+      // En routes/web.php
+      Route::get('/prolicencias/{licencia}/pagos', [PagoLicenciaController::class, 'index']);
+      Route::post('/prolicencias/{licencia}/pagos', [PagoLicenciaController::class, 'store']);
+      Route::get('/prolicencias/pagos/{pago}', [PagoLicenciaController::class, 'show']);
+      Route::put('/prolicencias/pagos/{pago}', [PagoLicenciaController::class, 'update']);
+      // Route::delete('/prolicencias/pagos/{pago}', [PagoLicenciaController::class, 'destroy']);
+      Route::delete('prolicencias/pagos/{pago:pago_lic_id}', [PagoLicenciaController::class, 'destroy']);
+
+
       Route::post('prolicencias/{licencia}/upload-pdfs', [ProLicenciaParaImportacionController::class, 'uploadPdfs']);
       Route::get('prolicencias/{licencia}/documentos', [ProLicenciaParaImportacionController::class, 'listDocumentos']);
       Route::get('prolicencias/{licencia}/documentos/info', [ProLicenciaParaImportacionController::class, 'getDocumentos']);
       Route::delete('prolicencias/documento/{documento}', [ProLicenciaParaImportacionController::class, 'destroyDocumento'])
             ->name('prolicencias.documento.destroy');
+
+      Route::get('prolicencias/comprobante/{filename}', [ProLicenciaParaImportacionController::class, 'serveComprobante'])
+            ->name('prolicencias.comprobante.serve')
+            ->where('filename', '[A-Za-z0-9\-_\.]+');
+
+
+      Route::get('prolicencias/file/{path}', [ProLicenciaParaImportacionController::class, 'serveFile'])
+            ->name('prolicencias.file.serve')
+            ->where('path', '.*');
 
       Route::put('prolicencias/{id}/estado', [ProLicenciaParaImportacionController::class, 'updateEstado'])->name('prolicencias.updateEstado');
       Route::resource('prolicencias', ProLicenciaParaImportacionController::class);

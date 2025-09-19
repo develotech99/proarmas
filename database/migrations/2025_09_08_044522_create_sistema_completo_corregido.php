@@ -300,40 +300,85 @@ return new class extends Migration {
         // PAGOS DE LICENCIAS
         // ========================
 
-        // Pagos licencias
-        Schema::create('pro_pagos_licencias', function (Blueprint $table) {
-            $table->id('pago_lic_id')->comment('ID pago licencia');
-            $table->unsignedBigInteger('pago_licencia_id');
-            $table->unsignedBigInteger('pago_empresa_id');
-            $table->date('pago_fecha');
-            $table->decimal('pago_monto', 10, 2);
-            $table->unsignedBigInteger('pago_metodo');
-            $table->string('pago_verificado', 50)->default('no aprobada');
-            $table->string('pago_concepto', 250)->nullable();
-            $table->timestamps();
-
-            $table->foreign('pago_licencia_id')->references('lipaimp_id')->on('pro_licencias_para_importacion');
-            $table->foreign('pago_empresa_id')->references('empresaimp_id')->on('pro_empresas_de_importacion');
-            $table->foreign('pago_metodo')->references('metpago_id')->on('pro_metodos_pago');
+Schema::create('pro_licencias_total_pagado', function (Blueprint $table) {
+            $table->unsignedBigInteger('lic_id')->primary();
+            $table->decimal('total_pagado', 12, 2)->default(0);
+            $table->timestamp('updated_at')->nullable();
+            
+            $table->foreign('lic_id')
+                  ->references('lipaimp_id')
+                  ->on('pro_licencias_para_importacion')
+                  ->onDelete('cascade');
         });
 
-        // Comprobantes pago
-        Schema::create('pro_comprobantes_pago', function (Blueprint $table) {
-            $table->bigIncrements('comprob_id');
-            $table->string('comprob_ruta', 255); // ↑ más largo
+        // Tabla principal de pagos de licencias
+        Schema::create('pro_pagos_licencias', function (Blueprint $table) {
+            $table->id('pago_lic_id');
+            $table->unsignedBigInteger('pago_lic_licencia_id');
+            $table->decimal('pago_lic_total', 12, 2)->default(0);
+            $table->tinyInteger('pago_lic_situacion')->default(1);
+            $table->timestamps();
+
+            // Foreign keys
+            $table->foreign('pago_lic_licencia_id')
+                  ->references('lipaimp_id')
+                  ->on('pro_licencias_para_importacion')
+                  ->onDelete('cascade');
+
+            // Índices
+            $table->index('pago_lic_licencia_id');
+            $table->index('pago_lic_situacion');
+        });
+
+        // Tabla de métodos de pago
+        Schema::create('pro_pagos_lic_metodos', function (Blueprint $table) {
+            $table->id('pagomet_id');
+            $table->unsignedBigInteger('pagomet_pago_lic');
+            $table->unsignedBigInteger('pagomet_metodo');
+            $table->decimal('pagomet_monto', 12, 2)->default(0);
+            $table->char('pagomet_moneda', 3)->default('GTQ');
+            $table->string('pagomet_referencia', 100)->nullable();
+            $table->string('pagomet_banco', 100)->nullable();
+            $table->string('pagomet_nota', 255)->nullable();
+            $table->tinyInteger('pagomet_situacion')->default(1);
+            $table->timestamps();
+
+            // Foreign keys
+            $table->foreign('pagomet_pago_lic')
+                  ->references('pago_lic_id')
+                  ->on('pro_pagos_licencias')
+                  ->onDelete('cascade');
+
+            $table->foreign('pagomet_metodo')
+                  ->references('metpago_id')
+                  ->on('pro_metodos_pago');
+
+            // Índices
+            $table->index('pagomet_pago_lic');
+            $table->index('pagomet_metodo');
+            $table->index(['pagomet_situacion', 'pagomet_pago_lic']);
+        });
+
+        // Tabla de comprobantes de pago
+        Schema::create('pro_comprobantes_pago_licencias', function (Blueprint $table) {
+            $table->id('comprob_id');
+            $table->string('comprob_ruta', 255);
             $table->string('comprob_nombre_original', 255)->nullable();
             $table->unsignedBigInteger('comprob_size_bytes')->default(0);
             $table->string('comprob_mime', 100)->nullable();
-
-            $table->unsignedBigInteger('comprob_pagos_licencia'); // mejor required si siempre pertenece a un pago
+            $table->unsignedBigInteger('comprob_pagomet_id');
             $table->tinyInteger('comprob_situacion')->default(1);
             $table->timestamps();
 
-            $table->foreign('comprob_pagos_licencia')
-                ->references('pago_lic_id')->on('pro_pagos_licencias')
-                ->cascadeOnDelete(); // 👈 cascada
+            // Foreign keys
+            $table->foreign('comprob_pagomet_id')
+                  ->references('pagomet_id')
+                  ->on('pro_pagos_lic_metodos')
+                  ->onDelete('cascade');
 
-            $table->index('comprob_pagos_licencia'); // 👈 índice
+            // Índices
+            $table->index('comprob_pagomet_id');
+            $table->index('comprob_situacion');
         });
 
 
@@ -861,5 +906,10 @@ return new class extends Migration {
         Schema::dropIfExists('pro_unidades_medida');
         Schema::dropIfExists('pro_paises');
         Schema::dropIfExists('pro_metodos_pago');
+
+        Schema::dropIfExists('pro_comprobantes_pago_licencias');
+        Schema::dropIfExists('pro_pagos_lic_metodos');
+        Schema::dropIfExists('pro_pagos_licencias');
+        Schema::dropIfExists('pro_licencias_total_pagado');
     }
 };
