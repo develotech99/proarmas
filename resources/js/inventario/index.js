@@ -215,7 +215,59 @@ class InventarioManager {
     }
 
 
-    
+    resetEgresoForm() {
+        document.getElementById('egreso-form').reset();
+        this.clearErrors('egreso');
+        
+        document.getElementById('egreso-step-1').classList.remove('hidden');
+        document.getElementById('egreso-step-2').classList.add('hidden');
+        document.getElementById('productos_encontrados_egreso').classList.add('hidden');
+        
+        // Limpiar campos dinámicos
+        const cantidadInput = document.getElementById('egr_cantidad');
+        if (cantidadInput) {
+            cantidadInput.removeAttribute('max');
+            cantidadInput.placeholder = 'Ej: 5';
+        }
+        
+        // Limpiar labels dinámicos
+        const cantidadLabel = document.querySelector('#cantidad_section_egreso label');
+        if (cantidadLabel) {
+            cantidadLabel.textContent = 'Cantidad *';
+        }
+        
+        // Limpiar información de origen seleccionado
+        const origenInfo = document.getElementById('origen_seleccionado_info');
+        if (origenInfo) {
+            origenInfo.innerHTML = '';
+        }
+        
+        // Resetear radio buttons
+        const radios = document.querySelectorAll('input[name="origen_egreso"]');
+        radios.forEach(radio => {
+            radio.checked = false;
+        });
+        
+        // Resetear variables internas
+        this.productoSeleccionadoEgreso = null;
+        this.seriesSeleccionadasEgreso = [];
+        this.origenEgresoSeleccionado = null;
+    }
+
+    openEgresoModal() {
+        this.resetEgresoForm();
+        this.showModal('egreso');
+    } 
+
+    egresoRapido(productoId) {
+        // Pre-seleccionar el producto y abrir modal de egreso
+        this.openEgresoModal();
+        setTimeout(() => {
+            this.seleccionarProductoEgreso(productoId);
+        }, 100);
+    }
+  
+
 /**
  * NUEVO: Configurar tipo de lote seleccionado
  */
@@ -681,6 +733,7 @@ async handleEgresoSubmit() {
 
         if (response.ok && data.success) {
             this.showAlert('success', 'Éxito', data.message);
+            this.resetEgresoForm();
             this.closeModal('egreso');
             
             await Promise.all([
@@ -2329,6 +2382,11 @@ renderProductoCard(producto) {
                             class="p-1 text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900 rounded"
                             title="Ingreso rápido">
                         <i class="fas fa-plus-circle"></i>
+                    </button>
+                    <button onclick="inventarioManager.egresoRapido(${producto.producto_id})" 
+                            class="p-1 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 rounded"
+                            title="Egreso rápido">
+                        <i class="fas fa-minus-circle"></i>
                     </button>
                     <!-- Botón Gestión de Precios -->
                     <button onclick="inventarioManager.gestionarPrecios(${producto.producto_id})" 
