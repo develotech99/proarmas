@@ -129,6 +129,88 @@ public function getProductosStock(Request $request): JsonResponse
     }
 }
 
+
+
+public function egresar(Request $request): JsonResponse
+{
+    try {
+        $request->validate([
+            'producto_id' => 'required|exists:pro_productos,producto_id',
+            'mov_tipo' => 'required|string',
+            'mov_destino' => 'required|string',
+            'mov_cantidad' => 'nullable|integer|min:1',
+            'numeros_series' => 'nullable|string',
+            'mov_observaciones' => 'nullable|string|max:250'
+        ]);
+
+        $producto = Producto::findOrFail($request->producto_id);
+        
+        if ($producto->producto_requiere_serie) {
+            // Lógica para productos con serie
+            $series = array_filter(array_map('trim', explode("\n", $request->numeros_series)));
+            // Implementar egreso por series
+        } else {
+            // Lógica para productos sin serie
+            $cantidad = $request->mov_cantidad;
+            
+            // Verificar stock disponible
+            $stockActual = StockActual::where('stock_producto_id', $producto->producto_id)->first();
+            if (!$stockActual || $stockActual->stock_cantidad_disponible < $cantidad) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stock insuficiente para realizar el egreso'
+                ], 400);
+            }
+            
+            // Registrar movimiento de egreso
+            ProMovimiento::create([
+                'mov_producto_id' => $producto->producto_id,
+                'mov_tipo' => $request->mov_tipo,
+                'mov_origen' => $request->mov_destino,
+                'mov_cantidad' => -$cantidad, // Negativo para egreso
+                'mov_usuario_id' => auth()->id(),
+                'mov_observaciones' => $request->mov_observaciones
+            ]);
+            
+            // Actualizar stock
+            $stockActual->decrement('stock_cantidad_disponible', $cantidad);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Egreso registrado exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al procesar egreso: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+public function getSeriesDisponibles($id): JsonResponse
+{
+    try {
+        $series = ProSeriesProducto::where('serie_producto_id', $id)
+            ->where('serie_estado', 'disponible')
+            ->where('serie_situacion', 1)
+            ->orderBy('serie_numero_serie')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $series
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar series: ' . $e->getMessage()
+        ], 500);
+    }
+}
     /**
      * Buscar productos para el modal de ingreso
      */

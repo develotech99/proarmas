@@ -180,6 +180,15 @@ class InventarioManager {
             });
         });
 
+        document.getElementById('egreso-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleEgresoSubmit();
+        });
+        
+        document.getElementById('buscar_producto_egreso').addEventListener('input', (e) => {
+            this.buscarProductosEgreso(e.target.value);
+        });
+
     }
 
     /**
@@ -234,6 +243,314 @@ configurarTipoLote(tipo) {
     }
 }
 
+// Agregar las nuevas funciones
+async buscarProductosEgreso(query) {
+    const container = document.getElementById('productos_encontrados_egreso');
+    
+    if (!query || query.length < 2) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/inventario/buscar-productos?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderResultadosBusquedaEgreso(data.data || []);
+        }
+    } catch (error) {
+        console.error('Error buscando productos:', error);
+    }
+}
+
+renderResultadosBusquedaEgreso(productos) {
+    const container = document.getElementById('productos_encontrados_egreso');
+    
+    if (productos.length === 0) {
+        container.innerHTML = `<div class="p-3 text-center text-gray-500">No se encontraron productos</div>`;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    container.innerHTML = productos.map(producto => `
+        <div onclick="inventarioManager.seleccionarProductoEgreso(${producto.producto_id})" 
+             class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0">
+            <div class="font-medium text-gray-900">${producto.producto_nombre}</div>
+            <div class="text-sm text-gray-500">SKU: ${producto.pro_codigo_sku} • Stock: ${producto.stock_cantidad_disponible || 0}</div>
+        </div>
+    `).join('');
+    
+    container.classList.remove('hidden');
+}
+async seleccionarProductoEgreso(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.productoSeleccionadoEgreso = data.data;
+            
+            document.getElementById('egreso-step-1').classList.add('hidden');
+            document.getElementById('egreso-step-2').classList.remove('hidden');
+            
+            document.getElementById('producto_seleccionado_nombre_egreso').textContent = this.productoSeleccionadoEgreso.producto_nombre;
+            document.getElementById('producto_seleccionado_info_egreso').textContent = 
+                `Stock actual: ${this.productoSeleccionadoEgreso.stock_cantidad_disponible || 0} • SKU: ${this.productoSeleccionadoEgreso.pro_codigo_sku}`;
+            
+            const cantidadSection = document.getElementById('cantidad_section_egreso');
+            const seriesSection = document.getElementById('series_section_egreso');
+            
+            if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
+                cantidadSection.classList.add('hidden');
+                seriesSection.classList.remove('hidden');
+                // Cargar series disponibles
+                this.cargarSeriesDisponibles(productoId);
+            } else {
+                cantidadSection.classList.remove('hidden');
+                seriesSection.classList.add('hidden');
+            }
+            
+            document.getElementById('productos_encontrados_egreso').classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error al cargar el producto');
+    }
+}
+
+
+// Nueva función para cargar series disponibles
+async cargarSeriesDisponibles(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}/series-disponibles`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderSeriesDisponibles(data.data || []);
+        } else {
+            this.renderSeriesDisponibles([]);
+        }
+    } catch (error) {
+        console.error('Error cargando series:', error);
+        this.renderSeriesDisponibles([]);
+    }
+}
+
+// Renderizar series disponibles para selección
+renderSeriesDisponibles(series) {
+    const container = document.getElementById('series_disponibles_container');
+    this.seriesSeleccionadasEgreso = []; // Resetear selección
+    this.actualizarContadorSeries();
+    
+    if (series.length === 0) {
+        container.innerHTML = `
+            <div class="p-4 text-center text-gray-500">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
+                <p class="text-sm">No hay series disponibles para egreso</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="p-3 border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ${series.length} series disponibles
+                </span>
+                <div class="space-x-2">
+                    <button onclick="inventarioManager.seleccionarTodasLasSeries()" 
+                            class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Seleccionar todas
+                    </button>
+                    <button onclick="inventarioManager.deseleccionarTodasLasSeries()" 
+                            class="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">
+                        Deseleccionar todas
+                    </button>
+                </div>
+            </div>
+        </div>
+        ${series.map(serie => `
+            <div class="flex items-center p-3 border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <input type="checkbox" 
+                       id="serie_${serie.serie_id}" 
+                       class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded mr-3"
+                       onchange="inventarioManager.toggleSerieSeleccion(${serie.serie_id}, '${serie.serie_numero_serie}')">
+                <label for="serie_${serie.serie_id}" class="flex-1 cursor-pointer">
+                    <div class="font-mono text-sm text-gray-900 dark:text-gray-100">${serie.serie_numero_serie}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        Ingresado: ${new Date(serie.serie_fecha_ingreso).toLocaleDateString()}
+                    </div>
+                </label>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    Disponible
+                </span>
+            </div>
+        `).join('')}
+    `;
+}
+
+// Toggle selección de serie individual
+toggleSerieSeleccion(serieId, numeroSerie) {
+    const checkbox = document.getElementById(`serie_${serieId}`);
+    
+    if (checkbox.checked) {
+        // Agregar a seleccionadas
+        if (!this.seriesSeleccionadasEgreso.find(s => s.id === serieId)) {
+            this.seriesSeleccionadasEgreso.push({ id: serieId, numero: numeroSerie });
+        }
+    } else {
+        // Remover de seleccionadas
+        this.seriesSeleccionadasEgreso = this.seriesSeleccionadasEgreso.filter(s => s.id !== serieId);
+    }
+    
+    this.actualizarContadorSeries();
+}
+
+// Seleccionar todas las series
+seleccionarTodasLasSeries() {
+    const checkboxes = document.querySelectorAll('#series_disponibles_container input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    });
+}
+
+// Deseleccionar todas las series
+deseleccionarTodasLasSeries() {
+    const checkboxes = document.querySelectorAll('#series_disponibles_container input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    });
+}
+
+
+actualizarContadorSeries() {
+    const countElement = document.getElementById('series_seleccionadas_count');
+    const hiddenInput = document.getElementById('series_seleccionadas_input');
+    
+    if (countElement) {
+        countElement.textContent = this.seriesSeleccionadasEgreso.length;
+    }
+    
+    // Actualizar input hidden con las series seleccionadas
+    if (hiddenInput) {
+        hiddenInput.value = JSON.stringify(this.seriesSeleccionadasEgreso);
+    }
+}
+
+
+async handleEgresoSubmit() {
+    if (!this.productoSeleccionadoEgreso) {
+        this.showAlert('error', 'Error', 'Debe seleccionar un producto');
+        return;
+    }
+
+    if (!this.validateEgresoForm()) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('producto_id', this.productoSeleccionadoEgreso.producto_id);
+    formData.append('mov_tipo', document.getElementById('egr_tipo').value);
+    formData.append('mov_destino', document.getElementById('egr_destino').value);
+    formData.append('mov_observaciones', document.getElementById('egr_observaciones').value);
+
+    if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
+        formData.append('numeros_series', document.getElementById('numeros_series_egreso').value);
+    } else {
+        formData.append('mov_cantidad', document.getElementById('egr_cantidad').value);
+    }
+
+    this.setLoading('egreso', true);
+
+    try {
+        const response = await fetch('/inventario/egresar', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            this.showAlert('success', 'Éxito', data.message);
+            this.closeModal('egreso');
+            
+            await Promise.all([
+                this.loadProductos(),
+                this.loadStats(),
+                this.loadAlertas()
+            ]);
+        } else {
+            if (data.errors) {
+                this.showValidationErrors('egreso', data.errors);
+            } else {
+                this.showAlert('error', 'Error', data.message || 'Error al procesar egreso');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    } finally {
+        this.setLoading('egreso', false);
+    }
+}
+validateEgresoForm() {
+    const tipo = document.getElementById('egr_tipo').value;
+    const destino = document.getElementById('egr_destino').value.trim();
+    
+    this.clearErrors('egreso');
+    
+    let isValid = true;
+    
+    if (!tipo) {
+        this.showFieldError('egr_tipo', 'El tipo de movimiento es obligatorio');
+        isValid = false;
+    }
+    
+    if (!destino) {
+        this.showFieldError('egr_destino', 'El destino es obligatorio');
+        isValid = false;
+    }
+    
+    if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
+        if (this.seriesSeleccionadasEgreso.length === 0) {
+            this.showFieldError('numeros_series_egreso', 'Debe seleccionar al menos una serie');
+            isValid = false;
+        }
+    } else {
+        const cantidad = document.getElementById('egr_cantidad').value;
+        const stockDisponible = this.productoSeleccionadoEgreso.stock_cantidad_disponible || 0;
+        
+        if (!cantidad || parseInt(cantidad) <= 0) {
+            this.showFieldError('egr_cantidad', 'La cantidad debe ser mayor a 0');
+            isValid = false;
+        } else if (parseInt(cantidad) > stockDisponible) {
+            this.showFieldError('egr_cantidad', `No hay suficiente stock. Disponible: ${stockDisponible}`);
+            isValid = false;
+        }
+    }
+    
+    return isValid;
+}
+resetEgresoForm() {
+    document.getElementById('egreso-form').reset();
+    this.clearErrors('egreso');
+    
+    document.getElementById('egreso-step-1').classList.remove('hidden');
+    document.getElementById('egreso-step-2').classList.add('hidden');
+    document.getElementById('productos_encontrados_egreso').classList.add('hidden');
+    
+    this.productoSeleccionadoEgreso = null;
+    this.seriesSeleccionadasEgreso = []; // Resetear series seleccionadas
+}
 
 
 /**
@@ -2021,9 +2338,13 @@ renderProductoCard(producto) {
     /**
      * Abrir modal de egreso
      */
-    openEgresoModal() {
-        this.showAlert('info', 'Próximamente', 'Función de egreso en desarrollo');
-    }
+   /**
+ * Abrir modal de egreso
+ */
+openEgresoModal() {
+    this.resetEgresoForm();
+    this.showModal('egreso');
+}
 
     /**
      * Ver historial de movimientos

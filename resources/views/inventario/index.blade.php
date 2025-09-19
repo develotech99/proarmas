@@ -1633,6 +1633,142 @@
         </div>
     </div>
 
+
+    <!-- Modal Egreso de Inventario -->
+    <div id="egreso-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                onclick="inventarioManager.closeModal('egreso')"></div>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
+
+                <form id="egreso-form">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Egreso de Inventario</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Registrar salida de productos del inventario</p>
+                    </div>
+
+                    <div id="egreso-step-1">
+                        <!-- Selección de producto -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar producto *</label>
+                            <input type="text" id="buscar_producto_egreso" placeholder="Escribir nombre, SKU o código..."
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                            <div id="productos_encontrados_egreso" class="mt-2 max-h-48 overflow-y-auto hidden">
+                                <!-- Resultados de búsqueda -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="egreso-step-2" class="hidden">
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-900 dark:text-gray-100" id="producto_seleccionado_nombre_egreso">
+                                Producto seleccionado</h4>
+                            <p class="text-sm text-gray-500 dark:text-gray-400" id="producto_seleccionado_info_egreso">Stock actual: 0</p>
+                        </div>
+
+                        <!-- Tipo de egreso y Destino -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de movimiento *</label>
+                                <select id="egr_tipo" name="egr_tipo" required
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                                    <option value="">Seleccionar tipo...</option>
+                                    <option value="venta">Venta</option>
+                                    <option value="egreso">Egreso</option>
+                                    <option value="ajuste_negativo">Ajuste Negativo</option>
+                                    <option value="transferencia">Transferencia</option>
+                                    <option value="devolución_proveedor">Devolución a Proveedor</option>
+                                    <option value="baja">Baja por deterioro</option>
+                                </select>
+                                <div id="egr_tipo_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Destino *</label>
+                                <input type="text" id="egr_destino" name="egr_destino" required
+                                    placeholder="Cliente, Sucursal, etc."
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                                <div id="egr_destino_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            </div>
+                        </div>
+
+                        <!-- CANTIDAD (para productos sin serie) -->
+                        <div id="cantidad_section_egreso" class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad *</label>
+                            <input type="number" id="egr_cantidad" name="egr_cantidad" min="1" placeholder="Ej: 5"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                            <div id="egr_cantidad_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            <small class="text-xs text-gray-500 dark:text-gray-400">
+                                Cantidad de unidades a egresar del inventario
+                            </small>
+                        </div>
+
+                        <!-- SERIES (para productos con serie) -->
+                       <!-- SERIES (para productos con serie) -->
+                        <div id="series_section_egreso" class="mb-4 hidden">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Seleccionar series a egresar *</label>
+                            
+                            <!-- Contador de series seleccionadas -->
+                            <div class="mb-3 p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-blue-700 dark:text-blue-300">Series seleccionadas:</span>
+                                    <span id="series_seleccionadas_count" class="font-semibold text-blue-600">0</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Lista de series disponibles -->
+                            <div id="series_disponibles_container" class="border border-gray-300 dark:border-gray-600 rounded-lg max-h-64 overflow-y-auto bg-white dark:bg-gray-700">
+                                <div class="p-4 text-center text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mb-2"></i>
+                                    <p class="text-sm">Cargando series disponibles...</p>
+                                </div>
+                            </div>
+                            
+                            <div id="numeros_series_egreso_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            
+                            <!-- Input hidden para enviar las series seleccionadas -->
+                            <input type="hidden" id="series_seleccionadas_input" name="series_seleccionadas">
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Observaciones</label>
+                            <textarea id="egr_observaciones" name="egr_observaciones" rows="2"
+                                placeholder="Detalles adicionales del egreso..."
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" onclick="inventarioManager.closeModal('egreso')"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="egreso-submit-btn"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span id="egreso-submit-text">Procesar Egreso</span>
+                            <span id="egreso-loading" class="hidden flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Procesando...
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
 </div>
 
 @endsection

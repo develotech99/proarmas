@@ -215,6 +215,14 @@ Route::middleware('auth')->group(function () {
       Route::post('/inventario/ingresar', [InventarioController::class, 'ingresar'])
             ->name('inventario.ingresar');
 
+      // Procesar egreso de inventario (AJAX) - NUEVA RUTA
+      Route::post('/inventario/egresar', [InventarioController::class, 'egresar'])
+      ->name('inventario.egresar');
+
+
+      // En web.php, agregar:
+      Route::get('/inventario/productos/{id}/series-disponibles', [InventarioController::class, 'getSeriesDisponibles'])
+      ->name('inventario.producto.series-disponibles');
       // ================================
       // ESTADÍSTICAS Y DASHBOARDS
       // ================================
