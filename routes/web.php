@@ -316,11 +316,10 @@ Route::middleware('auth')->group(function () {
 
       // RUTA QUE FALTABA - Para obtener productos
       Route::get('/api/ventas/buscar-productos', [VentasController::class, 'buscarProductos'])->name('ventas.api.productos');
-      Route::get('/api/ventas/buscar', [VentasController::class, 'buscarClientes'])
-            ->name('ventas.api.clientes.buscar');
+      Route::get('/api/ventas/buscar', [VentasController::class, 'buscarClientes'])->name('ventas.api.clientes.buscar');
+      Route::post('/api/clientes/guardar', [VentasController::class, 'guardarCliente'])->name('ventas.api.clientes.guardar');
 
-      Route::post('/api/clientes/guardar', [VentasController::class, 'guardarCliente'])
-            ->name('ventas.api.clientes.guardar');
+      Route::post('/api/ventas/procesar-venta', [VentasController::class, 'procesarVenta'])->name('ventas.api.ventas.procesar');
 });
 
 

@@ -74,7 +74,7 @@
 
                 {{-- Selector de clientes particulares --}}
                 <div class="mb-3">
-                    <label for="cliente2" class="block text-sm font-medium text-gray-700 mb-1">Clientes</label>
+                    <label for="clientes" class="block text-sm font-medium text-gray-700 mb-1">Clientes</label>
 
                     <div class="flex gap-2">
                         <input id="dpiClientes" type="number" placeholder="Buscar por DPI"
@@ -95,7 +95,7 @@
                         </button>
                     </div>
 
-                    <select id="cliente2" name="cliente2"
+                    <select id="clienteSelect" name="clienteSelect"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mt-2">
                         <option value="">Seleccionar...</option>
                         {{-- Se llena dinámicamente con JS --}}
@@ -215,7 +215,7 @@
                         <!-- Fecha de venta -->
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Fecha de Venta</label>
-                            <input type="date" id="fechaVenta" value=""
+                            <input type="datetime-local" id="fechaVenta" value=""
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
 
@@ -372,8 +372,8 @@
                     </div>
 
                     <!-- Botón procesar venta -->
-                    <button id="procesarVentaModal" disabled
-                        class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
+                    <button id="procesarVentaModal" type="button"
+                        class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-color">
                         <i class="fas fa-check mr-2"></i>Procesar Venta
                     </button>
                 </div>

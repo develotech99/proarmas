@@ -7,7 +7,7 @@ const clientePremiumSelect = document.getElementById("clientePremium");
 async function clientesParticulares() {
     const nit = document.getElementById("nitClientes").value.trim();
     const dpi = document.getElementById("dpiClientes").value.trim();
-    const select = document.getElementById("cliente2");
+    const select = document.getElementById("clienteSelect");
 
     const params = new URLSearchParams();
     if (nit) params.append("nit", nit);
@@ -222,7 +222,7 @@ btnLimpiar.addEventListener("click", clearInputs);
 function clearInputs() {
     document.getElementById("dpiClientes").value = "";
     document.getElementById("nitClientes").value = "";
-    document.getElementById("cliente2").innerHTML =
+    document.getElementById("clienteSelect").innerHTML =
         '<option value="">Seleccionar...</option>'; // Limpiar el select
 }
 
@@ -608,9 +608,12 @@ function seleccionarProducto2(producto_id) {
 let carritoProductos = [];
 
 // Establecer fecha actual
-document.getElementById("fechaVenta").value = new Date()
+const ahora = new Date();
+const fechaHoraLocal = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000))
     .toISOString()
-    .split("T")[0];
+    .slice(0, 16); // Formato: YYYY-MM-DDTHH:MM
+
+document.getElementById("fechaVenta").value = fechaHoraLocal;
 
 // Eventos para abrir/cerrar carrito
 document
@@ -622,8 +625,6 @@ document
 document
     .getElementById("overlayCarrito")
     .addEventListener("click", cerrarCarrito);
-
-
 
 // Evento para descuento
 document
@@ -1075,8 +1076,6 @@ function actualizarVistaCarrito() {
     });
 })();
 
-
-
 function calcularTotales() {
     const subtotal = carritoProductos.reduce(
         (sum, p) => sum + p.precio * p.cantidad,
@@ -1091,8 +1090,6 @@ function calcularTotales() {
         2
     )}`;
     document.getElementById("totalModal").textContent = `Q${total.toFixed(2)}`;
-
-
 }
 
 function actualizarContadorCarrito() {
@@ -1271,47 +1268,60 @@ async function seleccionarSeries(producto_id) {
 }
 
 async function seleccionarLotes(producto_id) {
-  const id = String(producto_id);
-  const p = carritoProductos.find((x) => String(x.producto_id) === id);
-  if (!p) return;
+    const id = String(producto_id);
+    const p = carritoProductos.find((x) => String(x.producto_id) === id);
+    if (!p) return;
 
-  const cantidadNecesaria = Number(p.cantidad || 0);
-  if (cantidadNecesaria < 1) {
-    return mostrarNotificacion?.("La cantidad del producto debe ser al menos 1.", "info");
-  }
+    const cantidadNecesaria = Number(p.cantidad || 0);
+    if (cantidadNecesaria < 1) {
+        return mostrarNotificacion?.(
+            "La cantidad del producto debe ser al menos 1.",
+            "info"
+        );
+    }
 
-  const lotes = Array.isArray(p.lotes) ? p.lotes : [];
-  if (lotes.length === 0) {
-    return mostrarNotificacion?.("Este producto no tiene lotes disponibles.", "info");
-  }
+    const lotes = Array.isArray(p.lotes) ? p.lotes : [];
+    if (lotes.length === 0) {
+        return mostrarNotificacion?.(
+            "Este producto no tiene lotes disponibles.",
+            "info"
+        );
+    }
 
-  // Prefill con lo que ya seleccionó
-  const preSel = new Map((p.lotesSeleccionados || []).map(it => [Number(it.lote_id), Number(it.cantidad)]));
+    // Prefill con lo que ya seleccionó
+    const preSel = new Map(
+        (p.lotesSeleccionados || []).map((it) => [
+            Number(it.lote_id),
+            Number(it.cantidad),
+        ])
+    );
 
-  // Construir HTML: cada lote con checkbox y input cantidad
-  const opciones = lotes.map(l => {
-    const loteId = Number(l.lote_id ?? l.id);
-    const loteCodigo = l.lote_codigo ?? `Lote ${loteId}`;
-    const max = Number(l.lote_cantidad_total ?? 0);
-    const pre = preSel.get(loteId) || 0;
-    const checked = pre > 0 ? 'checked' : '';
-    const disabled = pre > 0 ? '' : 'disabled';
-    return `
+    // Construir HTML: cada lote con checkbox y input cantidad
+    const opciones = lotes
+        .map((l) => {
+            const loteId = Number(l.lote_id ?? l.id);
+            const loteCodigo = l.lote_codigo ?? `Lote ${loteId}`;
+            const max = Number(l.lote_cantidad_total ?? 0);
+            const pre = preSel.get(loteId) || 0;
+            const checked = pre > 0 ? "checked" : "";
+            const disabled = pre > 0 ? "" : "disabled";
+            return `
       <div class="flex items-center justify-between gap-3 py-1">
         <label class="flex items-center gap-2 text-sm">
           <input type="checkbox" class="lote-check" data-lote-id="${loteId}" data-max="${max}" ${checked}>
           <span class="font-mono">${loteCodigo}</span>
           <span class="text-xs text-gray-500">(disp: ${max})</span>
         </label>
-        <input type="number" min="1" max="${max}" value="${pre || ''}" 
+        <input type="number" min="1" max="${max}" value="${pre || ""}" 
                class="lote-input w-20 px-2 py-1 border rounded text-sm text-right" 
                data-lote-id="${loteId}" ${disabled}>
       </div>`;
-  }).join("");
+        })
+        .join("");
 
-  const { value: asignaciones } = await Swal.fire({
-    title: `Seleccione ${cantidadNecesaria} unidad(es) de los lotes disponibles`,
-    html: `
+    const { value: asignaciones } = await Swal.fire({
+        title: `Seleccione ${cantidadNecesaria} unidad(es) de los lotes disponibles`,
+        html: `
       <div class="text-left max-h-72 overflow-auto px-1">
         ${opciones}
       </div>
@@ -1319,322 +1329,363 @@ async function seleccionarLotes(producto_id) {
         Asignadas: <span id="lotSum">0</span> / ${cantidadNecesaria}
       </div>
     `,
-    showCancelButton: true,
-    confirmButtonText: "Guardar",
-    cancelButtonText: "Cancelar",
-    didOpen: () => {
-      const container = Swal.getHtmlContainer();
-      const checks = container.querySelectorAll(".lote-check");
-      const inputs = container.querySelectorAll(".lote-input");
-      const lotSum = container.querySelector("#lotSum");
+        showCancelButton: true,
+        confirmButtonText: "Guardar",
+        cancelButtonText: "Cancelar",
+        didOpen: () => {
+            const container = Swal.getHtmlContainer();
+            const checks = container.querySelectorAll(".lote-check");
+            const inputs = container.querySelectorAll(".lote-input");
+            const lotSum = container.querySelector("#lotSum");
 
-      const getSum = () => Array.from(inputs).reduce((acc, inp) => {
-        const v = Number(inp.value || 0);
-        return acc + (!inp.disabled && v > 0 ? v : 0);
-      }, 0);
+            const getSum = () =>
+                Array.from(inputs).reduce((acc, inp) => {
+                    const v = Number(inp.value || 0);
+                    return acc + (!inp.disabled && v > 0 ? v : 0);
+                }, 0);
 
-      const recalc = () => {
-        lotSum.textContent = getSum();
-      };
+            const recalc = () => {
+                lotSum.textContent = getSum();
+            };
 
-      checks.forEach((chk) => {
-        const loteId = Number(chk.dataset.loteId);
-        const inp = container.querySelector(`.lote-input[data-lote-id="${loteId}"]`);
-        chk.addEventListener("change", () => {
-          if (chk.checked) {
-            // Al marcar, intentamos poner 1 sin exceder el total ni el max del lote
-            const current = getSum();
-            const maxLote = Number(chk.dataset.max || 0);
-            if (current >= cantidadNecesaria) {
-              // No hay espacio para más unidades
-              chk.checked = false;
-              mostrarNotificacion?.(`No puedes superar ${cantidadNecesaria} unidad(es) en total.`, "warning");
-              return;
+            checks.forEach((chk) => {
+                const loteId = Number(chk.dataset.loteId);
+                const inp = container.querySelector(
+                    `.lote-input[data-lote-id="${loteId}"]`
+                );
+                chk.addEventListener("change", () => {
+                    if (chk.checked) {
+                        // Al marcar, intentamos poner 1 sin exceder el total ni el max del lote
+                        const current = getSum();
+                        const maxLote = Number(chk.dataset.max || 0);
+                        if (current >= cantidadNecesaria) {
+                            // No hay espacio para más unidades
+                            chk.checked = false;
+                            mostrarNotificacion?.(
+                                `No puedes superar ${cantidadNecesaria} unidad(es) en total.`,
+                                "warning"
+                            );
+                            return;
+                        }
+                        inp.disabled = false;
+                        let val = Number(inp.value || 0);
+                        if (val < 1) val = 1;
+                        if (val > maxLote) val = maxLote;
+                        // Cap al restante disponible
+                        const restante = cantidadNecesaria - current;
+                        if (val > restante) val = restante;
+                        inp.value = val;
+                    } else {
+                        inp.value = "";
+                        inp.disabled = true;
+                    }
+                    recalc();
+                });
+            });
+
+            inputs.forEach((inp) => {
+                inp.addEventListener("input", () => {
+                    const max = Number(inp.getAttribute("max") || 0);
+                    // suma de todos los demás inputs activos
+                    const othersSum = Array.from(inputs).reduce((acc, el) => {
+                        if (el === inp) return acc;
+                        const v = Number(el.value || 0);
+                        return acc + (!el.disabled && v > 0 ? v : 0);
+                    }, 0);
+
+                    let val = Number(inp.value || 0);
+                    if (val < 1) val = 1;
+                    if (val > max) val = max; // no superar cantidad del lote
+
+                    const restante = cantidadNecesaria - othersSum;
+                    if (val > restante) {
+                        val = Math.max(restante, 0); // no exceder el total requerido
+                    }
+
+                    // si restante es 0, desmarcamos este lote
+                    if (val <= 0) {
+                        inp.value = "";
+                        const loteId = inp.dataset.loteId;
+                        const chk = container.querySelector(
+                            `.lote-check[data-lote-id="${loteId}"]`
+                        );
+                        if (chk) chk.checked = false;
+                        inp.disabled = true;
+                    } else {
+                        inp.value = val;
+                    }
+                    recalc();
+                });
+            });
+
+            // Calcular suma inicial (prefill)
+            recalc();
+        },
+        preConfirm: () => {
+            const container = Swal.getHtmlContainer();
+            const checks = container.querySelectorAll(".lote-check");
+            const inputs = container.querySelectorAll(".lote-input");
+
+            const asign = [];
+            let sum = 0;
+
+            checks.forEach((chk) => {
+                const loteId = Number(chk.dataset.loteId);
+                const max = Number(chk.dataset.max);
+                const inp = container.querySelector(
+                    `.lote-input[data-lote-id="${loteId}"]`
+                );
+                if (chk.checked) {
+                    const cant = Number(inp.value || 0);
+                    if (cant < 1) {
+                        Swal.showValidationMessage(
+                            "Hay lotes seleccionados sin cantidad válida."
+                        );
+                    }
+                    if (cant > max) {
+                        Swal.showValidationMessage(
+                            `No puedes tomar más de ${max} del lote ${loteId}.`
+                        );
+                    }
+                    asign.push({
+                        lote_id: loteId,
+                        cantidad: cant,
+                        lote_codigo:
+                            lotes.find((ll) => Number(ll.lote_id) === loteId)
+                                ?.lote_codigo ?? "",
+                    });
+                    sum += cant;
+                }
+            });
+
+            if (asign.length === 0) {
+                Swal.showValidationMessage("Selecciona al menos un lote.");
+                return false;
             }
-            inp.disabled = false;
-            let val = Number(inp.value || 0);
-            if (val < 1) val = 1;
-            if (val > maxLote) val = maxLote;
-            // Cap al restante disponible
-            const restante = cantidadNecesaria - current;
-            if (val > restante) val = restante;
-            inp.value = val;
-          } else {
-            inp.value = "";
-            inp.disabled = true;
-          }
-          recalc();
-        });
-      });
 
-      inputs.forEach((inp) => {
-        inp.addEventListener("input", () => {
-          const max = Number(inp.getAttribute("max") || 0);
-          // suma de todos los demás inputs activos
-          const othersSum = Array.from(inputs).reduce((acc, el) => {
-            if (el === inp) return acc;
-            const v = Number(el.value || 0);
-            return acc + (!el.disabled && v > 0 ? v : 0);
-          }, 0);
+            if (sum !== cantidadNecesaria) {
+                Swal.showValidationMessage(
+                    `Debes seleccionar exactamente ${cantidadNecesaria} unidad(es) de los lotes disponibles. Actualmente: ${sum}.`
+                );
+                return false;
+            }
 
-          let val = Number(inp.value || 0);
-          if (val < 1) val = 1;
-          if (val > max) val = max; // no superar cantidad del lote
+            return asign;
+        },
+    });
 
-          const restante = cantidadNecesaria - othersSum;
-          if (val > restante) {
-            val = Math.max(restante, 0); // no exceder el total requerido
-          }
-
-          // si restante es 0, desmarcamos este lote
-          if (val <= 0) {
-            inp.value = "";
-            const loteId = inp.dataset.loteId;
-            const chk = container.querySelector(`.lote-check[data-lote-id="${loteId}"]`);
-            if (chk) chk.checked = false;
-            inp.disabled = true;
-          } else {
-            inp.value = val;
-          }
-          recalc();
-        });
-      });
-
-      // Calcular suma inicial (prefill)
-      recalc();
-    },
-    preConfirm: () => {
-      const container = Swal.getHtmlContainer();
-      const checks = container.querySelectorAll(".lote-check");
-      const inputs = container.querySelectorAll(".lote-input");
-
-      const asign = [];
-      let sum = 0;
-
-      checks.forEach((chk) => {
-        const loteId = Number(chk.dataset.loteId);
-        const max = Number(chk.dataset.max);
-        const inp = container.querySelector(`.lote-input[data-lote-id="${loteId}"]`);
-        if (chk.checked) {
-          const cant = Number(inp.value || 0);
-          if (cant < 1) {
-            Swal.showValidationMessage("Hay lotes seleccionados sin cantidad válida.");
-          }
-          if (cant > max) {
-            Swal.showValidationMessage(`No puedes tomar más de ${max} del lote ${loteId}.`);
-          }
-          asign.push({
-            lote_id: loteId,
-            cantidad: cant,
-            lote_codigo: (lotes.find((ll) => Number(ll.lote_id) === loteId)?.lote_codigo) ?? "",
-          });
-          sum += cant;
-        }
-      });
-
-      if (asign.length === 0) {
-        Swal.showValidationMessage("Selecciona al menos un lote.");
-        return false;
-      }
-
-      if (sum !== cantidadNecesaria) {
-        Swal.showValidationMessage(`Debes seleccionar exactamente ${cantidadNecesaria} unidad(es) de los lotes disponibles. Actualmente: ${sum}.`);
-        return false;
-      }
-
-      return asign;
-    },
-  });
-
-  if (asignaciones) {
-    p.lotesSeleccionados = asignaciones; // [{lote_id, cantidad, lote_codigo}]
-    actualizarVistaCarrito();
-    mostrarNotificacion?.("Lotes asignados.", "success");
-  }
+    if (asignaciones) {
+        p.lotesSeleccionados = asignaciones; // [{lote_id, cantidad, lote_codigo}]
+        actualizarVistaCarrito();
+        mostrarNotificacion?.("Lotes asignados.", "success");
+    }
 }
-
-
-
-
-
-
 
 // LOGICA PARA EL METODO DE PAGO
 
-
-
-
-
 // Utils
 const moneyToNumber = (s) => Number(String(s).replace(/[^\d.-]/g, "")) || 0;
-const getTotalVenta = () => moneyToNumber(document.getElementById("totalModal")?.textContent || 0);
+const getTotalVenta = () =>
+    moneyToNumber(document.getElementById("totalModal")?.textContent || 0);
 
 // Reparto exacto a 2 decimales (distribuye el redondeo)
 function repartirEnCuotas(total, n) {
-  const cent = Math.round(total * 100);
-  const base = Math.floor(cent / n);
-  let resto = cent - base * n;
-  const res = Array.from({ length: n }, (_, i) => (base + (i < resto ? 1 : 0)) / 100);
-  return res;
+    const cent = Math.round(total * 100);
+    const base = Math.floor(cent / n);
+    let resto = cent - base * n;
+    const res = Array.from(
+        { length: n },
+        (_, i) => (base + (i < resto ? 1 : 0)) / 100
+    );
+    return res;
 }
 
 // Render de cuotas
 function renderCuotas(montos) {
-  const lista = document.getElementById("cuotasLista");
-  lista.innerHTML = montos.map((m, i) => `
+    const lista = document.getElementById("cuotasLista");
+    lista.innerHTML = montos
+        .map(
+            (m, i) => `
     <div class="flex items-center justify-between gap-3">
       <div class="text-sm text-gray-700">Cuota ${i + 1}</div>
       <input type="number" step="0.01" min="0" value="${m.toFixed(2)}"
              class="cuota-input w-28 px-2 py-1 border rounded text-right text-sm" data-index="${i}">
     </div>
-  `).join("");
+  `
+        )
+        .join("");
 
-  // listeners de edición
-  lista.querySelectorAll(".cuota-input").forEach(inp => {
-    inp.addEventListener("input", validarCuotas);
-  });
+    // listeners de edición
+    lista.querySelectorAll(".cuota-input").forEach((inp) => {
+        inp.addEventListener("input", validarCuotas);
+    });
 
-  validarCuotas();
+    validarCuotas();
 }
+
 
 // Valida suma = total y habilita/deshabilita botón
 function validarCuotas() {
-  const total = getTotalVenta();
-  // Tomar abono y limitarlo entre 0 y total, pero sin vaciar cuotas
-  const abonoInp = document.getElementById("abonoInicial");
-  let abono = Number(abonoInp?.value || 0);
+    const errores = [];
+    const total = getTotalVenta();
 
-  // Si el abono es mayor que el total, lo limitamos al total, pero no vaciamos las cuotas
-  if (abono < 0) abono = 0;
-  if (abono > total) abono = total;
-  if (abonoInp) abonoInp.value = abono.toFixed(2);
+    // Tomar abono y limitarlo entre 0 y total, pero sin vaciar cuotas
+    const abonoInp = document.getElementById("abonoInicial");
+    let abono = Number(abonoInp?.value || 0);
 
-  // Suma de cuotas
-  const inputs = Array.from(document.querySelectorAll("#cuotasLista .cuota-input"));
-  const sumCuotas = inputs.reduce((acc, el) => acc + (Number(el.value) || 0), 0);
+    // Si el abono es mayor que el total, lo limitamos al total, pero no vaciamos las cuotas
+    if (abono < 0) abono = 0;
+    if (abono > total) abono = total;
+    if (abonoInp) abonoInp.value = abono.toFixed(2);
 
-  // Validación: abono + cuotas = total
-  const sumTotal = +(sumCuotas + abono).toFixed(2);
-  const diff = +(sumTotal - total).toFixed(2);
+    // Suma de cuotas
+    const inputs = Array.from(
+        document.querySelectorAll("#cuotasLista .cuota-input")
+    );
+    const sumCuotas = inputs.reduce(
+        (acc, el) => acc + (Number(el.value) || 0),
+        0
+    );
 
-  // (opcional) mostrar saldo si tienes #saldoCuotas en el HTML
-  const saldoEl = document.getElementById("saldoCuotas");
-  if (saldoEl) saldoEl.textContent = `Q${(total - abono).toFixed(2)}`;
+    // Validación: abono + cuotas = total
+    const sumTotal = +(sumCuotas + abono).toFixed(2);
+    const diff = +(sumTotal - total).toFixed(2);
 
-  const msg = document.getElementById("cuotasMensaje");
-  const btnProcesar = document.getElementById("procesarVentaModal");
+    // (opcional) mostrar saldo si tienes #saldoCuotas en el HTML
+    const saldoEl = document.getElementById("saldoCuotas");
+    if (saldoEl) saldoEl.textContent = `Q${(total - abono).toFixed(2)}`;
 
-  if (Math.abs(diff) < 0.01) {
-    msg.textContent = "OK: Abono + cuotas = total.";
-    msg.className = "text-xs mt-1 text-green-600";
-    btnProcesar.disabled = false;
-  } else {
-    msg.textContent = `Abono + cuotas (Q${sumTotal.toFixed(2)}) debe ser igual al total (Q${total.toFixed(2)}). Diferencia: Q${diff.toFixed(2)}`;
-    msg.className = "text-xs mt-1 text-red-600";
-    btnProcesar.disabled = true;
-  }
+    const msg = document.getElementById("cuotasMensaje");
+
+    if (Math.abs(diff) < 0.01) {
+        msg.textContent = "OK: Abono + cuotas = total.";
+        msg.className = "text-xs mt-1 text-green-600";
+    } else {
+        msg.textContent = `Abono + cuotas (Q${sumTotal.toFixed(
+            2
+        )}) debe ser igual al total (Q${total.toFixed(
+            2
+        )})`;
+        msg.className = "text-xs mt-1 text-red-600";
+        errores.push("La suma de las cuotas y el abono debe ser igual al total.");
+    }
+
+    return errores;  // Devolvemos el arreglo de errores
 }
-
-
-
 
 // Repartir según total y cantidad actual
 function updateCuotasFromTotal() {
-  const cont = document.getElementById("cuotasContainer");
-  if (!cont || cont.classList.contains("hidden")) return; // solo si método 6
+    const cont = document.getElementById("cuotasContainer");
+    if (!cont || cont.classList.contains("hidden")) return; // solo si método 6
 
-  const n = Math.max(2, Math.min(36, Number(document.getElementById("cuotasNumero")?.value || 2)));
-  const total = getTotalVenta();
+    const n = Math.max(
+        2,
+        Math.min(
+            36,
+            Number(document.getElementById("cuotasNumero")?.value || 2)
+        )
+    );
+    const total = getTotalVenta();
 
-  // Restar abono del total
-  const abono = Math.min(total, Math.max(0, Number(document.getElementById("abonoInicial")?.value || 0)));
-  const saldo = Math.max(0, total - abono);
+    // Restar abono del total
+    const abono = Math.min(
+        total,
+        Math.max(0, Number(document.getElementById("abonoInicial")?.value || 0))
+    );
+    const saldo = Math.max(0, total - abono);
 
-  // (opcional) mostrar saldo si tienes #saldoCuotas en el HTML
-  const saldoEl = document.getElementById("saldoCuotas");
-  if (saldoEl) saldoEl.textContent = `Q${saldo.toFixed(2)}`;
+    // (opcional) mostrar saldo si tienes #saldoCuotas en el HTML
+    const saldoEl = document.getElementById("saldoCuotas");
+    if (saldoEl) saldoEl.textContent = `Q${saldo.toFixed(2)}`;
 
-  // Repartir SOLO el saldo
-  renderCuotas(repartirEnCuotas(saldo, n));
+    // Repartir SOLO el saldo
+    renderCuotas(repartirEnCuotas(saldo, n));
 }
 
 document.getElementById("abonoInicial")?.addEventListener("input", () => {
-  const total = getTotalVenta();
-  const abonoInp = document.getElementById("abonoInicial");
-  let v = Number(abonoInp.value || 0);
-  if (v < 0) v = 0;
-  if (v > total) v = total;
-  abonoInp.value = v.toFixed(2);
-  updateCuotasFromTotal();
+    const total = getTotalVenta();
+    const abonoInp = document.getElementById("abonoInicial");
+    let v = Number(abonoInp.value || 0);
+    if (v < 0) v = 0;
+    if (v > total) v = total;
+    abonoInp.value = v.toFixed(2);
+    updateCuotasFromTotal();
 });
-
 
 // Evento para método de pago
 document.querySelectorAll('input[name="metodoPago"]').forEach((radio) => {
-  radio.addEventListener("change", function () {
-    const val = String(this.value);
-    const autorizacionContainer = document.getElementById("autorizacionContainer");
-    const cuotasContainer = document.getElementById("cuotasContainer");
-    const numeroAut = document.getElementById("numeroAutorizacion");
-    const btnProcesar = document.getElementById("procesarVentaModal");
+    radio.addEventListener("change", function () {
+        const val = String(this.value);
+        const autorizacionContainer = document.getElementById(
+            "autorizacionContainer"
+        );
+        const cuotasContainer = document.getElementById("cuotasContainer");
+        const numeroAut = document.getElementById("numeroAutorizacion");
 
-    if (["2","3","4","5"].includes(val)) {
-      // Mostrar autorización
-      cuotasContainer.classList.add("hidden");
-      autorizacionContainer.classList.remove("hidden");
-      // Validación rápida: no permitir procesar si falta autorización
-      const checkAuth = () => { btnProcesar.disabled = (numeroAut.value.trim().length === 0); };
-      numeroAut.removeEventListener("input", checkAuth);
-      numeroAut.addEventListener("input", checkAuth);
-      checkAuth();
-    } else if (val === "6") {
-      // Pagos: mostrar cuotas, ocultar autorización y repartir
-      autorizacionContainer.classList.add("hidden");
-      numeroAut.value = "";
-      cuotasContainer.classList.remove("hidden");
-      document.getElementById('abonoInicial').value = '';
-          document.querySelectorAll('.cuota-input').forEach((input) => {
-        input.value = ''; // Vaciar cada input de cuotas
-      });
-      // Inicializar cuotas según total
-      updateCuotasFromTotal();
-    } else {
-      // Otro método
-      autorizacionContainer.classList.add("hidden");
-      numeroAut.value = "";
-      document.getElementById("cuotasContainer").classList.add("hidden");
-      // deja el estado del botón a cargo de calcularTotales()
-    }
+        if (["2", "3", "4", "5"].includes(val)) {
+            // Mostrar autorización
+            cuotasContainer.classList.add("hidden");
+            autorizacionContainer.classList.remove("hidden");
+            // Validación rápida: no permitir procesar si falta autorización
+            numeroAut.removeEventListener("input", checkAuth);
+            numeroAut.addEventListener("input", checkAuth);
+            checkAuth();
+        } else if (val === "6") {
+            // Pagos: mostrar cuotas, ocultar autorización y repartir
+            autorizacionContainer.classList.add("hidden");
+            numeroAut.value = "";
+            cuotasContainer.classList.remove("hidden");
+            document.getElementById("abonoInicial").value = "";
+            document.querySelectorAll(".cuota-input").forEach((input) => {
+                input.value = ""; // Vaciar cada input de cuotas
+            });
+            // Inicializar cuotas según total
+            updateCuotasFromTotal();
+        } else {
+            // Otro método
+            autorizacionContainer.classList.add("hidden");
+            numeroAut.value = "";
+            document.getElementById("cuotasContainer").classList.add("hidden");
+            // deja el estado del botón a cargo de calcularTotales()
+        }
 
-    calcularTotales?.(); // sigue tu flujo
-  });
+        calcularTotales?.(); // sigue tu flujo
+    });
 });
 
 // Controles de cuotas
-document.getElementById("cuotasRepartir")?.addEventListener("click", updateCuotasFromTotal);
-document.getElementById("cuotasNumero")?.addEventListener("input", updateCuotasFromTotal);
+document
+    .getElementById("cuotasRepartir")
+    ?.addEventListener("click", updateCuotasFromTotal);
+document
+    .getElementById("cuotasNumero")
+    ?.addEventListener("input", updateCuotasFromTotal);
 
 // Si cambia descuento, vuelve a repartir (y validar)
 document.getElementById("descuentoModal")?.addEventListener("input", () => {
-  calcularTotales?.();
-  // repartimos otra vez (igualitario)
-  updateCuotasFromTotal();
+    calcularTotales?.();
+    // repartimos otra vez (igualitario)
+    updateCuotasFromTotal();
 });
 
 // Observa cambios en el total (por cambios de carrito, descuentos, etc.)
 const totalEl = document.getElementById("totalModal");
 if (totalEl) {
-  const obs = new MutationObserver(() => {
-    updateCuotasFromTotal();
-  });
-  obs.observe(totalEl, { childList: true, characterData: true, subtree: true });
+    const obs = new MutationObserver(() => {
+        updateCuotasFromTotal();
+    });
+    obs.observe(totalEl, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+    });
 }
-
-
 
 document.querySelectorAll('input[name="metodoAbono"]').forEach((radio) => {
     radio.addEventListener("change", function () {
-        const autorizacionContainer = document.getElementById("autorizacionContainer");
+        const autorizacionContainer = document.getElementById(
+            "autorizacionContainer"
+        );
 
         if (this.value === "transferencia") {
             // Mostrar contenedor de autorización cuando se seleccione Transferencia
@@ -1645,3 +1696,619 @@ document.querySelectorAll('input[name="metodoAbono"]').forEach((radio) => {
         }
     });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================
+// VALIDACIÓN COMPLETA PARA PROCESAR VENTA
+// ============================================
+
+
+const btnProcesarventa = document.getElementById("procesarVentaModal");
+
+btnProcesarventa.addEventListener("click", validarVenta);
+
+function validarVenta() {
+    const errores = [];
+    const avisos = [];
+
+    // 1. VALIDAR CLIENTE
+    const cliente = validarCliente();
+    if (!cliente || !cliente.valido) {
+        errores.push(cliente?.error || "Error validando cliente");
+    }
+
+    // 2. VALIDAR PRODUCTOS EN CARRITO
+    const productos = validarProductosCarrito();
+    if (!productos.valido) {
+        errores.push(...productos.errores);
+    }
+    if (productos.avisos && productos.avisos.length > 0) {
+        avisos.push(...productos.avisos);
+    }
+
+    // 3. VALIDAR MÉTODO DE PAGO
+    const metodoPago = validarMetodoPago();
+    if (!metodoPago.valido) {
+        errores.push(...metodoPago.errores);
+    }
+
+    // 4. VALIDAR FECHAS Y DATOS GENERALES
+    const datosGenerales = validarDatosGenerales();
+    if (!datosGenerales.valido) {
+        errores.push(...datosGenerales.errores);
+    }
+
+
+    // Mostrar errores si los hay
+    if (errores.length > 0) {
+        const erroresHtml = errores.map(error => 
+            `<li class="text-sm text-red-700 mb-1">• ${error}</li>`
+        ).join('');
+        
+        Swal.fire({
+            title: 'Faltan datos por completar',
+            html: `
+                <div class="text-left">
+                    <p class="text-sm text-gray-600 mb-3">Complete los siguientes datos para proceder:</p>
+                    <ul class="max-h-60 overflow-auto">
+                        ${erroresHtml}
+                    </ul>
+                </div>
+            `,
+            icon: 'warning',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#f59e0b'
+        });
+        return;
+    }
+
+    // Si todo está válido, procesar
+    procesarVentaFinal();
+
+    return {
+        // valido: todoValido,
+        errores,
+        avisos,
+    };
+}
+
+// ============================================
+// VALIDACIONES ESPECÍFICAS
+// ============================================
+ 
+function validarProductosCarrito() {
+    const errores = [];
+    const avisos = [];
+
+    // Verificar que hay productos
+    if (!Array.isArray(carritoProductos) || carritoProductos.length === 0) {
+        errores.push("El carrito está vacío. Agregue al menos un producto.");
+        return { valido: false, errores, avisos };
+    }
+
+    // Validar cada producto
+    carritoProductos.forEach((producto, index) => {
+        const nombre = producto.nombre || `Producto ${index + 1}`;
+        const cantidad = Number(producto.cantidad || 0);
+        const stock = Number(producto.stock_cantidad_total || 0);
+        const requiereSerie =
+            Number(producto.producto_requiere_serie || 0) === 1;
+        const tieneLotes =
+            Array.isArray(producto.lotes) && producto.lotes.length > 0;
+
+        // Validar cantidad vs stock
+        if (cantidad <= 0) {
+            errores.push(`${nombre}: La cantidad debe ser mayor a 0`);
+        }
+        if (cantidad > stock) {
+            errores.push(
+                `${nombre}: Cantidad solicitada (${cantidad}) supera el stock disponible (${stock})`
+            );
+        }
+
+        // Validar series si las requiere
+        if (requiereSerie) {
+            const seriesSeleccionadas = Array.isArray(
+                producto.seriesSeleccionadas
+            )
+                ? producto.seriesSeleccionadas
+                : [];
+
+            if (seriesSeleccionadas.length === 0) {
+                errores.push(
+                    `${nombre}: Debe seleccionar las series (requiere ${cantidad} serie(s))`
+                );
+            } else if (seriesSeleccionadas.length !== cantidad) {
+                errores.push(
+                    `${nombre}: Debe seleccionar exactamente ${cantidad} serie(s). Actualmente: ${seriesSeleccionadas.length}`
+                );
+            }
+        }
+
+        // Validar lotes si los tiene
+        if (tieneLotes) {
+            const lotesSeleccionados = Array.isArray(
+                producto.lotesSeleccionados
+            )
+                ? producto.lotesSeleccionados
+                : [];
+
+            const totalAsignadoLotes = lotesSeleccionados.reduce(
+                (sum, lote) => sum + Number(lote.cantidad || 0),
+                0
+            );
+
+            if (totalAsignadoLotes === 0) {
+                errores.push(
+                    `${nombre}: Debe asignar los productos a los lotes disponibles`
+                );
+            } else if (totalAsignadoLotes !== cantidad) {
+                errores.push(
+                    `${nombre}: La cantidad asignada en lotes (${totalAsignadoLotes}) debe coincidir con la cantidad del producto (${cantidad})`
+                );
+            }
+
+            // Verificar que no exceda la cantidad disponible en cada lote
+            lotesSeleccionados.forEach((loteSeleccionado) => {
+                const loteOriginal = producto.lotes.find(
+                    (l) =>
+                        Number(l.lote_id) === Number(loteSeleccionado.lote_id)
+                );
+                if (loteOriginal) {
+                    const maxLote = Number(
+                        loteOriginal.lote_cantidad_total || 0
+                    );
+                    const cantidadAsignada = Number(
+                        loteSeleccionado.cantidad || 0
+                    );
+                    if (cantidadAsignada > maxLote) {
+                        errores.push(
+                            `${nombre}: Cantidad asignada al lote ${loteOriginal.lote_codigo} (${cantidadAsignada}) supera lo disponible (${maxLote})`
+                        );
+                    }
+                }
+            });
+        }
+
+        // Validar precios
+        if (!producto.precio || producto.precio <= 0) {
+            errores.push(`${nombre}: Precio inválido`);
+        }
+    });
+
+    return {
+        valido: errores.length === 0,
+        errores,
+        avisos,
+    };
+}
+
+function validarCliente() {
+    const clienteSelect = document.getElementById("clienteSelect");
+    const clienteId = clienteSelect?.value;
+
+    if (!clienteId || clienteId === "") {
+        return {
+            valido: false,
+            error: "Debe seleccionar un cliente",
+        };
+    }
+
+    return {
+        valido: true,
+        clienteId: clienteId
+    };
+}
+
+function validarMetodoPago() {
+    const errores = [];
+    const metodoPago = document.querySelector('input[name="metodoPago"]:checked')?.value;
+    const numeroAutorizacion = document.getElementById("numeroAutorizacion")?.value.trim() || '';
+    const selecBanco = document.getElementById("selectBanco")?.value.trim() || '';
+
+    if (!metodoPago) {
+        errores.push("Debe seleccionar un método de pago");
+        return { valido: false, errores };
+    }
+
+    // Definir 'tipoMetodo' antes del switch
+    const tipoMetodo = {
+        2: "tarjeta de crédito",
+        3: "tarjeta de débito",
+        4: "transferencia",
+        5: "cheque",
+    };
+
+    // Validaciones específicas por método de pago
+    switch (metodoPago) {
+        case "1": // Efectivo
+            // No requiere validaciones adicionales
+            break;
+
+        case "2": // Tarjeta de crédito
+        case "3": // Tarjeta de débito
+        case "4": // Transferencia
+        case "5": // Cheque
+            if (!selecBanco || selecBanco === "") {
+                errores.push(
+                    `Debe seleccionar el tipo de banco para ${tipoMetodo[metodoPago]}`
+                );
+            }
+
+            if (!numeroAutorizacion) {
+                errores.push(
+                    `Debe ingresar el número de autorización para ${tipoMetodo[metodoPago]}`
+                );
+            }
+            break;
+
+        case "6": // Pagos/Cuotas
+            // Verificar si el abono es por transferencia
+            const esTransferencia = document.querySelector(
+                'input[name="metodoAbono"][value="transferencia"]:checked'
+            );
+
+            if (esTransferencia) {
+                if (!selecBanco || selecBanco === "") {
+                    errores.push(
+                        `Debe seleccionar el tipo de banco para el abono por transferencia`
+                    );
+                }
+
+                if (!numeroAutorizacion) {
+                    errores.push(
+                        `Debe ingresar el número de autorización de la transferencia`
+                    );
+                }
+            }
+
+            const erroresCuotas = validarCuotas(); 
+
+            if (erroresCuotas.length > 0) {
+                errores.push(...erroresCuotas);
+            }
+
+            break;
+
+        default:
+            errores.push("Método de pago no válido");
+    }
+
+    return {
+        valido: errores.length === 0,
+        errores,
+    };
+}
+
+
+function validarDatosGenerales() {
+    const errores = [];
+    
+    // Validar fecha
+    const fecha = document.getElementById("fechaVenta")?.value;
+    if (!fecha) {
+        errores.push("Debe seleccionar una fecha para la venta");
+    }
+
+    // Validar que el total sea mayor a 0
+    const total = getTotalVenta();
+    if (total <= 0) {
+        errores.push("El total de la venta debe ser mayor a 0");
+    }
+
+    return {
+        valido: errores.length === 0,
+        errores
+    };
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================
+// FUNCIÓN PARA PROCESAR LA VENTA FINAL
+// ============================================
+
+async function procesarVentaFinal() {
+    try {
+        // Mostrar loading
+        Swal.fire({
+            title: 'Procesando venta...',
+            text: 'Por favor espere',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // 1. DATOS GENERALES DE LA VENTA
+        const clienteId = document.getElementById("clienteSelect").value;
+        const fechaVenta = document.getElementById("fechaVenta").value;
+        const metodoPago = document.querySelector('input[name="metodoPago"]:checked').value;
+        const descuento = parseFloat(document.getElementById("descuentoModal").value) || 0;
+        
+        // Calcular totales
+        const subtotal = carritoProductos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
+        const descuentoMonto = subtotal * (descuento / 100);
+        const total = subtotal - descuentoMonto;
+
+        // 2. DATOS DE VENTA
+        const datosVenta = {
+            // Información general
+            cliente_id: clienteId,
+            fecha_venta: fechaVenta,
+            subtotal: subtotal.toFixed(2),
+            descuento_porcentaje: descuento,
+            descuento_monto: descuentoMonto.toFixed(2),
+            total: total.toFixed(2),
+            
+            // Método de pago
+            metodo_pago: metodoPago,
+            
+            // Productos del carrito
+            productos: carritoProductos.map(producto => ({
+                producto_id: producto.producto_id,
+                cantidad: producto.cantidad,
+                precio_unitario: producto.precio,
+                subtotal_producto: (producto.precio * producto.cantidad).toFixed(2),
+                
+                // Series si las requiere
+                requiere_serie: producto.producto_requiere_serie || 0,
+                series_seleccionadas: producto.seriesSeleccionadas || [],
+                
+                // Lotes si los tiene
+                tiene_lotes: (Array.isArray(producto.lotes) && producto.lotes.length > 0),
+                lotes_seleccionados: producto.lotesSeleccionados || []
+            }))
+        };
+
+        // 3. DATOS ESPECÍFICOS SEGÚN MÉTODO DE PAGO
+        switch(metodoPago) {
+            case "1": // Efectivo
+                datosVenta.pago = {
+                    tipo: "efectivo",
+                    monto: total.toFixed(2)
+                };
+                break;
+
+            case "2": // Tarjeta de crédito
+            case "3": // Tarjeta de débito  
+            case "4": // Transferencia
+            case "5": // Cheque
+                const numeroAutorizacion = document.getElementById("numeroAutorizacion").value.trim();
+                const bancoId = document.getElementById("selectBanco").value;
+                
+                datosVenta.pago = {
+                    tipo: metodoPago === "2" ? "tarjeta_credito" : 
+                          metodoPago === "3" ? "tarjeta_debito" :
+                          metodoPago === "4" ? "transferencia" : "cheque",
+                    monto: total.toFixed(2),
+                    numero_autorizacion: numeroAutorizacion,
+                    banco_id: bancoId
+                };
+                break;
+
+            case "6": // Pagos/Cuotas
+                const abonoInicial = parseFloat(document.getElementById("abonoInicial").value) || 0;
+                const metodoAbono = document.querySelector('input[name="metodoAbono"]:checked')?.value || "efectivo";
+                
+                // Recopilar cuotas
+                const cuotasInputs = document.querySelectorAll("#cuotasLista .cuota-input");
+                const cuotas = Array.from(cuotasInputs).map((input, index) => ({
+                    numero_cuota: index + 1,
+                    monto: parseFloat(input.value) || 0,
+                    fecha_vencimiento: null // Se calculará en el backend
+                }));
+
+                datosVenta.pago = {
+                    tipo: "cuotas",
+                    abono_inicial: abonoInicial.toFixed(2),
+                    metodo_abono: metodoAbono,
+                    total_cuotas: cuotas.reduce((sum, c) => sum + c.monto, 0).toFixed(2),
+                    cantidad_cuotas: cuotas.length,
+                    cuotas: cuotas
+                };
+
+                // Si el abono es por transferencia, agregar datos bancarios
+                if (metodoAbono === "transferencia") {
+                    const numeroAutorizacionAbono = document.getElementById("numeroAutorizacion").value.trim();
+                    const bancoIdAbono = document.getElementById("selectBanco").value;
+                    
+                    datosVenta.pago.numero_autorizacion_abono = numeroAutorizacionAbono;
+                    datosVenta.pago.banco_id_abono = bancoIdAbono;
+                }
+                break;
+        }
+
+        console.log('Datos de venta a enviar:', datosVenta);
+
+        // 4. ENVIAR AL CONTROLADOR
+        const response = await fetch('/api/ventas/procesar-venta', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify(datosVenta)
+        });
+
+        const resultado = await response.json();
+        console.log(resultado);
+
+        if (response.ok && resultado.success) {
+            // Éxito
+            await Swal.fire({
+                title: '¡Venta procesada!',
+                text: `Venta registrada exitosamente. Folio: ${resultado.folio || 'N/A'}`,
+                icon: 'success',
+                confirmButtonText: 'Continuar'
+            });
+
+            // Limpiar formulario
+            limpiarFormularioVenta();
+            
+            // Opcional: imprimir ticket o redirigir
+            if (resultado.venta_id) {
+                const imprimirTicket = await Swal.fire({
+                    title: '¿Desea imprimir el ticket?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, imprimir',
+                    cancelButtonText: 'No, gracias'
+                });
+
+                if (imprimirTicket.isConfirmed) {
+                    window.open(`/ventas/${resultado.venta_id}/ticket`, '_blank');
+                }
+            }
+
+        } else {
+            // Error del servidor
+            throw new Error(resultado.message || 'Error procesando la venta');
+        }
+
+    } catch (error) {
+        console.error('Error procesando venta:', error);
+        
+        await Swal.fire({
+            title: 'Error',
+            text: error.message || 'Ocurrió un error al procesar la venta',
+            icon: 'error',
+            confirmButtonText: 'Entendido'
+        });
+    }
+}
+
+function limpiarFormularioVenta() {
+    // Limpiar carrito
+    carritoProductos = [];
+    actualizarVistaCarrito();
+    actualizarContadorCarrito();
+    
+    // Resetear cliente
+    document.getElementById("clienteSelect").value = "";
+    
+    // Resetear método de pago
+    document.querySelectorAll('input[name="metodoPago"]').forEach(radio => {
+        radio.checked = false;
+    });
+    
+    // Ocultar contenedores específicos
+    document.getElementById("autorizacionContainer").classList.add("hidden");
+    document.getElementById("cuotasContainer").classList.add("hidden");
+    
+    // Limpiar campos
+    document.getElementById("numeroAutorizacion").value = "";
+    document.getElementById("selectBanco").value = "";
+    document.getElementById("abonoInicial").value = "";
+    document.getElementById("descuentoModal").value = "";
+    
+    // Limpiar cuotas
+    document.getElementById("cuotasLista").innerHTML = "";
+    
+    // Cerrar modal de carrito
+    cerrarCarrito();
+    
+    // Resetear fecha a actual
+    const ahora = new Date();
+    const fechaHoraLocal = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000))
+        .toISOString()
+        .slice(0, 16);
+    document.getElementById("fechaVenta").value = fechaHoraLocal;
+    
+    // Recalcular totales
+    calcularTotales();
+}
+
