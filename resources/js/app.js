@@ -3,6 +3,15 @@ import './bootstrap';
 import Alpine from 'alpinejs';
 import Swal from 'sweetalert2';
 
+import $ from 'jquery';
+window.$ = window.jQuery = $;
+
+import 'datatables.net';
+import 'datatables.net-buttons';
+import 'datatables.net-buttons/js/buttons.html5.js';
+import 'datatables.net-buttons/js/buttons.print.js';
+import 'datatables.net-responsive';
+
 window.Swal = Swal;
 window.Alpine = Alpine;
 

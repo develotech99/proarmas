@@ -1,3 +1,4 @@
+
 /**
  * Gestor del Sistema de Inventario para Armería
  * JavaScript puro - Laravel 12
@@ -192,6 +193,12 @@ class InventarioManager {
             this.buscarProductosEgreso(e.target.value);
         });
 
+        const buscarLoteInput = document.getElementById('buscar_lote');
+        if (buscarLoteInput) {
+            buscarLoteInput.addEventListener('input', (e) => {
+                this.buscarLotesExistentes(e.target.value);
+            });
+        }
     }
 
     /**
@@ -661,6 +668,9 @@ actualizarContadorSeries() {
     }
 }
 
+
+
+
 async handleEgresoSubmit() {
     if (!this.productoSeleccionadoEgreso) {
         this.showAlert('error', 'Error', 'Debe seleccionar un producto');
@@ -865,6 +875,183 @@ async loadProductos() {
     }
 }
 
+
+/**
+ * Buscar lotes existentes
+ */
+async buscarLotesExistentes(query) {
+    const container = document.getElementById('lotes_encontrados');
+    
+    if (!query || query.length < 2) {
+        if (container) {
+            container.classList.add('hidden');
+        }
+        return;
+    }
+
+    // Mostrar loading
+    if (container) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-gray-500 dark:text-gray-400">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+                Buscando lotes...
+            </div>
+        `;
+        container.classList.remove('hidden');
+    }
+
+    try {
+        const response = await fetch(`/inventario/lotes/buscar?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderResultadosLotes(data.data || []);
+        } else {
+            this.renderResultadosLotes([]);
+        }
+    } catch (error) {
+        console.error('Error buscando lotes:', error);
+        if (container) {
+            container.innerHTML = `
+                <div class="p-3 text-center text-red-500 dark:text-red-400">
+                    Error al buscar lotes
+                </div>
+            `;
+        }
+    }
+}
+
+/**
+ * Renderizar resultados de búsqueda de lotes
+ */
+renderResultadosLotes(lotes) {
+    const container = document.getElementById('lotes_encontrados');
+    if (!container) return;
+    
+    if (lotes.length === 0) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-gray-500 dark:text-gray-400">
+                No se encontraron lotes
+            </div>
+        `;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    container.innerHTML = lotes.map(lote => `
+        <div onclick="inventarioManager.seleccionarLoteExistente(${lote.lote_id})" 
+             class="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <div class="font-medium text-gray-900 dark:text-gray-100">${lote.lote_codigo}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                        ${lote.lote_descripcion || 'Sin descripción'}
+                    </div>
+                    <div class="text-xs text-gray-400 dark:text-gray-500">
+                        Creado: ${new Date(lote.lote_fecha).toLocaleDateString()}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                                 ${lote.lote_situacion === 1 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">
+                        ${lote.lote_situacion === 1 ? 'Activo' : 'Cerrado'}
+                    </span>
+                    <div class="text-xs text-gray-500 mt-1">
+                        Disponible: ${lote.cantidad_disponible || 0}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.classList.remove('hidden');
+}
+
+/**
+ * Seleccionar lote existente
+ */
+async seleccionarLoteExistente(loteId) {
+    try {
+        const response = await fetch(`/inventario/lotes/${loteId}`);
+        if (response.ok) {
+            const data = await response.json();
+            const lote = data.data;
+            
+            // Actualizar interfaz
+            const container = document.getElementById('lote_seleccionado');
+            const inputHidden = document.getElementById('lote_id');
+            const searchInput = document.getElementById('buscar_lote');
+            
+            if (container) {
+                container.innerHTML = `
+                    <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg">
+                        <div class="flex-1">
+                            <div class="font-medium text-green-900 dark:text-green-100">
+                                ${lote.lote_codigo}
+                            </div>
+                            <div class="text-sm text-green-700 dark:text-green-300">
+                                ${lote.lote_descripcion || 'Lote seleccionado'}
+                            </div>
+                            <div class="text-xs text-green-600 dark:text-green-400">
+                                Disponible: ${lote.cantidad_disponible || 0} unidades
+                            </div>
+                        </div>
+                        <button onclick="inventarioManager.limpiarLoteSeleccionado()" 
+                                class="ml-3 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            
+            if (inputHidden) {
+                inputHidden.value = loteId;
+            }
+            
+            if (searchInput) {
+                searchInput.value = lote.lote_codigo;
+            }
+            
+            // Ocultar resultados de búsqueda
+            document.getElementById('lotes_encontrados').classList.add('hidden');
+            
+            // Mostrar mensaje de éxito
+            this.showToast(`Lote seleccionado: ${lote.lote_codigo}`, 'success');
+            
+        } else {
+            this.showAlert('error', 'Error', 'No se pudo obtener la información del lote');
+        }
+    } catch (error) {
+        console.error('Error obteniendo lote:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Limpiar lote seleccionado
+ */
+limpiarLoteSeleccionado() {
+    const container = document.getElementById('lote_seleccionado');
+    const inputHidden = document.getElementById('lote_id');
+    const searchInput = document.getElementById('buscar_lote');
+    
+    if (container) {
+        container.innerHTML = `
+            <div class="p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                Ningún lote seleccionado
+            </div>
+        `;
+    }
+    
+    if (inputHidden) {
+        inputHidden.value = '';
+    }
+    
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    this.showToast('Lote deseleccionado', 'info');
+}
 
 
 /**
@@ -2617,9 +2804,7 @@ openEgresoModal() {
     /**
      * Ver historial de movimientos
      */
-    verHistorial() {
-        this.showAlert('info', 'Próximamente', 'Historial de movimientos en desarrollo');
-    }
+   
 
     /**
      * Generar reporte
@@ -4364,6 +4549,175 @@ async cargarAlertasPagina(page) {
         this.showAlert('error', 'Error', 'Error al cargar la página');
     }
 }
+
+
+
+
+//VER HISTORIAL 
+
+/**
+ * Ver historial de movimientos
+ */
+verHistorial() {
+    this.showModal('historial');
+    setTimeout(() => {
+        this.initHistorialDataTable();
+    }, 100);
+}
+
+/**
+ * Inicializar DataTable para historial
+ */
+initHistorialDataTable() {
+    // Destruir tabla existente si existe
+    if ($.fn.DataTable.isDataTable('#historial-table')) {
+        $('#historial-table').DataTable().destroy();
+    }
+
+    const table = $('#historial-table').DataTable({
+        processing: true,
+        serverSide: true,
+        responsive: true,
+        ajax: {
+            url: '/inventario/movimientos',
+            type: 'GET',
+            data: function(d) {
+                // Convertir parámetros de DataTables a tu formato
+                d.page = Math.floor(d.start / d.length) + 1;
+                d.limit = d.length;
+                d.search = d.search.value;
+                d.filtro_producto = $('#filtro_producto').val();
+                d.filtro_tipo = $('#filtro_tipo').val();
+                d.filtro_fecha = $('#filtro_fecha').val();
+            },
+            dataSrc: function(json) {
+                // Convertir tu respuesta al formato que espera DataTables
+                return json.data;
+            }
+        },
+        columns: [
+            { 
+                data: 'mov_fecha',
+                title: 'Fecha',
+                render: function(data) {
+                    const fecha = new Date(data);
+                    return fecha.toLocaleDateString() + '<br><small class="text-gray-500">' + fecha.toLocaleTimeString() + '</small>';
+                }
+            },
+            { 
+                data: 'producto_nombre',
+                title: 'Producto',
+                render: function(data, type, row) {
+                    return `<strong class="text-gray-900 dark:text-gray-100">${data}</strong><br><small class="text-gray-500">${row.producto_sku}</small>`;
+                }
+            },
+            { 
+                data: 'mov_tipo',
+                title: 'Tipo',
+                render: function(data, type, row) {
+                    const color = row.mov_cantidad > 0 ? 'text-green-600' : 'text-red-600';
+                    const icon = row.mov_cantidad > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                    return `<span class="${color}"><i class="fas ${icon} mr-1"></i>${data}</span>`;
+                }
+            },
+            { 
+                data: 'mov_cantidad',
+                title: 'Cantidad',
+                render: function(data) {
+                    const color = data > 0 ? 'text-green-600' : 'text-red-600';
+                    return `<span class="${color} font-medium">${data > 0 ? '+' : ''}${data}</span>`;
+                }
+            },
+            { 
+                data: 'mov_origen',
+                title: 'Origen/Destino'
+            },
+            { 
+                data: 'lote_codigo',
+                title: 'Lote/Serie',
+                render: function(data, type, row) {
+                    let html = '';
+                    if (row.lote_codigo) {
+                        html += `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1">L: ${row.lote_codigo}</span>`;
+                    }
+                    if (row.serie_numero) {
+                        html += `<span class="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">S: ${row.serie_numero}</span>`;
+                    }
+                    return html || '<span class="text-gray-400">-</span>';
+                }
+            },
+            { 
+                data: 'usuario_nombre',
+                title: 'Usuario'
+            }
+        ],
+        order: [[0, 'desc']],
+        pageLength: 25,
+        language: {
+            processing: "Procesando...",
+            lengthMenu: "Mostrar _MENU_ registros",
+            zeroRecords: "No se encontraron resultados",
+            emptyTable: "No hay datos disponibles",
+            info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+            infoEmpty: "Mostrando 0 a 0 de 0 registros",
+            infoFiltered: "(filtrado de _MAX_ registros totales)",
+            search: "Buscar:",
+            paginate: {
+                first: "Primero",
+                last: "Último",
+                next: "Siguiente",
+                previous: "Anterior"
+            }
+        },
+        // DOM personalizado para Tailwind
+        dom: '<"flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4"<"mb-2 sm:mb-0"l><"mb-2 sm:mb-0"B><"sm:ml-auto"f>>rtip',
+        buttons: [
+            {
+                extend: 'excel',
+                text: '<i class="fas fa-file-excel mr-1"></i> Excel',
+                className: 'bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm mr-2 transition-colors'
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="fas fa-file-pdf mr-1"></i> PDF',
+                className: 'bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm mr-2 transition-colors'
+            },
+            {
+                extend: 'print',
+                text: '<i class="fas fa-print mr-1"></i> Imprimir',
+                className: 'bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm transition-colors'
+            }
+        ],
+        // Aplicar estilos de Tailwind después de inicializar
+        initComplete: function() {
+            // Estilos para controles
+            $('.dataTables_length select').addClass('border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-700 dark:text-gray-100');
+            $('.dataTables_filter input').addClass('border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm ml-2 bg-white dark:bg-gray-700 dark:text-gray-100');
+            
+            // Estilos para paginación
+            $('.dataTables_paginate .paginate_button').addClass('px-3 py-1 mx-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors');
+            $('.dataTables_paginate .paginate_button.current').addClass('bg-blue-500 text-white border-blue-500');
+            $('.dataTables_paginate .paginate_button.disabled').addClass('opacity-50 cursor-not-allowed');
+            
+            // Estilos para info
+            $('.dataTables_info').addClass('text-sm text-gray-700 dark:text-gray-300');
+            $('.dataTables_length').addClass('text-sm text-gray-700 dark:text-gray-300');
+            $('.dataTables_filter').addClass('text-sm text-gray-700 dark:text-gray-300');
+        }
+    });
+
+    // Event listeners para filtros
+    $('#filtro_producto, #filtro_tipo, #filtro_fecha').on('change keyup', function() {
+        table.draw();
+    });
+
+    return table;
+}
+
+
+
+
+
 ///aquí terminarán los vergazos de las acciones 
 
     /**
