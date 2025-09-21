@@ -530,56 +530,501 @@
     </div>
 
 
-    <!-- Modal de Gestión de Fotos (agregar después de los modales existentes) -->
-    <div id="fotos-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+
+    <!-- Modal Ver Detalle Producto (agregar después de los modales existentes) -->
+    <div id="detalle-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-                onclick="inventarioManager.closeModal('fotos')"></div>
+                onclick="inventarioManager.closeModal('detalle')"></div>
 
             <div
                 class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full sm:p-6">
-                <div class="mb-4">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Gestión de Fotos</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Administrar fotos del producto</p>
-                </div>
 
-                <!-- Fotos existentes -->
+                <!-- Header -->
                 <div class="mb-6">
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Fotos actuales</h4>
-                    <div id="fotos_existentes" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                        <!-- Las fotos se cargarán aquí dinámicamente -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100"
+                                id="detalle_producto_nombre">
+                                Detalle del Producto
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400" id="detalle_producto_sku">
+                                SKU: -
+                            </p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <!-- <button onclick="inventarioManager.editarProducto(inventarioManager.currentProductoId)"
+                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                <i class="fas fa-edit mr-2"></i>
+                                Editar
+                            </button> -->
+                            <button onclick="inventarioManager.closeModal('detalle')"
+                                class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <i class="fas fa-times mr-2"></i>
+                                Cerrar
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Subir nuevas fotos -->
-                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Agregar nuevas fotos</h4>
-                    <div class="flex items-center space-x-4">
-                        <input type="file" id="nuevas_fotos" multiple accept="image/jpeg,image/jpg,image/png,image/webp"
-                            class="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                        <button type="button" onclick="inventarioManager.subirNuevasFotos()"
-                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
-                            <i class="fas fa-upload mr-2"></i>
-                            Subir
-                        </button>
+                <!-- Contenido Principal -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- Columna Izquierda: Información General -->
+                    <div class="lg:col-span-2 space-y-6">
+
+                        <!-- Información Básica -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Información General
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">Categoría:</span>
+                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                                        id="detalle_categoria">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">Subcategoría:</span>
+                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                                        id="detalle_subcategoria">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">Marca:</span>
+                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                                        id="detalle_marca">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">Modelo:</span>
+                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                                        id="detalle_modelo">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">Calibre:</span>
+                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                                        id="detalle_calibre">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">País de origen:</span>
+                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                                        id="detalle_pais">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">Código de barra:</span>
+                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                                        id="detalle_codigo_barra">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">Requiere serie:</span>
+                                    <span class="ml-2" id="detalle_requiere_serie">
+                                        <span
+                                            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                            <i class="fas fa-check mr-1"></i>
+                                            Sí
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div id="detalle_descripcion_container"
+                            class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hidden">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                <i class="fas fa-align-left mr-2"></i>
+                                Descripción
+                            </h4>
+                            <p class="text-sm text-gray-700 dark:text-gray-300" id="detalle_descripcion">
+                                Sin descripción disponible
+                            </p>
+                        </div>
+
+                        <!-- Stock y Precios -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Stock -->
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                    <i class="fas fa-warehouse mr-2"></i>
+                                    Stock Actual
+                                </h4>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500 dark:text-gray-400">Total:</span>
+                                        <span class="font-medium text-gray-900 dark:text-gray-100"
+                                            id="detalle_stock_total">0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500 dark:text-gray-400">Disponible:</span>
+                                        <span class="font-medium text-green-600" id="detalle_stock_disponible">0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500 dark:text-gray-400">Reservado:</span>
+                                        <span class="font-medium text-yellow-600" id="detalle_stock_reservado">0</span>
+                                    </div>
+                                    <hr class="border-gray-300 dark:border-gray-600">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500 dark:text-gray-400">Stock mínimo:</span>
+                                        <span class="font-medium text-red-600" id="detalle_stock_minimo">0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Precios -->
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                    <i class="fas fa-dollar-sign mr-2"></i>
+                                    Precios Actuales
+                                </h4>
+                                <div class="space-y-2 text-sm" id="detalle_precios_container">
+                                    <div class="text-center text-gray-500 dark:text-gray-400 py-4">
+                                        Sin precios registrados
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Movimientos Recientes -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    <i class="fas fa-history mr-2"></i>
+                                    Últimos Movimientos
+                                </h4>
+                                <button
+                                    onclick="inventarioManager.verHistorialCompleto(inventarioManager.currentProductoId)"
+                                    class="text-blue-600 hover:text-blue-800 text-xs">
+                                    Ver todo
+                                </button>
+                            </div>
+                            <div id="detalle_movimientos_container" class="space-y-2">
+                                <div class="text-center text-gray-500 dark:text-gray-400 py-4 text-sm">
+                                    Cargando movimientos...
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Máximo 5 fotos total por producto
-                    </p>
+
+                    <!-- Columna Derecha: Fotos y Acciones -->
+                    <div class="space-y-6">
+
+                        <!-- Foto Principal -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                <i class="fas fa-image mr-2"></i>
+                                Foto Principal
+                            </h4>
+                            <div class="text-center">
+                                <div id="detalle_foto_principal"
+                                    class="w-full h-48 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                                    <div class="text-center">
+                                        <i class="fas fa-image text-gray-400 text-3xl mb-2"></i>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Sin foto</p>
+                                    </div>
+                                </div>
+                                <!-- <button onclick="inventarioManager.openFotosModal(inventarioManager.currentProductoId)"
+                                    class="mt-3 inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <i class="fas fa-camera mr-2"></i>
+                                    Gestionar Fotos
+                                </button> -->
+                            </div>
+                        </div>
+
+                        <!-- Acciones Rápidas -->
+                        <!-- <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                <i class="fas fa-bolt mr-2"></i>
+                                Acciones Rápidas
+                            </h4>
+                            <div class="space-y-2">
+                                <button onclick="inventarioManager.ingresoRapido(inventarioManager.currentProductoId)"
+                                    class="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                                    <i class="fas fa-plus mr-2"></i>
+                                    Ingreso Rápido
+                                </button>
+                                <button onclick="inventarioManager.egresoRapido(inventarioManager.currentProductoId)"
+                                    class="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700">
+                                    <i class="fas fa-minus mr-2"></i>
+                                    Egreso Rápido
+                                </button>
+                                <button
+                                    onclick="inventarioManager.gestionarPrecios(inventarioManager.currentProductoId)"
+                                    class="w-full inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <i class="fas fa-dollar-sign mr-2"></i>
+                                    Gestionar Precios
+                                </button>
+                            </div>
+                        </div> -->
+
+                        <!-- Series (solo si requiere serie) -->
+                        <div id="detalle_series_container" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hidden">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    <i class="fas fa-list-ol mr-2"></i>
+                                    Series Registradas
+                                </h4>
+                                <span class="text-xs text-gray-500 dark:text-gray-400" id="detalle_series_count">
+                                    0 series
+                                </span>
+                            </div>
+                            <div id="detalle_series_lista" class="space-y-1 max-h-32 overflow-y-auto">
+                                <!-- Series se cargarán aquí -->
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
 
-
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" onclick="inventarioManager.closeModal('fotos')"
-                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        Cerrar
-                    </button>
-                </div>
             </div>
         </div>
     </div>
+
+
+    
+    <!-- Modal de Gestión de Fotos (agregar después de los modales existentes) -->
+    <!-- Modal de Gestión de Fotos Mejorado -->
+<div id="fotos-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+            onclick="inventarioManager.closeModal('fotos')"></div>
+
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full sm:p-6">
+            
+            <!-- Header mejorado -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                            <i class="fas fa-camera mr-2 text-blue-500"></i>
+                            Gestión de Fotos
+                        </h3>
+                        <div id="fotos_producto_info" class="mt-2">
+                            <!-- Info del producto se carga dinámicamente -->
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <span id="fotos_count" class="text-sm text-gray-600">0/5 fotos</span>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Máximo permitido</div>
+                        </div>
+                        <button onclick="inventarioManager.closeModal('fotos')"
+                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <i class="fas fa-times mr-2"></i>
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Columna Izquierda: Fotos Existentes -->
+                <div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                                <i class="fas fa-images mr-2"></i>
+                                Fotos Actuales
+                            </h4>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Haz clic para acciones
+                            </div>
+                        </div>
+
+                        <!-- Grid de fotos existentes -->
+                        <div id="fotos_existentes" class="grid grid-cols-2 sm:grid-cols-3 gap-3 min-h-[250px]">
+                            <!-- Las fotos se cargarán aquí dinámicamente -->
+                            <div class="col-span-full text-center py-12">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Cargando fotos...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha: Subir Nuevas Fotos -->
+                <div>
+                    <div class="bg-blue-50 dark:bg-blue-900 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                                <i class="fas fa-cloud-upload-alt mr-2"></i>
+                                Agregar Nuevas Fotos
+                            </h4>
+                        </div>
+
+                        <!-- Zona de subida -->
+                        <div id="seccion_subir_fotos">
+                            <div class="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                                 onclick="document.getElementById('nuevas_fotos').click()">
+                                <div class="space-y-3">
+                                    <div class="mx-auto w-12 h-12 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-images text-blue-600 dark:text-blue-300 text-xl"></i>
+                                    </div>
+                                    
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            Selecciona o arrastra fotos aquí
+                                        </p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            JPG, PNG, WebP hasta 2MB cada una
+                                        </p>
+                                    </div>
+                                    
+                                    <input type="file" 
+                                           id="nuevas_fotos" 
+                                           multiple 
+                                           accept="image/jpeg,image/jpg,image/png,image/webp"
+                                           class="hidden">
+                                    
+                                    <button type="button" 
+                                            onclick="event.stopPropagation(); inventarioManager.subirNuevasFotos()"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                        <i class="fas fa-upload mr-2"></i>
+                                        Subir Fotos
+                                    </button>
+                                </div>
+                            </div>
+                              <!-- ✅ AGREGAR ESTE CONTENEDOR DE PREVIEW -->
+                            <div id="preview_nuevas_fotos" class="mt-4 flex flex-wrap gap-3">
+                                <!-- Las previews de nuevas fotos aparecerán aquí -->
+                            </div>
+                                                    <!-- Mensaje de límite -->
+                            <p id="mensaje_limite_fotos" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Máximo 5 fotos por producto
+                            </p>
+                        </div>
+
+                        <!-- Consejos y ayuda -->
+                        <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                            <h5 class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
+                                Consejos para mejores fotos
+                            </h5>
+                            <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                                <li class="flex items-start">
+                                    <i class="fas fa-star text-blue-500 mr-2 mt-0.5 text-xs"></i>
+                                    La primera foto será la imagen principal
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-sun text-yellow-500 mr-2 mt-0.5 text-xs"></i>
+                                    Usa buena iluminación natural
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-eye text-green-500 mr-2 mt-0.5 text-xs"></i>
+                                    Muestra diferentes ángulos del producto
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-search text-purple-500 mr-2 mt-0.5 text-xs"></i>
+                                    Incluye detalles importantes
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-palette text-indigo-500 mr-2 mt-0.5 text-xs"></i>
+                                    Mantén fondos limpios y neutros
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Estadísticas de fotos -->
+                        <div class="mt-4 bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                            <h5 class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                <i class="fas fa-chart-bar mr-2 text-blue-500"></i>
+                                Estadísticas
+                            </h5>
+                            <div id="fotos_estadisticas" class="text-xs">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center">
+                                        <div class="font-medium text-gray-900 dark:text-gray-100">0/5</div>
+                                        <div class="text-gray-500 dark:text-gray-400">Fotos</div>
+                                    </div>
+                                    <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center">
+                                        <div class="font-medium text-gray-900 dark:text-gray-100">0 KB</div>
+                                        <div class="text-gray-500 dark:text-gray-400">Tamaño</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Acciones del pie -->
+            <div class="mt-6 flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Las fotos se guardan automáticamente
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button onclick="inventarioManager.closeModal('fotos')"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        <i class="fas fa-check mr-2"></i>
+                        Finalizar
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Vista Previa de Fotos (opcional) -->
+<div id="preview-fotos-modal" class="fixed inset-0 z-[60] overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
+        <div class="fixed inset-0 bg-black bg-opacity-75 transition-opacity"
+            onclick="inventarioManager.closeModal('preview-fotos')"></div>
+
+        <div class="inline-block align-middle bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-4xl sm:w-full">
+            
+            <div class="mb-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                        <i class="fas fa-search mr-2 text-blue-500"></i>
+                        Vista Previa del Producto
+                    </h3>
+                    <button onclick="inventarioManager.closeModal('preview-fotos')"
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Galería de vista previa -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Imagen principal -->
+                <div>
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                        <img id="preview_imagen_principal" 
+                             src="" 
+                             alt="Imagen principal"
+                             class="w-full h-full object-cover">
+                    </div>
+                </div>
+                
+                <!-- Miniaturas -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Todas las fotos</h4>
+                    <div class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto" id="preview_miniaturas">
+                        <!-- Miniaturas se cargan dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="inventarioManager.closeModal('preview-fotos')"
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <i class="fas fa-times mr-2"></i>
+                    Cerrar Vista Previa
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
     <!-- Modal Ingreso a Inventario -->
-    <div id="ingreso-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div id="ingreso-modal" class="fixed inset-0 z-[60] overflow-y-auto hidden">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
                 onclick="inventarioManager.closeModal('ingreso')"></div>
@@ -751,8 +1196,7 @@
 
                                     <!-- Buscar lote existente -->
                                     <div id="lote_buscar_input" class="hidden">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar
-                                            lote</label>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar lote</label>
                                         <input type="text" id="buscar_lote" placeholder="Buscar por código de lote..."
                                             class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm">
 
@@ -762,16 +1206,19 @@
                                             <!-- Resultados dinámicos -->
                                         </div>
 
-                                        <!-- Lote seleccionado -->
-                                        <div class="mt-2">
-                                            <label
-                                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Lote
-                                                seleccionado</label>
-                                            <div id="lote_seleccionado"
-                                                class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                                        <!-- Lote seleccionado - AGREGAR ESTE CONTENEDOR -->
+                                        <div class="mt-3">
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Lote seleccionado</label>
+                                            <div id="lote_seleccionado" class="mt-1 p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
                                                 Ningún lote seleccionado
                                             </div>
                                             <input type="hidden" id="lote_id" name="lote_id">
+                                        </div>
+
+                                        <!-- Información adicional del lote -->
+                                        <div class="mt-2 p-2 bg-blue-50 dark:bg-blue-900 rounded text-xs text-blue-700 dark:text-blue-300">
+                                            <i class="fas fa-info-circle mr-1"></i>
+                                            Al seleccionar un lote existente, los productos se agregarán a ese lote específico
                                         </div>
                                     </div>
                                 </div>
@@ -872,258 +1319,8 @@
         </div>
     </div>
 
-    <!-- Modal Ver Detalle Producto (agregar después de los modales existentes) -->
-    <div id="detalle-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
-        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-                onclick="inventarioManager.closeModal('detalle')"></div>
-
-            <div
-                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full sm:p-6">
-
-                <!-- Header -->
-                <div class="mb-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100"
-                                id="detalle_producto_nombre">
-                                Detalle del Producto
-                            </h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400" id="detalle_producto_sku">
-                                SKU: -
-                            </p>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button onclick="inventarioManager.editarProducto(inventarioManager.currentProductoId)"
-                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                <i class="fas fa-edit mr-2"></i>
-                                Editar
-                            </button>
-                            <button onclick="inventarioManager.closeModal('detalle')"
-                                class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <i class="fas fa-times mr-2"></i>
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Contenido Principal -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                    <!-- Columna Izquierda: Información General -->
-                    <div class="lg:col-span-2 space-y-6">
-
-                        <!-- Información Básica -->
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                <i class="fas fa-info-circle mr-2"></i>
-                                Información General
-                            </h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Categoría:</span>
-                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
-                                        id="detalle_categoria">-</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Subcategoría:</span>
-                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
-                                        id="detalle_subcategoria">-</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Marca:</span>
-                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
-                                        id="detalle_marca">-</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Modelo:</span>
-                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
-                                        id="detalle_modelo">-</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Calibre:</span>
-                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
-                                        id="detalle_calibre">-</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">País de origen:</span>
-                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
-                                        id="detalle_pais">-</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Código de barra:</span>
-                                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100"
-                                        id="detalle_codigo_barra">-</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Requiere serie:</span>
-                                    <span class="ml-2" id="detalle_requiere_serie">
-                                        <span
-                                            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                            <i class="fas fa-check mr-1"></i>
-                                            Sí
-                                        </span>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Descripción -->
-                        <div id="detalle_descripcion_container"
-                            class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hidden">
-                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                <i class="fas fa-align-left mr-2"></i>
-                                Descripción
-                            </h4>
-                            <p class="text-sm text-gray-700 dark:text-gray-300" id="detalle_descripcion">
-                                Sin descripción disponible
-                            </p>
-                        </div>
-
-                        <!-- Stock y Precios -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Stock -->
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                    <i class="fas fa-warehouse mr-2"></i>
-                                    Stock Actual
-                                </h4>
-                                <div class="space-y-2 text-sm">
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500 dark:text-gray-400">Total:</span>
-                                        <span class="font-medium text-gray-900 dark:text-gray-100"
-                                            id="detalle_stock_total">0</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500 dark:text-gray-400">Disponible:</span>
-                                        <span class="font-medium text-green-600" id="detalle_stock_disponible">0</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500 dark:text-gray-400">Reservado:</span>
-                                        <span class="font-medium text-yellow-600" id="detalle_stock_reservado">0</span>
-                                    </div>
-                                    <hr class="border-gray-300 dark:border-gray-600">
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500 dark:text-gray-400">Stock mínimo:</span>
-                                        <span class="font-medium text-red-600" id="detalle_stock_minimo">0</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Precios -->
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                    <i class="fas fa-dollar-sign mr-2"></i>
-                                    Precios Actuales
-                                </h4>
-                                <div class="space-y-2 text-sm" id="detalle_precios_container">
-                                    <div class="text-center text-gray-500 dark:text-gray-400 py-4">
-                                        Sin precios registrados
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Movimientos Recientes -->
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                            <div class="flex items-center justify-between mb-3">
-                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    <i class="fas fa-history mr-2"></i>
-                                    Últimos Movimientos
-                                </h4>
-                                <button
-                                    onclick="inventarioManager.verHistorialCompleto(inventarioManager.currentProductoId)"
-                                    class="text-blue-600 hover:text-blue-800 text-xs">
-                                    Ver todo
-                                </button>
-                            </div>
-                            <div id="detalle_movimientos_container" class="space-y-2">
-                                <div class="text-center text-gray-500 dark:text-gray-400 py-4 text-sm">
-                                    Cargando movimientos...
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <!-- Columna Derecha: Fotos y Acciones -->
-                    <div class="space-y-6">
-
-                        <!-- Foto Principal -->
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                <i class="fas fa-image mr-2"></i>
-                                Foto Principal
-                            </h4>
-                            <div class="text-center">
-                                <div id="detalle_foto_principal"
-                                    class="w-full h-48 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
-                                    <div class="text-center">
-                                        <i class="fas fa-image text-gray-400 text-3xl mb-2"></i>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">Sin foto</p>
-                                    </div>
-                                </div>
-                                <button onclick="inventarioManager.openFotosModal(inventarioManager.currentProductoId)"
-                                    class="mt-3 inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    <i class="fas fa-camera mr-2"></i>
-                                    Gestionar Fotos
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Acciones Rápidas -->
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                <i class="fas fa-bolt mr-2"></i>
-                                Acciones Rápidas
-                            </h4>
-                            <div class="space-y-2">
-                                <button onclick="inventarioManager.ingresoRapido(inventarioManager.currentProductoId)"
-                                    class="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                                    <i class="fas fa-plus mr-2"></i>
-                                    Ingreso Rápido
-                                </button>
-                                <button onclick="inventarioManager.egresoRapido(inventarioManager.currentProductoId)"
-                                    class="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700">
-                                    <i class="fas fa-minus mr-2"></i>
-                                    Egreso Rápido
-                                </button>
-                                <button
-                                    onclick="inventarioManager.gestionarPrecios(inventarioManager.currentProductoId)"
-                                    class="w-full inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    <i class="fas fa-dollar-sign mr-2"></i>
-                                    Gestionar Precios
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Series (solo si requiere serie) -->
-                        <div id="detalle_series_container" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hidden">
-                            <div class="flex items-center justify-between mb-3">
-                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    <i class="fas fa-list-ol mr-2"></i>
-                                    Series Registradas
-                                </h4>
-                                <span class="text-xs text-gray-500 dark:text-gray-400" id="detalle_series_count">
-                                    0 series
-                                </span>
-                            </div>
-                            <div id="detalle_series_lista" class="space-y-1 max-h-32 overflow-y-auto">
-                                <!-- Series se cargarán aquí -->
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-
     <!-- Modal Editar Producto -->
-    <div id="editar-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div id="editar-modal" class="fixed inset-0 z-[60] overflow-y-auto hidden">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
                 onclick="inventarioManager.closeModal('editar')"></div>
@@ -1287,7 +1484,7 @@
 
 
     <!-- Modal Gestión de Precios (agregar después de los modales existentes) -->
-    <div id="precios-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div id="precios-modal" class="fixed inset-0 z-[60] overflow-y-auto hidden">
         <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
                 onclick="inventarioManager.closeModal('precios')"></div>
@@ -1439,6 +1636,219 @@
             </div>
         </div>
     </div>
+
+
+    <!-- Modal Egreso de Inventario -->
+    <div id="egreso-modal" class="fixed inset-0 z-[60] overflow-y-auto hidden">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                onclick="inventarioManager.closeModal('egreso')"></div>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
+
+                <form id="egreso-form">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Egreso de Inventario</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Registrar salida de productos del inventario</p>
+                    </div>
+
+                    <div id="egreso-step-1">
+                        <!-- Selección de producto -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar producto *</label>
+                            <input type="text" id="buscar_producto_egreso" placeholder="Escribir nombre, SKU o código..."
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                            <div id="productos_encontrados_egreso" class="mt-2 max-h-48 overflow-y-auto hidden">
+                                <!-- Resultados de búsqueda -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="egreso-step-2" class="hidden">
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-900 dark:text-gray-100" id="producto_seleccionado_nombre_egreso">
+                                Producto seleccionado</h4>
+                            <p class="text-sm text-gray-500 dark:text-gray-400" id="producto_seleccionado_info_egreso">Stock actual: 0</p>
+                        </div>
+
+                        <!-- Tipo de egreso y Destino -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de movimiento *</label>
+                                <select id="egr_tipo" name="egr_tipo" required
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                                    <option value="">Seleccionar tipo...</option>
+                                    <option value="egreso">Egreso</option>
+                                    <option value="transferencia">Transferencia</option>
+                                    <option value="devolución_proveedor">Devolución a Proveedor</option>
+                                    <option value="baja">Baja por deterioro</option>
+                                </select>
+                                <div id="egr_tipo_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Destino *</label>
+                                <select id="egr_destino" name="egr_destino" required
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                                    <option value="">Seleccionar destino...</option>
+                                    <option value="sucursal_zona10">Traslado (otra tienda)</option>
+                                    <option value="bodega_externa">Bodega Externa</option>
+                                    <option value="transferencia_proveedor">Transferencia a Proveedor</option>
+                                    <option value="devolucion_garantia">Devolución por Garantía</option>
+                                    <option value="baja_deterioro">Baja por Deterioro</option>
+                                    <option value="muestra_comercial">Muestra Comercial</option>
+                                    <option value="prestamo_temporal">Préstamo Temporal</option>
+                                    <option value="exhibicion_feria">Exhibición en Feria</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                                <div id="egr_destino_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            </div>
+                        </div>
+
+                        <!-- CANTIDAD (para productos sin serie) -->
+                        <div id="cantidad_section_egreso" class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cantidad *</label>
+                            <input type="number" id="egr_cantidad" name="egr_cantidad" min="1" placeholder="Ej: 5"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm">
+                            <div id="egr_cantidad_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            <small class="text-xs text-gray-500 dark:text-gray-400">
+                                Cantidad de unidades a egresar del inventario
+                            </small>
+                        </div>
+
+                        <!-- SERIES (para productos con serie) -->
+                       <!-- SERIES (para productos con serie) -->
+                        <div id="series_section_egreso" class="mb-4 hidden">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Seleccionar series a egresar *</label>
+                            
+                            <!-- Contador de series seleccionadas -->
+                            <div class="mb-3 p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-blue-700 dark:text-blue-300">Series seleccionadas:</span>
+                                    <span id="series_seleccionadas_count" class="font-semibold text-blue-600">0</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Lista de series disponibles -->
+                            <div id="series_disponibles_container" class="border border-gray-300 dark:border-gray-600 rounded-lg max-h-64 overflow-y-auto bg-white dark:bg-gray-700">
+                                <div class="p-4 text-center text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mb-2"></i>
+                                    <p class="text-sm">Cargando series disponibles...</p>
+                                </div>
+                            </div>
+                            
+                            <div id="numeros_series_egreso_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                            
+                            <!-- Input hidden para enviar las series seleccionadas -->
+                            <input type="hidden" id="series_seleccionadas_input" name="series_seleccionadas">
+                        </div>
+                        <!-- Agregar después del container de series/lotes -->
+                        <div id="origen_seleccionado_info"></div>
+                        <!-- Observaciones -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Observaciones</label>
+                            <textarea id="egr_observaciones" name="egr_observaciones" rows="2"
+                                placeholder="Detalles adicionales del egreso..."
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" onclick="inventarioManager.closeModal('egreso')"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="egreso-submit-btn"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span id="egreso-submit-text">Procesar Egreso</span>
+                            <span id="egreso-loading" class="hidden flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Procesando...
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal Historial de Movimientos -->
+    <div id="historial-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                onclick="inventarioManager.closeModal('historial')"></div>
+
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full sm:p-6">
+                
+                <!-- Header -->
+                <div class="mb-4 pb-4 border-b border-gray-200 dark:border-gray-600">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Historial de Movimientos</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Consulta todos los movimientos de inventario</p>
+                </div>
+
+                <!-- Filtros -->
+                <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Buscar producto</label>
+                        <input type="text" id="filtro_producto" placeholder="Nombre o SKU..."
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de movimiento</label>
+                        <select id="filtro_tipo" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="">Todos los tipos</option>
+                            <option value="ingreso">Ingresos</option>
+                            <option value="egreso">Egresos</option>
+                            <option value="venta">Ventas</option>
+                            <option value="ajuste_positivo">Ajustes Positivos</option>
+                            <option value="ajuste_negativo">Ajustes Negativos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha</label>
+                        <input type="date" id="filtro_fecha" 
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Tabla -->
+                <div class="overflow-x-auto">
+                    <table id="historial-table" class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Producto</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tipo</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cantidad</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Origen/Destino</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Lote/Serie</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Usuario</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                            <!-- DataTable cargará los datos aquí -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer -->
+                <div class="mt-6 flex justify-end">
+                    <button onclick="inventarioManager.closeModal('historial')"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
 
 </div>
 

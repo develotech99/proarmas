@@ -213,6 +213,19 @@ Route::middleware('auth')->group(function () {
       Route::post('/inventario/ingresar', [InventarioController::class, 'ingresar'])
             ->name('inventario.ingresar');
 
+      // Procesar egreso de inventario (AJAX) - NUEVA RUTA
+      Route::post('/inventario/egresar', [InventarioController::class, 'egresar'])
+      ->name('inventario.egresar');
+
+      Route::get('/inventario/productos/{id}/stock-lotes', [InventarioController::class, 'getStockPorLotes'])
+      ->name('inventario.producto.stock-lotes');
+
+      Route::get('/inventario/productos/{id}/series-disponibles', [InventarioController::class, 'getSeriesDisponibles'])
+      ->name('inventario.producto.series-disponibles');
+
+      // En la sección de inventario
+      Route::get('/inventario/movimientos', [InventarioController::class, 'getMovimientos'])
+      ->name('inventario.movimientos');
       // ================================
       // ESTADÍSTICAS Y DASHBOARDS
       // ================================
@@ -252,6 +265,9 @@ Route::middleware('auth')->group(function () {
       // Calibres activos (AJAX)
       Route::get('/calibres/activos', [InventarioController::class, 'getCalibresActivos'])
             ->name('calibres.activos');
+
+      Route::get('/inventario/lotes/buscar', [InventarioController::class, 'buscarLotes'])->name('inventario.lotes.buscar');
+      Route::get('/inventario/lotes/{id}', [InventarioController::class, 'obtenerLote'])->name('inventario.lote.detalle');
 
       // ================================
       // LICENCIAS
