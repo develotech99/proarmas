@@ -57,7 +57,7 @@ class ProArmaLicenciada extends Model
 
     public function empresa()
     {
-        return $this->belongsTo(EmpresaImportacion::class, 'arma_empresa', 'empresaimp_id');
+        return $this->belongsTo(ProEmpresaDeImportacion::class, 'arma_empresa', 'empresaimp_id');
     }
 
 
