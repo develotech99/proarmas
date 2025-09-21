@@ -9,12 +9,14 @@ class UsersUbicacion extends Model
 {
     use HasFactory;
 
+    protected $table = 'users_ubicaciones';
     protected $primaryKey = 'ubi_id';
 
     protected $fillable =[
         'ubi_user',
         'ubi_latitud',
         'ubi_longitud',
+        'ubi_descripcion',
     ];
     
     public function user(){

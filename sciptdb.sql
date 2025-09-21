@@ -693,6 +693,7 @@ CREATE TABLE users_ubicaciones (
     ubi_user INT NOT NULL,
     ubi_latitud DECIMAL(9, 6) NOT NULL,
     ubi_longitud DECIMAL(9, 6) NOT NULL,
+    ubi_descripcion VARCHAR(255),
     FOREIGN KEY (ubi_user) REFERENCES users(user_id) ON DELETE CASCADE
 );
 

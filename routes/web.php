@@ -14,6 +14,7 @@ use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
 use App\Http\Controllers\ProLicenciaParaImportacionController;
 use App\Http\Controllers\ProEmpresaDeImportacionController;
+use App\Http\Controllers\UsersUbicacionController;
 use App\Http\Controllers\VentasController;
 
 
@@ -30,7 +31,6 @@ Route::middleware('auth')->group(function () {
 
       Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
       Route::redirect('/dashboard', '/prolicencias')->name('dashboard');
-
       Route::get('/dashboard', function () {
             return view('dashboard');
       })->name('dashboard');
@@ -393,14 +393,21 @@ Route::middleware('auth')->group(function () {
       Route::get('/api/ventas/calibres/{modelo_id}', [VentasController::class, 'getCalibres'])->name('ventas.api.calibres');
       Route::get('/api/ventas/productos', [VentasController::class, 'getProductos'])->name('ventas.api.productos');
 
+
+      // Rutas para ubicaciones
+      Route::prefix('api/ubicaciones')->name('ubicaciones.')->group(function () {
+            Route::post('/', [UsersUbicacionController::class, 'create'])->name('ubi.create');
+            Route::put('/', [UsersUbicacionController::class, 'update'])->name('ubi.update');
+            Route::put('/{id}', [UsersUbicacionController::class, 'update'])->name('ubi.update.id'); // <- AGREGAR ESTA LÍNEA
+            Route::get('/', [UsersUbicacionController::class, 'getDatos'])->name('ubi.getDatos');
+            Route::get('/{user}/detalle', [UsersUbicacionController::class, 'detalle'])->name('ubi.detalle');
+            Route::delete('/{id}', [UsersUbicacionController::class, 'eliminarUbicacion'])->name('ubi.delete');
+      });
+
       Route::post('/api/ventas/procesar-venta', [VentasController::class, 'procesarVenta'])->name('ventas.api.ventas.procesar');
   
         //PLOTEAR USERS EN EL MAPA
       Route::get('/mapa', [UserController::class, 'indexMapa'])->name('mapa.index');
-});
-
-
-
 
 
 require __DIR__ . '/auth.php';
