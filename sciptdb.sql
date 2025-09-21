@@ -590,103 +590,103 @@ CREATE TABLE pro_documentacion_lic_import (
 -- INVENTARIO 
 -- ========================
 
--- Catálogo de lotes/modelos
-CREATE TABLE pro_inventario_modelos (
-    modelo_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID del modelo/lote',
-    modelo_licencia INT NOT NULL COMMENT 'Licencia de importación asociada',
-    modelo_poliza INT NOT NULL COMMENT 'No. de póliza/factura de compra',
-    modelo_fecha_ingreso DATE NOT NULL COMMENT 'Fecha de ingreso del lote',
-    modelo_clase INT NOT NULL,
-    modelo_marca INT NOT NULL,
-    modelo_modelo INT NOT NULL,
-    modelo_calibre VARCHAR(50),
-    modelo_cantidad INT NOT NULL DEFAULT 0 COMMENT 'Cantidad total en este lote',
-    modelo_disponible INT NOT NULL DEFAULT 0 COMMENT 'Stock disponible',
-    modelo_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo',
-    FOREIGN KEY (modelo_licencia) REFERENCES pro_licencias_para_importacion(lipaimp_id),
-    FOREIGN KEY (modelo_clase) REFERENCES pro_clases_pistolas(clase_id),
-    FOREIGN KEY (modelo_marca) REFERENCES pro_marcas(marca_id),
-    FOREIGN KEY (modelo_modelo) REFERENCES pro_modelo(modelo_id)
-);
+-- -- Catálogo de lotes/modelos
+-- CREATE TABLE pro_inventario_modelos (
+--     modelo_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID del modelo/lote',
+--     modelo_licencia INT NOT NULL COMMENT 'Licencia de importación asociada',
+--     modelo_poliza INT NOT NULL COMMENT 'No. de póliza/factura de compra',
+--     modelo_fecha_ingreso DATE NOT NULL COMMENT 'Fecha de ingreso del lote',
+--     modelo_clase INT NOT NULL,
+--     modelo_marca INT NOT NULL,
+--     modelo_modelo INT NOT NULL,
+--     modelo_calibre VARCHAR(50),
+--     modelo_cantidad INT NOT NULL DEFAULT 0 COMMENT 'Cantidad total en este lote',
+--     modelo_disponible INT NOT NULL DEFAULT 0 COMMENT 'Stock disponible',
+--     modelo_situacion INT DEFAULT 1 COMMENT '1 = activo, 0 = inactivo',
+--     FOREIGN KEY (modelo_licencia) REFERENCES pro_licencias_para_importacion(lipaimp_id),
+--     FOREIGN KEY (modelo_clase) REFERENCES pro_clases_pistolas(clase_id),
+--     FOREIGN KEY (modelo_marca) REFERENCES pro_marcas(marca_id),
+--     FOREIGN KEY (modelo_modelo) REFERENCES pro_modelo(modelo_id)
+-- );
 
--- Armas individuales con serie
-CREATE TABLE pro_inventario_armas (
-    arma_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID correlativo',
-    arma_modelo_id INT NOT NULL COMMENT 'Referencia al lote o modelo',
-    arma_numero_serie VARCHAR(200) UNIQUE COMMENT 'Número de serie de la pistola',
-    arma_estado ENUM('disponible', 'vendida', 'reservada', 'baja') DEFAULT 'disponible',
-    FOREIGN KEY (arma_modelo_id) REFERENCES pro_inventario_modelos(modelo_id)
-);
-=======
+-- -- Armas individuales con serie
+-- CREATE TABLE pro_inventario_armas (
+--     arma_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID correlativo',
+--     arma_modelo_id INT NOT NULL COMMENT 'Referencia al lote o modelo',
+--     arma_numero_serie VARCHAR(200) UNIQUE COMMENT 'Número de serie de la pistola',
+--     arma_estado ENUM('disponible', 'vendida', 'reservada', 'baja') DEFAULT 'disponible',
+--     FOREIGN KEY (arma_modelo_id) REFERENCES pro_inventario_modelos(modelo_id)
+-- );
+-- =======
 
 
--- ========================
--- CLIENTES Y VENTAS
--- ========================
-CREATE TABLE pro_clientes (
-    cliente_id INT AUTO_INCREMENT PRIMARY KEY,
-    tipo ENUM('empresa', 'persona') NOT NULL,
-    nombre_empresa VARCHAR(200),
-    nombre VARCHAR(200) NOT NULL COMMENT 'NOMBRE DEL DUENO DE LA EMPRESA O PERSONA INDIVIDUAL',
-    razon_social VARCHAR(200),
-    -- solo para empresas
-    ubicacion VARCHAR(100),
-    situacion INT DEFAULT 1
-);
+-- -- ========================
+-- -- CLIENTES Y VENTAS
+-- -- ========================
+-- CREATE TABLE pro_clientes (
+--     cliente_id INT AUTO_INCREMENT PRIMARY KEY,
+--     tipo ENUM('empresa', 'persona') NOT NULL,
+--     nombre_empresa VARCHAR(200),
+--     nombre VARCHAR(200) NOT NULL COMMENT 'NOMBRE DEL DUENO DE LA EMPRESA O PERSONA INDIVIDUAL',
+--     razon_social VARCHAR(200),
+--     -- solo para empresas
+--     ubicacion VARCHAR(100),
+--     situacion INT DEFAULT 1
+-- );
 
--- Ventas solo referencian cliente_id
--- jovenes hice este cambio en la db   
-CREATE TABLE pro_ventas (
-    venta_id INT AUTO_INCREMENT PRIMARY KEY,
-    cliente_id INT NULL,
-    nombre_persona VARCHAR(200),
-    -- solo se llena si no hay cliente_id
-    factura VARCHAR(200),
-    fecha DATE NOT NULL,
-    autorizacion INT NOT NULL,
-    situacion INT DEFAULT 1,
-    observaciones VARCHAR(200),
-    FOREIGN KEY (cliente_id) REFERENCES pro_clientes(cliente_id)
-);
+-- -- Ventas solo referencian cliente_id
+-- -- jovenes hice este cambio en la db   
+-- CREATE TABLE pro_ventas (
+--     venta_id INT AUTO_INCREMENT PRIMARY KEY,
+--     cliente_id INT NULL,
+--     nombre_persona VARCHAR(200),
+--     -- solo se llena si no hay cliente_id
+--     factura VARCHAR(200),
+--     fecha DATE NOT NULL,
+--     autorizacion INT NOT NULL,
+--     situacion INT DEFAULT 1,
+--     observaciones VARCHAR(200),
+--     FOREIGN KEY (cliente_id) REFERENCES pro_clientes(cliente_id)
+-- );
 
 
  
  
 
 
-CREATE TABLE pro_detalle_venta (
-    detalle_id INT AUTO_INCREMENT PRIMARY KEY,
-    venta_id INT NOT NULL,
-    modelo_id INT COMMENT 'Si la venta es por lote/cantidad',
-    arma_id INT COMMENT 'Si la venta es por arma única',
-    cantidad INT DEFAULT 1,
-    precio_unitario DECIMAL(12, 2) NOT NULL,
-    FOREIGN KEY (venta_id) REFERENCES pro_ventas(venta_id),
-    FOREIGN KEY (modelo_id) REFERENCES pro_inventario_modelos(modelo_id),
-    FOREIGN KEY (arma_id) REFERENCES pro_inventario_armas(arma_id)
-);
+-- CREATE TABLE pro_detalle_venta (
+--     detalle_id INT AUTO_INCREMENT PRIMARY KEY,
+--     venta_id INT NOT NULL,
+--     modelo_id INT COMMENT 'Si la venta es por lote/cantidad',
+--     arma_id INT COMMENT 'Si la venta es por arma única',
+--     cantidad INT DEFAULT 1,
+--     precio_unitario DECIMAL(12, 2) NOT NULL,
+--     FOREIGN KEY (venta_id) REFERENCES pro_ventas(venta_id),
+--     FOREIGN KEY (modelo_id) REFERENCES pro_inventario_modelos(modelo_id),
+--     FOREIGN KEY (arma_id) REFERENCES pro_inventario_armas(arma_id)
+-- );
 
--- ========================
--- PAGOS DE VENTAS
--- ========================
-CREATE TABLE pro_pagos (
-    pago_id INT AUTO_INCREMENT PRIMARY KEY,
-    venta_id INT NOT NULL,
-    venta_tipo ENUM('empresa', 'persona') NOT NULL,
-    pago_fecha DATE NOT NULL,
-    pago_monto DECIMAL(12, 2) NOT NULL,
-    pago_metodo INT NOT NULL,
-    pago_num_cuota INT DEFAULT 1,
-    FOREIGN KEY (pago_metodo) REFERENCES pro_metodos_pago(metpago_id)
-);
+-- -- ========================
+-- -- PAGOS DE VENTAS
+-- -- ========================
+-- CREATE TABLE pro_pagos (
+--     pago_id INT AUTO_INCREMENT PRIMARY KEY,
+--     venta_id INT NOT NULL,
+--     venta_tipo ENUM('empresa', 'persona') NOT NULL,
+--     pago_fecha DATE NOT NULL,
+--     pago_monto DECIMAL(12, 2) NOT NULL,
+--     pago_metodo INT NOT NULL,
+--     pago_num_cuota INT DEFAULT 1,
+--     FOREIGN KEY (pago_metodo) REFERENCES pro_metodos_pago(metpago_id)
+-- );
 
-CREATE TABLE pro_comprobantes_pago_ventas (
-    comprobventas_id INT AUTO_INCREMENT PRIMARY KEY,
-    comprobventas_ruta VARCHAR(255) NOT NULL,
-    comprobventas_pago_id INT NOT NULL,
-    comprobventas_situacion TINYINT DEFAULT 1,
-    FOREIGN KEY (comprobventas_pago_id) REFERENCES pro_pagos(pago_id)
-);
+-- CREATE TABLE pro_comprobantes_pago_ventas (
+--     comprobventas_id INT AUTO_INCREMENT PRIMARY KEY,
+--     comprobventas_ruta VARCHAR(255) NOT NULL,
+--     comprobventas_pago_id INT NOT NULL,
+--     comprobventas_situacion TINYINT DEFAULT 1,
+--     FOREIGN KEY (comprobventas_pago_id) REFERENCES pro_pagos(pago_id)
+-- );
 
 -- TABLAS DE UBICACIONES  Y VISITAS DE USUARIOS 
 CREATE TABLE users_ubicaciones (
@@ -865,3 +865,185 @@ WHERE a.alerta_estado IN ('pendiente', 'vista')
 ORDER BY 
     FIELD(a.alerta_prioridad, 'critica', 'alta', 'media', 'baja'),
     a.alerta_fecha_generacion DESC;
+
+    -----TABLAS POSIBLES DE VENTAS
+
+-- pro_clientes con campo premium: Agregué cli_es_premium para manejar el dropdown "Cliente Premium" de la vista
+-- pro_detalle_venta con precios especiales: Agregué det_precio_especial para manejar los precios especiales que aparecen en el catálogo
+-- pro_carrito_temporal: Nueva tabla para manejar los productos que se van "Agregando" antes de confirmar la venta
+-- Integración completa: Todas las foreign keys están correctamente referenciadas a las tablas de inventario que me proporcionaste
+
+-- Flujo de funcionamiento con la vista:
+
+-- Los filtros consultan pro_productos + tablas relacionadas (categorías, marcas, etc.)
+-- Los precios vienen de pro_precios (normal) y pro_promociones (especiales)
+-- Los botones "Agregar" guardan en pro_carrito_temporal
+-- La búsqueda de clientes usa cli_dpi_cedula y cli_nit
+-- El botón "+ Nuevo Cliente" inserta en pro_clientes
+
+-- Nomenclatura consistente:
+
+-- pro_clientes → prefijo cli_
+-- pro_ventas → prefijo ven_
+-- pro_detalle_venta → prefijo det_
+-- Y así sucesivamente...
+
+-- =========================================
+-- SISTEMA COMPLETO DE VENTAS
+-- =========================================
+
+-- TABLA DE CLIENTES
+CREATE TABLE pro_clientes (
+    cli_cliente_id INT AUTO_INCREMENT PRIMARY KEY,
+    cli_tipo ENUM('empresa', 'persona') NOT NULL,
+    cli_nombre_empresa VARCHAR(200),
+    cli_nombre VARCHAR(200) NOT NULL,
+    cli_razon_social VARCHAR(200),
+    cli_nit VARCHAR(20) UNIQUE,
+    cli_dpi_cedula VARCHAR(20) UNIQUE,
+    cli_email VARCHAR(150),
+    cli_telefono VARCHAR(20),
+    cli_direccion TEXT,
+    cli_ubicacion VARCHAR(100),
+    cli_es_premium BOOLEAN DEFAULT FALSE,
+    cli_limite_credito DECIMAL(12,2) DEFAULT 0.00,
+    cli_descuento_especial DECIMAL(5,2) DEFAULT 0.00,
+    cli_observaciones TEXT,
+    cli_situacion INT DEFAULT 1,
+    cli_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    cli_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- TABLA DE VENTAS
+CREATE TABLE pro_ventas (
+    ven_venta_id INT AUTO_INCREMENT PRIMARY KEY,
+    ven_numero VARCHAR(50) UNIQUE NOT NULL,
+    ven_cliente_id INT NULL,
+    ven_nombre_persona VARCHAR(200),
+    ven_fecha DATE NOT NULL,
+    ven_fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ven_subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    ven_descuento_porcentaje DECIMAL(5,2) DEFAULT 0.00,
+    ven_descuento_monto DECIMAL(12,2) DEFAULT 0.00,
+    ven_impuestos DECIMAL(12,2) DEFAULT 0.00,
+    ven_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    ven_estado ENUM('cotizacion', 'pendiente', 'confirmada', 'entregada', 'facturada', 'cancelada') DEFAULT 'pendiente',
+    ven_tipo_pago ENUM('contado', 'credito', 'mixto') DEFAULT 'contado',
+    ven_dias_credito INT DEFAULT 0,
+    ven_fecha_vencimiento DATE,
+    ven_factura VARCHAR(200),
+    ven_orden_compra VARCHAR(100),
+    ven_vendedor_id INT NOT NULL,
+    ven_autorizacion INT NOT NULL,
+    ven_observaciones TEXT,
+    ven_situacion INT DEFAULT 1,
+    ven_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ven_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (ven_cliente_id) REFERENCES pro_clientes(cli_cliente_id),
+    FOREIGN KEY (ven_vendedor_id) REFERENCES users(user_id)
+);
+
+-- TABLA DE DETALLE DE VENTAS
+CREATE TABLE pro_detalle_venta (
+    det_detalle_id INT AUTO_INCREMENT PRIMARY KEY,
+    det_venta_id INT NOT NULL,
+    det_producto_id INT NOT NULL,
+    det_producto_nombre VARCHAR(100) NOT NULL,
+    det_producto_sku VARCHAR(100) NOT NULL,
+    det_cantidad INT DEFAULT 1,
+    det_precio_unitario DECIMAL(12,2) NOT NULL,
+    det_precio_especial DECIMAL(12,2) NULL,
+    det_descuento_porcentaje DECIMAL(5,2) DEFAULT 0.00,
+    det_descuento_monto DECIMAL(12,2) DEFAULT 0.00,
+    det_subtotal DECIMAL(12,2) NOT NULL,
+    det_total DECIMAL(12,2) NOT NULL,
+    det_requiere_series BOOLEAN DEFAULT FALSE,
+    det_observaciones VARCHAR(255),
+    det_situacion INT DEFAULT 1,
+    det_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (det_venta_id) REFERENCES pro_ventas(ven_venta_id) ON DELETE CASCADE,
+    FOREIGN KEY (det_producto_id) REFERENCES pro_productos(producto_id)
+);
+
+-- TABLA DE SERIES VENDIDAS
+CREATE TABLE pro_series_vendidas (
+    ser_serie_vendida_id INT AUTO_INCREMENT PRIMARY KEY,
+    ser_detalle_venta_id INT NOT NULL,
+    ser_serie_producto_id INT NOT NULL,
+    ser_numero_serie VARCHAR(200) NOT NULL,
+    ser_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ser_detalle_venta_id) REFERENCES pro_detalle_venta(det_detalle_id) ON DELETE CASCADE,
+    FOREIGN KEY (ser_serie_producto_id) REFERENCES pro_series_productos(serie_id),
+    UNIQUE KEY unique_serie_detalle (ser_serie_producto_id, ser_detalle_venta_id)
+);
+
+-- TABLA DE PAGOS
+CREATE TABLE pro_pagos (
+    pag_pago_id INT AUTO_INCREMENT PRIMARY KEY,
+    pag_venta_id INT NOT NULL,
+    pag_numero_cuota INT DEFAULT 1,
+    pag_fecha DATE NOT NULL,
+    pag_monto DECIMAL(12,2) NOT NULL,
+    pag_metodo_pago INT NOT NULL,
+    pag_referencia VARCHAR(100),
+    pag_banco VARCHAR(100),
+    pag_numero_documento VARCHAR(50),
+    pag_estado ENUM('pendiente', 'confirmado', 'rechazado') DEFAULT 'confirmado',
+    pag_fecha_confirmacion TIMESTAMP NULL,
+    pag_confirmado_por INT,
+    pag_observaciones VARCHAR(255),
+    pag_situacion INT DEFAULT 1,
+    pag_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (pag_venta_id) REFERENCES pro_ventas(ven_venta_id) ON DELETE CASCADE,
+    FOREIGN KEY (pag_metodo_pago) REFERENCES pro_metodos_pago(metpago_id),
+    FOREIGN KEY (pag_confirmado_por) REFERENCES users(user_id)
+);
+
+-- TABLA DE COMPROBANTES DE PAGO
+CREATE TABLE pro_comprobantes_pago_ventas (
+    comp_comprobventas_id INT AUTO_INCREMENT PRIMARY KEY,
+    comp_ruta VARCHAR(255) NOT NULL,
+    comp_pago_id INT NOT NULL,
+    comp_tipo VARCHAR(50),
+    comp_descripcion VARCHAR(255),
+    comp_situacion TINYINT DEFAULT 1,
+    comp_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (comp_pago_id) REFERENCES pro_pagos(pag_pago_id) ON DELETE CASCADE
+);
+
+-- TABLA DE RESERVAS
+CREATE TABLE pro_reservas (
+    res_reserva_id INT AUTO_INCREMENT PRIMARY KEY,
+    res_cliente_id INT NOT NULL,
+    res_producto_id INT NOT NULL,
+    res_cantidad INT NOT NULL DEFAULT 1,
+    res_precio_acordado DECIMAL(12,2),
+    res_fecha_inicio DATE NOT NULL,
+    res_fecha_vencimiento DATE NOT NULL,
+    res_estado ENUM('activa', 'vencida', 'convertida_venta', 'cancelada') DEFAULT 'activa',
+    res_venta_id INT NULL,
+    res_anticipo DECIMAL(12,2) DEFAULT 0.00,
+    res_observaciones TEXT,
+    res_usuario_id INT NOT NULL,
+    res_situacion INT DEFAULT 1,
+    res_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    res_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (res_cliente_id) REFERENCES pro_clientes(cli_cliente_id),
+    FOREIGN KEY (res_producto_id) REFERENCES pro_productos(producto_id),
+    FOREIGN KEY (res_venta_id) REFERENCES pro_ventas(ven_venta_id),
+    FOREIGN KEY (res_usuario_id) REFERENCES users(user_id)
+);
+
+-- TABLA PARA CARRITO DE COMPRAS TEMPORAL
+CREATE TABLE pro_carrito_temporal (
+    car_carrito_id INT AUTO_INCREMENT PRIMARY KEY,
+    car_usuario_id INT NOT NULL,
+    car_producto_id INT NOT NULL,
+    car_cantidad INT NOT NULL DEFAULT 1,
+    car_precio_unitario DECIMAL(12,2) NOT NULL,
+    car_precio_especial DECIMAL(12,2) NULL,
+    car_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (car_usuario_id) REFERENCES users(user_id),
+    FOREIGN KEY (car_producto_id) REFERENCES pro_productos(producto_id),
+    UNIQUE KEY unique_usuario_producto (car_usuario_id, car_producto_id)
+);
