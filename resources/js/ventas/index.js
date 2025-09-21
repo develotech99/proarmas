@@ -2226,7 +2226,7 @@ async function procesarVentaFinal() {
         });
 
         const resultado = await response.json();
-        console.log(resultado);
+        console.log('resultado proceso de venta: ',resultado);
 
         if (response.ok && resultado.success) {
             // Éxito
