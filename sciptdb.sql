@@ -619,7 +619,6 @@ CREATE TABLE pro_inventario_armas (
 );
 =======
 
-
 -- ========================
 -- CLIENTES Y VENTAS
 -- ========================

@@ -26,8 +26,10 @@ Route::get('/', function () {
 
 Route::middleware('auth')->group(function () {
 
+      Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
-
+      Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
+      Route::redirect('/dashboard', '/prolicencias')->name('dashboard');
 
       Route::get('/dashboard', function () {
             return view('dashboard');
@@ -42,7 +44,6 @@ Route::middleware('auth')->group(function () {
 
       Route::put('prolicencias/{id}/estado', [ProLicenciaParaImportacionController::class, 'updateEstado'])->name('prolicencias.updateEstado');
       Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
-
       Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
       Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
 
@@ -112,6 +113,15 @@ Route::middleware('auth')->group(function () {
 
       // ruta para el manteniento de de marcas
       Route::get('/marcas', [MarcasController::class, 'index'])->name('marcas.index');
+      Route::get('/marcas/search',       [MarcasController::class, 'search'])->name('marcas.search');
+      Route::post('/marcas',             [MarcasController::class, 'store'])->name('marcas.store');
+      Route::put('/marcas/{id}',         [MarcasController::class, 'update'])->name('marcas.update');
+
+      // ruta para el Tipo de arma de de marcas
+      Route::get('/tipoarma', [TipoArmaController::class, 'index'])->name('tipoarma.index');
+      Route::get('/tipoarma/search',       [TipoArmaController::class, 'search'])->name('tipoarma.search');
+      Route::post('/tipoarma',             [TipoArmaController::class, 'store'])->name('tipoarma.store');
+      Route::put('/tipoarma/{id}',         [TipoArmaController::class, 'update'])->name('tipoarma.update');
       Route::get('/marcas/search', [MarcasController::class, 'search'])->name('marcas.search');
       Route::post('/marcas', [MarcasController::class, 'store'])->name('marcas.store');
       Route::put('/marcas/{id}', [MarcasController::class, 'update'])->name('marcas.update');
@@ -122,19 +132,15 @@ Route::middleware('auth')->group(function () {
       Route::post('/tipoarma', [TipoArmaController::class, 'store'])->name('tipoarma.store');
       Route::put('/tipoarma/{id}', [TipoArmaController::class, 'update'])->name('tipoarma.update');
 
-
       //RUTAS PARA MODELOS DE ARMAS CarlosDevelotech
       Route::get('/modelos', [ProModeloController::class, 'index'])->name('modelos.index');
+      Route::post('/modelos',             [ProModeloController::class, 'store'])->name('modelos.crear');
+      Route::put('/modelos/actualizar',             [ProModeloController::class, 'edit'])->name('modelos.update');
       Route::post('/modelos', [ProModeloController::class, 'store'])->name('modelos.crear');
       Route::put('/modelos/actualizar', [ProModeloController::class, 'edit'])->name('modelos.update');
       Route::delete('/modelos/eliminar', [ProModeloController::class, 'destroy'])->name('modelos.eliminar');
 
       Route::get('/modelos/marcas-activas', [ProModeloController::class, 'getMarcasActivas'])->name('modelos.marcas.activas');
-      //PLOTEAR USERS EN EL MAPA
-      Route::get('/mapa', [UserController::class, 'indexMapa'])->name('mapa.index');
-
-
-
 
       // ================================
       // INVENTARIO - RUTAS PRINCIPALES
@@ -294,6 +300,39 @@ Route::middleware('auth')->group(function () {
 
       // Rutas para gestión de egresos
       /*
+    Route::post('/inventario/egreso', [InventarioController::class, 'registrarEgreso'])
+          ->name('inventario.egreso');
+    
+    Route::get('/inventario/movimientos', [InventarioController::class, 'getMovimientos'])
+          ->name('inventario.movimientos');
+    */
+
+      // Rutas para reportes
+      /*
+    Route::get('/inventario/reportes/stock', [InventarioController::class, 'reporteStock'])
+          ->name('inventario.reportes.stock');
+    
+    Route::get('/inventario/reportes/movimientos', [InventarioController::class, 'reporteMovimientos'])
+          ->name('inventario.reportes.movimientos');
+    */
+
+      // Rutas para gestión de series
+      /*
+    Route::get('/inventario/series/{producto}', [InventarioController::class, 'getSeriesProducto'])
+          ->name('inventario.series');
+    
+    Route::post('/inventario/series/cambiar-estado', [InventarioController::class, 'cambiarEstadoSerie'])
+          ->name('inventario.series.cambiar-estado');
+    */
+
+      // Rutas para gestión de alertas
+      /*
+    Route::post('/inventario/alertas/{alerta}/marcar-vista', [InventarioController::class, 'marcarAlertaVista'])
+          ->name('inventario.alertas.marcar-vista');
+    
+    Route::post('/inventario/alertas/{alerta}/resolver', [InventarioController::class, 'resolverAlerta'])
+          ->name('inventario.alertas.resolver');
+    */
       Route::post('/inventario/egreso', [InventarioController::class, 'registrarEgreso'])
             ->name('inventario.egreso');
 
@@ -329,12 +368,18 @@ Route::middleware('auth')->group(function () {
       */
 
 
-
-
-
-
       Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
 
+// APIs para filtros en cascada
+      Route::get('/api/ventas/subcategorias/{categoriaId}', [VentasController::class, 'getSubcategorias'])->name('ventas.api.subcategorias');
+      Route::get('/api/ventas/marcas/{subcategoriaId}', [VentasController::class, 'getMarcas'])->name('ventas.api.marcas');
+      Route::get('/api/ventas/modelos/{marcaId}', [VentasController::class, 'getModelos'])->name('ventas.api.modelos');
+      Route::get('/api/ventas/calibres/{modeloId}', [VentasController::class, 'getCalibres'])->name('ventas.api.calibres');
+
+      // RUTA QUE FALTABA - Para obtener productos
+      Route::get('/api/ventas/buscar-productos', [VentasController::class, 'buscarProductos'])->name('ventas.api.productos');
+      Route::get('/api/ventas/buscar', [VentasController::class, 'buscarClientes'])->name('ventas.api.clientes.buscar');
+      Route::post('/api/clientes/guardar', [VentasController::class, 'guardarCliente'])->name('ventas.api.clientes.guardar');
 
       Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
       Route::get('/ventas/search', [VentasController::class, 'search'])->name('ventas.search');
@@ -348,6 +393,10 @@ Route::middleware('auth')->group(function () {
       Route::get('/api/ventas/calibres/{modelo_id}', [VentasController::class, 'getCalibres'])->name('ventas.api.calibres');
       Route::get('/api/ventas/productos', [VentasController::class, 'getProductos'])->name('ventas.api.productos');
 
+      Route::post('/api/ventas/procesar-venta', [VentasController::class, 'procesarVenta'])->name('ventas.api.ventas.procesar');
+  
+        //PLOTEAR USERS EN EL MAPA
+      Route::get('/mapa', [UserController::class, 'indexMapa'])->name('mapa.index');
 });
 
 
