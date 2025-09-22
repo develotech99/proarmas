@@ -9,6 +9,7 @@ export default defineConfig({
             'resources/js/usuarios/index.js',
             'resources/js/modelos/pro_modelo.js',
             'resources/js/usuarios/mapa.js',
+            'resources/js/comisiones/index.js',
         ],
             refresh: true,
         }),

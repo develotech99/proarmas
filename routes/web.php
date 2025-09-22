@@ -15,6 +15,8 @@ use App\Http\Controllers\ProModeloController;
 use App\Http\Controllers\ProLicenciaParaImportacionController;
 use App\Http\Controllers\ProEmpresaDeImportacionController;
 use App\Http\Controllers\VentasController;
+use App\Http\Controllers\ComisionesController;
+use App\Http\Controllers\ReportesController;
 
 
 
@@ -347,6 +349,14 @@ Route::middleware('auth')->group(function () {
       Route::get('/api/ventas/modelos/{marca_id}', [VentasController::class, 'getModelos'])->name('ventas.api.modelos');
       Route::get('/api/ventas/calibres/{modelo_id}', [VentasController::class, 'getCalibres'])->name('ventas.api.calibres');
       Route::get('/api/ventas/productos', [VentasController::class, 'getProductos'])->name('ventas.api.productos');
+
+
+      // Rutas para Comisiones (siguiendo tu patrón establecido)
+      Route::get('/comisiones', [ComisionesController::class, 'index'])->name('comisiones.index');
+      Route::get('/comisiones/search', [ComisionesController::class, 'search'])->name('comisiones.search');
+      Route::get('/comisiones/resumen', [ComisionesController::class, 'getResumen'])->name('comisiones.resumen');
+      Route::put('/comisiones', [ComisionesController::class, 'update'])->name('comisiones.update');
+      Route::put('/comisiones/cancelar', [ComisionesController::class, 'cancelar'])->name('comisiones.cancelar');
 
 });
 
