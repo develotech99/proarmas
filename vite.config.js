@@ -19,6 +19,7 @@ export default defineConfig({
             'resources/js/marcas/index.js',
             'resources/js/unidades-medida/index.js',
             'resources/js/calibres/index.js',
+            'resources/js/comisiones/index.js',
         ],
             refresh: true,
         }),
