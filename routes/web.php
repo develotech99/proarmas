@@ -223,17 +223,17 @@ Route::middleware('auth')->group(function () {
 
       // Procesar egreso de inventario (AJAX) - NUEVA RUTA
       Route::post('/inventario/egresar', [InventarioController::class, 'egresar'])
-      ->name('inventario.egresar');
+            ->name('inventario.egresar');
 
       Route::get('/inventario/productos/{id}/stock-lotes', [InventarioController::class, 'getStockPorLotes'])
-      ->name('inventario.producto.stock-lotes');
+            ->name('inventario.producto.stock-lotes');
 
       Route::get('/inventario/productos/{id}/series-disponibles', [InventarioController::class, 'getSeriesDisponibles'])
-      ->name('inventario.producto.series-disponibles');
+            ->name('inventario.producto.series-disponibles');
 
       // En la sección de inventario
       Route::get('/inventario/movimientos', [InventarioController::class, 'getMovimientos'])
-      ->name('inventario.movimientos');
+            ->name('inventario.movimientos');
       // ================================
       // ESTADÍSTICAS Y DASHBOARDS
       // ================================
@@ -338,7 +338,7 @@ Route::middleware('auth')->group(function () {
 
       Route::get('/inventario/movimientos', [InventarioController::class, 'getMovimientos'])
             ->name('inventario.movimientos');
-      */
+
 
       // Rutas para reportes
       /*
@@ -370,7 +370,7 @@ Route::middleware('auth')->group(function () {
 
       Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
 
-// APIs para filtros en cascada
+      // APIs para filtros en cascada
       Route::get('/api/ventas/subcategorias/{categoriaId}', [VentasController::class, 'getSubcategorias'])->name('ventas.api.subcategorias');
       Route::get('/api/ventas/marcas/{subcategoriaId}', [VentasController::class, 'getMarcas'])->name('ventas.api.marcas');
       Route::get('/api/ventas/modelos/{marcaId}', [VentasController::class, 'getModelos'])->name('ventas.api.modelos');
@@ -405,9 +405,10 @@ Route::middleware('auth')->group(function () {
       });
 
       Route::post('/api/ventas/procesar-venta', [VentasController::class, 'procesarVenta'])->name('ventas.api.ventas.procesar');
-  
-        //PLOTEAR USERS EN EL MAPA
+
+      //PLOTEAR USERS EN EL MAPA
       Route::get('/mapa', [UserController::class, 'indexMapa'])->name('mapa.index');
+});
 
 
 require __DIR__ . '/auth.php';
