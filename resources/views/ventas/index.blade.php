@@ -3,678 +3,505 @@
 @section('title', 'Gestión de Ventas')
 
 @section('content')
-
-
-<!DOCTYPE html>
-<html lang="es">
-
-
-
-</head>
-
     <meta name="csrf-token" content="{{ csrf_token() }}">
-</head>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1 lg:sticky lg:top-4 lg:self-start flex flex-col gap-6">
 
+            <!-- Filtros de Producto -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-filter mr-2"></i>Filtros de Producto
+                </h2>
 
-<body class="bg-gray-100">
-    <div class="container mx-auto p-6">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6">
-            <i class="fas fa-shopping-cart mr-2"></i>Sistema de Ventas - Armería
-        </h1>
-
-        <!-- Dashboard de Stock -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 class="text-xl font-semibold mb-4">
-                <i class="fas fa-chart-bar mr-2"></i>Stock Disponible
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <div class="text-2xl font-bold text-blue-600" id="stockDisponible">--</div>
-                    <div class="text-sm text-blue-500">Unidades Disponibles</div>
-                </div>
-                <div class="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <div class="text-2xl font-bold text-green-600" id="precioUnitario">$--</div>
-                    <div class="text-sm text-green-500">Precio Unitario</div>
-                </div>
-                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <div class="text-2xl font-bold text-yellow-600" id="productoSeleccionado">--</div>
-                    <div class="text-sm text-yellow-500">Producto Seleccionado</div>
-                </div>
-                <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                    <div class="text-2xl font-bold text-purple-600" id="totalCarrito">$0.00</div>
-                    <div class="text-sm text-purple-500">Total Carrito</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Panel de Filtros -->
-            <div class="lg:col-span-2">
-                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                    <h2 class="text-xl font-semibold mb-4">
-                        <i class="fas fa-filter mr-2"></i>Filtros de Producto
-                    </h2>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <!-- Categoría -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
-                            <select id="categoria" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Seleccionar...</option>
-                                <option value="armas">Armas</option>
-                                <option value="municion">Munición</option>
-                                <option value="accesorios">Accesorios</option>
-
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <!-- Categoría -->
-                        <div>
-                            <label for="categoria" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
-                            <select id="categoria" name="categoria"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Seleccionar...</option>
-                                @foreach ($categorias as $categoria)
-                                    <option value="{{ $categoria->categoria_id }}">{{ $categoria->categoria_nombre }}</option>
-                                @endforeach
-
-                            </select>
-                        </div>
-
-                        <!-- Subcategoría -->
-                        <div>
-
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Subcategoría</label>
-                            <select id="subcategoria" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
-                       <label for="subcategoria" class="block text-sm font-medium text-gray-700 mb-2">Subcategoría</label>
-                            <select id="subcategoria" name="subcategoria"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
-                 <option value="">Seleccionar...</option>
-                            </select>
-                        </div>
-
-                        <!-- Marca -->
-                        <div>
-    <label class="block text-sm font-medium text-gray-700 mb-2">Marca</label>
-                            <select id="marca" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
-
-                            <label for="marca" class="block text-sm font-medium text-gray-700 mb-2">Marca</label>
-                            <select id="marca" name="marca"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
-
-                                <option value="">Seleccionar...</option>
-                            </select>
-                        </div>
-
-                        <!-- Modelo -->
-                        <div>
-
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Modelo</label>
-                            <select id="modelo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
-
-                            <label for="modelo" class="block text-sm font-medium text-gray-700 mb-2">Modelo</label>
-                            <select id="modelo" name="modelo"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
-
-                                <option value="">Seleccionar...</option>
-                            </select>
-                        </div>
-
-                        <!-- Calibre -->
-                        <div>
-
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Calibre</label>
-                            <select id="calibre" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
-
-                            <label for="calibre" class="block text-sm font-medium text-gray-700 mb-2">Calibre</label>
-                            <select id="calibre" name="calibre"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
-                  <option value="">Seleccionar...</option>
-                            </select>
-                        </div>
-
-                        <!-- Producto Final -->
-                        <div>
- 
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
-                            <select id="producto" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
-
-                            <label for="producto" class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
-                            <select id="producto"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
- 
-                                <option value="">Seleccionar...</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detalles de Venta -->
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-xl font-semibold mb-4">
-                        <i class="fas fa-shopping-bag mr-2"></i>Detalles de Venta
-                    </h2>
- 
-                    
-
-
- 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <!-- Fecha -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha de Venta</label>
- 
-                            <input type="date" id="fechaVenta" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-                            <input type="date" id="fechaVenta"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
- 
-                        </div>
-
-                        <!-- Cantidad -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
- 
-                            <input type="number" id="cantidad" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <button id="agregarCarrito" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled>
-
-                            <input type="number" id="cantidad" min="1"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <button id="agregarCarrito"
-                        class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                        disabled>
-
-                        <i class="fas fa-plus mr-2"></i>Agregar al Carrito
-                    </button>
-                </div>
-            </div>
-
-            <!-- Panel de Cliente y Pago -->
-            <div class="lg:col-span-1">
-                <!-- Cliente -->
-                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                    <h2 class="text-xl font-semibold mb-4">
-                        <i class="fas fa-user mr-2"></i>Cliente
-                    </h2>
-
-                    
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Seleccionar Cliente</label>
-                        <select id="cliente" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">Seleccionar cliente...</option>
-                            <option value="1">Juan Pérez - 12345678</option>
-                            <option value="2">María González - 87654321</option>
-                            <option value="nuevo">+ Nuevo Cliente</option>
-                        </select>
-                    </div>
-
-                    <!-- Formulario Nuevo Cliente -->
-                    <div id="nuevoClienteForm" class="hidden space-y-3">
-                        <input type="text" id="nombreCliente" placeholder="Nombre completo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="text" id="cedulaCliente" placeholder="Cédula" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="tel" id="telefonoCliente" placeholder="Teléfono" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="email" id="emailCliente" placeholder="Email" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button id="guardarCliente" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
-                            <i class="fas fa-save mr-2"></i>Guardar Cliente
-                        </button>
-
-
+                <div class="space-y-4">
                     <div>
-                        <label for="cliente" class="block text-sm font-medium text-gray-700 mb-2">Clientes</label>
-                        <select id="cliente" name="cliente"
+                        <label for="categoria" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                        <select id="categoria" name="categoria"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">Seleccionar...</option>
-                            @foreach ($clientes as $cliente)
-                                <option value="{{ $cliente->cliente_id }}">{{ $cliente->nombre }}</option>
+                            @foreach ($categorias as $categoria)
+                                <option value="{{ $categoria->categoria_id }}">
+                                    {{ $categoria->categoria_nombre }}</option>
                             @endforeach
                         </select>
-
                     </div>
-                </div>
 
-                <!-- Método de Pago -->
-                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                    <h2 class="text-xl font-semibold mb-4">
-                        <i class="fas fa-credit-card mr-2"></i>Método de Pago
-                    </h2>
-
-                    <div class="space-y-2">
-                        <label class="flex items-center">
-                            <input type="radio" name="metodoPago" value="efectivo" class="mr-2">
-                            <i class="fas fa-money-bill-wave mr-2 text-green-600"></i>Efectivo
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="metodoPago" value="tarjeta_credito" class="mr-2">
-                            <i class="fas fa-credit-card mr-2 text-blue-600"></i>Tarjeta de Crédito
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="metodoPago" value="tarjeta_debito" class="mr-2">
-                            <i class="fas fa-credit-card mr-2 text-purple-600"></i>Tarjeta de Débito
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="metodoPago" value="cheque" class="mr-2">
-                            <i class="fas fa-money-check mr-2 text-yellow-600"></i>Cheque
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="metodoPago" value="visacuotas" class="mr-2">
-                            <i class="fas fa-calendar-alt mr-2 text-red-600"></i>Visacuotas
-                        </label>
-
-                    <div class="space-y-2">
-                        @foreach ($metodopago as $metodo)
-                            <label class="flex items-center">
-                                <input type="radio" name="metodoPago" value="{{ $metodo->metpago_id }}" class="mr-2">
-                                <i class="fas fa-credit-card mr-2 text-blue-600"></i>{{ $metodo->metpago_descripcion }}
-                            </label>
-                        @endforeach
-
-                    </div>
-                </div>
-
-                <!-- Descuento y Total -->
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-xl font-semibold mb-4">
-                        <i class="fas fa-calculator mr-2"></i>Resumen
-                    </h2>
-
-                    <div class="space-y-3">
-                        <div class="flex justify-between">
-                            <span>Subtotal:</span>
-                            <span id="subtotal">$0.00</span>
-                        </div>
- 
-                        
-                        <div class="flex items-center space-x-2">
-                            <label class="text-sm">Descuento (%):</label>
-                            <input type="number" id="descuento" min="0" max="100" value="0" class="w-20 px-2 py-1 border border-gray-300 rounded text-center">
-                        </div>
-                        
-
-
-                        <div class="flex items-center space-x-2">
-                            <label class="text-sm">Descuento (%):</label>
-                            <input type="number" id="descuento" min="0" max="100" value="0"
-                                class="w-20 px-2 py-1 border border-gray-300 rounded text-center">
-                        </div>
-
-
-                        <div class="flex justify-between font-bold text-lg border-t pt-2">
-                            <span>Total a Pagar:</span>
-                            <span id="totalFinal">$0.00</span>
-                        </div>
-
-                        
-                        <button id="procesarVenta" class="w-full bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400" disabled>
-
-
-                        <button id="procesarVenta"
-                            class="w-full bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400"
+                    <div>
+                        <label for="subcategoria" class="block text-sm font-medium text-gray-700 mb-2">Subcategoría</label>
+                        <select id="subcategoria" name="subcategoria"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             disabled>
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
 
-                            <i class="fas fa-check mr-2"></i>Procesar Venta
+                    <div>
+                        <label for="marca" class="block text-sm font-medium text-gray-700 mb-2">Marca</label>
+                        <select id="marca" name="marca"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            disabled>
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="modelo" class="block text-sm font-medium text-gray-700 mb-2">Modelo</label>
+                        <select id="modelo" name="modelo"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            disabled>
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="calibre" class="block text-sm font-medium text-gray-700 mb-2">Calibre</label>
+                        <select id="calibre" name="calibre"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            disabled>
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- Cliente -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-2">
+                    <i class="fas fa-user mr-2"></i>Clientes
+                </h2>
+
+                {{-- Selector de clientes particulares --}}
+                <div class="mb-3">
+                    <label for="clientes" class="block text-sm font-medium text-gray-700 mb-1">Clientes</label>
+
+                    <div class="flex gap-2">
+                        <input id="dpiClientes" type="number" placeholder="Buscar por DPI"
+                            class="mb-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input id="nitClientes" type="number" placeholder="Buscar por NIT"
+                            class="mb-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="flex justify-center gap-4 mt-2">
+
+                        <button id="btnBuscarCliente"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 hover:text-white transition-all duration-300">
+                            <i class="bi bi-search mr-2"></i>Buscar
                         </button>
+                        <button type="button" id="btnLimpiarBusqueda"
+                            class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 hover:text-gray-900 transition-all duration-300">
+                            <i class="bi bi-x-circle mr-2"></i>Limpiar
+                        </button>
+                    </div>
+
+                    <select id="clienteSelect" name="clienteSelect"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mt-2">
+                        <option value="">Seleccionar...</option>
+                        {{-- Se llena dinámicamente con JS --}}
+                    </select>
+
+                    <div id="estadoBusquedaCliente" class="text-xs text-gray-500 mt-1"></div>
+                </div>
+
+
+                {{-- Botón para nuevo cliente --}}
+                <button id="btnNuevoCliente"
+                    class="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+                    + Nuevo Cliente
+                </button>
+
+
+            </div>
+
+
+
+
+
+            {{-- <!-- Método de Pago -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-credit-card mr-2"></i>Método de Pago
+                </h2>
+
+                <div class="space-y-2">
+                    @foreach ($metodopago as $metodo)
+                        <label class="flex items-center">
+                            <input type="radio" name="metodoPago" value="{{ $metodo->metpago_id }}" class="mr-2">
+                            <i class="fas fa-credit-card mr-2 text-blue-600"></i>{{ $metodo->metpago_descripcion }}
+                        </label>
+                    @endforeach
+                </div>
+            </div> --}}
+        </div>
+
+        <div class="lg:col-span-2 flex flex-col h-full">
+            <!-- Buscador fijo -->
+            <div class="flex-shrink-0 mb-6">
+                <div class="relative">
+                    <div class="relative">
+                        <input type="text" id="busquedaProductos" placeholder="Buscar productos..."
+                            class="w-full px-4 py-3 pl-12 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                            autocomplete="off">
+
+                        <div class="absolute left-4 top-1/2 transform -translate-y-1/2">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div id="resultadosBusqueda"
+                        class="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto z-50 hidden">
+                        <!-- resultados -->
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Carrito de Compras -->
-        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-            <h2 class="text-xl font-semibold mb-4">
-                <i class="fas fa-shopping-cart mr-2"></i>Carrito de Compras
-            </h2>
-            <div id="carritoItems" class="space-y-2">
-                <p class="text-gray-500 text-center py-4">No hay productos en el carrito</p>
+            <!-- Contenedor de productos con altura fija y scroll interno -->
+            <div class="flex-1 flex flex-col min-h-0 bg-white rounded-lg shadow-sm border">
+                <!-- Contador fijo -->
+                <div class="flex-shrink-0 px-6 py-4 border-b bg-gray-50">
+                    <span id="contadorResultados" class="text-sm text-gray-600">Mostrando 0 productos</span>
+                </div>
+
+                <!-- Grid con scroll independiente -->
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div id="gridProductos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <!-- Los productos se mostrarán aquí -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // Datos de ejemplo (en Laravel vendrían de la base de datos)
-        const datosEjemplo = {
-            subcategorias: {
-                'armas': ['Pistolas', 'Rifles', 'Escopetas'],
-                'municion': ['Pistola', 'Rifle', 'Escopeta'],
-                'accesorios': ['Miras', 'Cargadores', 'Fundas']
-            },
-            marcas: {
-                'Pistolas': ['CZ', 'Glock', 'Smith & Wesson', 'Beretta'],
-                'Rifles': ['Remington', 'Winchester', 'Savage'],
-                'Escopetas': ['Benelli', 'Beretta', 'Remington']
-            },
-            modelos: {
-                'CZ': ['CZ 75', 'CZ P-10C', 'CZ Shadow 2'],
-                'Glock': ['Glock 17', 'Glock 19', 'Glock 43'],
-                'Smith & Wesson': ['M&P 9', 'M&P Shield', 'Model 686']
-            },
-            calibres: {
-                'CZ 75': ['9mm', '.40 S&W'],
-                'CZ P-10C': ['9mm'],
-                'CZ Shadow 2': ['9mm'],
-                'Glock 17': ['9mm'],
-                'Glock 19': ['9mm'],
-                'Glock 43': ['9mm']
-            },
-            productos: {
-                'CZ 75-9mm': { id: 1, stock: 5, precio: 1500.00, nombre: 'CZ 75 9mm' },
-                'CZ P-10C-9mm': { id: 2, stock: 3, precio: 1200.00, nombre: 'CZ P-10C 9mm' },
-                'Glock 17-9mm': { id: 3, stock: 8, precio: 1800.00, nombre: 'Glock 17 9mm' }
-            }
-        };
 
-        let carrito = [];
-        let productoActual = null;
 
-        // Inicializar fecha actual
-        document.getElementById('fechaVenta').valueAsDate = new Date();
 
-        // Event listeners para filtros en cascada
-        document.getElementById('categoria').addEventListener('change', function() {
-            const categoria = this.value;
-            const subcategoriaSelect = document.getElementById('subcategoria');
-            
-            limpiarSelect(subcategoriaSelect);
-            limpiarSelectsPosteriores(['marca', 'modelo', 'calibre', 'producto']);
-            
-            if (categoria && datosEjemplo.subcategorias[categoria]) {
-                subcategoriaSelect.disabled = false;
-                datosEjemplo.subcategorias[categoria].forEach(sub => {
-                    subcategoriaSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
-                });
-            } else {
-                subcategoriaSelect.disabled = true;
-            }
-            actualizarDashboard();
-        });
 
-        document.getElementById('subcategoria').addEventListener('change', function() {
-            const subcategoria = this.value;
-            const marcaSelect = document.getElementById('marca');
-            
-            limpiarSelect(marcaSelect);
-            limpiarSelectsPosteriores(['modelo', 'calibre', 'producto']);
-            
-            if (subcategoria && datosEjemplo.marcas[subcategoria]) {
-                marcaSelect.disabled = false;
-                datosEjemplo.marcas[subcategoria].forEach(marca => {
-                    marcaSelect.innerHTML += `<option value="${marca}">${marca}</option>`;
-                });
-            } else {
-                marcaSelect.disabled = true;
-            }
-            actualizarDashboard();
-        });
 
-        document.getElementById('marca').addEventListener('change', function() {
-            const marca = this.value;
-            const modeloSelect = document.getElementById('modelo');
-            
-            limpiarSelect(modeloSelect);
-            limpiarSelectsPosteriores(['calibre', 'producto']);
-            
-            if (marca && datosEjemplo.modelos[marca]) {
-                modeloSelect.disabled = false;
-                datosEjemplo.modelos[marca].forEach(modelo => {
-                    modeloSelect.innerHTML += `<option value="${modelo}">${modelo}</option>`;
-                });
-            } else {
-                modeloSelect.disabled = true;
-            }
-            actualizarDashboard();
-        });
 
-        document.getElementById('modelo').addEventListener('change', function() {
-            const modelo = this.value;
-            const calibreSelect = document.getElementById('calibre');
-            
-            limpiarSelect(calibreSelect);
-            limpiarSelectsPosteriores(['producto']);
-            
-            if (modelo && datosEjemplo.calibres[modelo]) {
-                calibreSelect.disabled = false;
-                datosEjemplo.calibres[modelo].forEach(calibre => {
-                    calibreSelect.innerHTML += `<option value="${calibre}">${calibre}</option>`;
-                });
-            } else {
-                calibreSelect.disabled = true;
-            }
-            actualizarDashboard();
-        });
 
-        document.getElementById('calibre').addEventListener('change', function() {
-            const modelo = document.getElementById('modelo').value;
-            const calibre = this.value;
-            const productoSelect = document.getElementById('producto');
-            
-            limpiarSelect(productoSelect);
-            
-            if (modelo && calibre) {
-                const claveProducto = `${modelo}-${calibre}`;
-                if (datosEjemplo.productos[claveProducto]) {
-                    productoSelect.disabled = false;
-                    const producto = datosEjemplo.productos[claveProducto];
-                    productoSelect.innerHTML += `<option value="${claveProducto}">${producto.nombre}</option>`;
-                }
-            } else {
-                productoSelect.disabled = true;
-            }
-            actualizarDashboard();
-        });
 
-        document.getElementById('producto').addEventListener('change', function() {
-            const claveProducto = this.value;
-            if (claveProducto && datosEjemplo.productos[claveProducto]) {
-                productoActual = datosEjemplo.productos[claveProducto];
-                document.getElementById('agregarCarrito').disabled = false;
-            } else {
-                productoActual = null;
-                document.getElementById('agregarCarrito').disabled = true;
-            }
-            actualizarDashboard();
-        });
+    <!-- Botón para abrir carrito -->
+    <button id="btnAbrirCarrito"
+        class="fixed top-4 right-4 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 z-40">
+        <i class="fas fa-shopping-cart text-xl"></i>
+        <span id="contadorCarrito"
+            class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+    </button>
 
-        // Cliente nuevo
-        document.getElementById('cliente').addEventListener('change', function() {
-            const nuevoClienteForm = document.getElementById('nuevoClienteForm');
-            if (this.value === 'nuevo') {
-                nuevoClienteForm.classList.remove('hidden');
-            } else {
-                nuevoClienteForm.classList.add('hidden');
-            }
-        });
+    <!-- Modal del carrito (deslizante desde la derecha) -->
+    <div id="modalCarrito" class="fixed inset-0 z-50 hidden">
+        <!-- Overlay -->
+        <div class="absolute inset-0 bg-black bg-opacity-50" id="overlayCarrito"></div>
 
-        // Agregar al carrito
-        document.getElementById('agregarCarrito').addEventListener('click', function() {
-            const cantidad = parseInt(document.getElementById('cantidad').value) || 0;
-            
-            if (!productoActual || cantidad <= 0) {
-                alert('Por favor seleccione un producto y una cantidad válida');
-                return;
-            }
-            
-            if (cantidad > productoActual.stock) {
-                alert(`No hay suficiente stock. Disponible: ${productoActual.stock}`);
-                return;
-            }
+        <!-- Panel deslizante -->
+        <div id="panelCarrito"
+            class="absolute right-0 top-0 h-full w-0 bg-white shadow-xl transition-all duration-300 ease-in-out overflow-hidden">
+            <div class="flex flex-col h-full">
+                <!-- Header -->
+                <div class="bg-blue-600 text-white p-4 flex items-center justify-between flex-shrink-0">
+                    <h2 class="text-xl font-semibold flex items-center">
+                        <i class="fas fa-shopping-cart mr-2"></i>
+                        Carrito de Compras
+                    </h2>
+                    <button id="btnCerrarCarrito" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
 
-            const itemCarrito = {
-                id: productoActual.id,
-                nombre: productoActual.nombre,
-                precio: productoActual.precio,
-                cantidad: cantidad,
-                subtotal: productoActual.precio * cantidad
-            };
-
-            carrito.push(itemCarrito);
-            actualizarCarrito();
-            limpiarFormulario();
-        });
-
-        // Calcular descuento
-        document.getElementById('descuento').addEventListener('input', calcularTotal);
-
-        function limpiarSelect(select) {
-            select.innerHTML = '<option value="">Seleccionar...</option>';
-        }
-
-        function limpiarSelectsPosteriores(selects) {
-            selects.forEach(id => {
-                const select = document.getElementById(id);
-                limpiarSelect(select);
-                select.disabled = true;
-            });
-        }
-
-        function actualizarDashboard() {
-            const claveProducto = document.getElementById('producto').value;
-            
-            if (claveProducto && datosEjemplo.productos[claveProducto]) {
-                const producto = datosEjemplo.productos[claveProducto];
-                document.getElementById('stockDisponible').textContent = producto.stock;
-                document.getElementById('precioUnitario').textContent = `$${producto.precio.toFixed(2)}`;
-                document.getElementById('productoSeleccionado').textContent = producto.nombre;
-            } else {
-                document.getElementById('stockDisponible').textContent = '--';
-                document.getElementById('precioUnitario').textContent = '$--';
-                document.getElementById('productoSeleccionado').textContent = '--';
-            }
-        }
-
-        function actualizarCarrito() {
-            const carritoItems = document.getElementById('carritoItems');
-            
-            if (carrito.length === 0) {
-                carritoItems.innerHTML = '<p class="text-gray-500 text-center py-4">No hay productos en el carrito</p>';
-            } else {
-                carritoItems.innerHTML = carrito.map((item, index) => `
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <!-- Contenido principal con scroll -->
+                <div class="flex-1 overflow-y-auto">
+                    <div class="p-4 space-y-4">
+                        <!-- Fecha de venta -->
                         <div>
-                            <span class="font-medium">${item.nombre}</span>
-                            <span class="text-sm text-gray-500 ml-2">x${item.cantidad} @ $${item.precio.toFixed(2)}</span>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Fecha de Venta</label>
+                            <input type="datetime-local" id="fechaVenta" value=""
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="font-semibold">$${item.subtotal.toFixed(2)}</span>
-                            <button onclick="eliminarDelCarrito(${index})" class="text-red-500 hover:text-red-700">
-                                <i class="fas fa-trash"></i>
-                            </button>
+
+                        <!-- Productos en el carrito -->
+                        <div>
+                            <h3 class="text-lg font-semibold mb-3 text-gray-800">Productos Seleccionados</h3>
+                            <div id="productosCarrito" class="space-y-3">
+                                <!-- Mensaje cuando está vacío -->
+                                <div id="carritoVacio" class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-shopping-cart text-4xl mb-2 opacity-30"></i>
+                                    <p>Tu carrito está vacío</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Método de pago -->
+                        <div class="border-t pt-4">
+                            <div class="flex items-center justify-between mb-3 cursor-pointer"
+                                onclick="toggleMetodoPago()" id="metodoPagoHeader">
+                                <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                                    <i class="fas fa-credit-card mr-2"></i>
+                                    <span id="metodoPagoTitulo">Método de Pago</span>
+                                </h3>
+                                <i class="fas fa-chevron-down text-gray-500 transition-transform duration-200"
+                                    id="metodoPagoIcon"></i>
+                            </div>
+
+                            <!-- Contenido del método de pago (acordeón) -->
+                            <div id="metodoPagoContenido" class="space-y-3">
+                                <div class="grid gap-2">
+                                    @foreach ($metodopago as $metodo)
+                                        <label
+                                            class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="metodoPago" value="{{ $metodo->metpago_id }}"
+                                                class="mr-3" <i class="fas fa-credit-card mr-2 text-blue-600"></i>
+                                            <span class="text-sm">{{ $metodo->metpago_descripcion }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+
+                                <!-- Autorización (para métodos 1–5) -->
+                                <!-- Autorización (para métodos 1–5) -->
+                                <div id="autorizacionContainer" class="hidden">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <!-- Selección del Banco -->
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-2">Seleccionar
+                                                Banco</label>
+                                            <select id="selectBanco"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                                <option value="">Seleccione un banco</option>
+                                                <option value="banrural">Banrural</option>
+                                                <option value="banco_industrial">Banco Industrial</option>
+                                                <option value="banco_bam">Banco BAM</option>
+                                                <option value="banco_gyt">Banco GYT</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Número de Autorización -->
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-2">Número de
+                                                Autorización</label>
+                                            <input type="text" id="numeroAutorizacion"
+                                                placeholder="Ingrese el número de autorización"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pagos en cuotas (para método 6) -->
+                                <div id="cuotasContainer" class="hidden">
+                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                        <div class="grid sm:grid-cols-2 gap-3 mb-3">
+                                            <!-- Abono -->
+                                            <div>
+                                                <label class="text-sm font-semibold text-gray-700">Abono inicial</label>
+                                                <input type="number" id="abonoInicial" min="0" step="0.01"
+                                                    value=""
+                                                    class="mt-1 w-full px-2 py-1 border rounded text-right text-sm"
+                                                    placeholder="Ingrese el abono"
+                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '')" />
+                                            </div>
+
+                                            <!-- Método de Abono (Efectivo o Transferencia) -->
+                                            <div>
+                                                <label class="text-sm font-semibold text-gray-700">Método de Abono</label>
+                                                <div class="mt-1 flex items-center gap-2">
+                                                    <input type="radio" name="metodoAbono" value="efectivo"
+                                                        id="efectivoAbono" checked>
+                                                    <label for="efectivoAbono" class="text-sm">Efectivo</label>
+                                                    <input type="radio" name="metodoAbono" value="transferencia"
+                                                        id="transferenciaAbono">
+                                                    <label for="transferenciaAbono" class="text-sm">Transferencia</label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-xs text-gray-600 mb-2">
+                                            Saldo a cuotas: <span id="saldoCuotas">Q0.00</span>
+                                        </div>
+
+                                        <!-- Lista de cuotas con altura limitada -->
+                                        <div id="cuotasLista"
+                                            class="space-y-2 max-h-40 overflow-y-auto border rounded bg-white p-2"></div>
+
+                                        <!-- Número de pagos + repartir -->
+                                        <div class="mt-3 flex items-center gap-2">
+                                            <label class="text-sm font-semibold text-gray-700">Número de pagos</label>
+                                            <input type="number" id="cuotasNumero" min="2" max="36"
+                                                value="2" class="w-20 px-2 py-1 border rounded text-center text-sm">
+                                            <button type="button" id="cuotasRepartir"
+                                                class="px-3 py-1 rounded text-sm border bg-white hover:bg-gray-50">
+                                                Repartir
+                                            </button>
+                                        </div>
+
+                                        <!-- Mostrar contenedor de autorización si se selecciona Transferencia -->
+                                        <div id="autorizacionContainer" class="hidden mt-3">
+                                            <label class="block text-sm font-semibold text-gray-700 mb-2">Número de
+                                                Autorización</label>
+                                            <input type="text" id="numeroAutorizacion"
+                                                placeholder="Ingrese el número de autorización"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        </div>
+
+                                        <div id="cuotasMensaje" class="text-xs mt-2 text-center"></div>
+                                    </div>
+                                </div>
+
+                            </div>
                         </div>
                     </div>
-                `).join('');
-            }
-            
-            calcularTotal();
-        }
+                </div>
 
-        function eliminarDelCarrito(index) {
-            carrito.splice(index, 1);
-            actualizarCarrito();
-        }
+                <!-- Footer fijo con resumen y botón -->
+                <div class="border-t bg-gray-50 p-4 flex-shrink-0">
+                    <!-- Resumen compacto -->
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Subtotal:</span>
+                            <span id="subtotalModal" class="font-semibold">Q0.00</span>
+                        </div>
 
-        function calcularTotal() {
-            const subtotal = carrito.reduce((sum, item) => sum + item.subtotal, 0);
-            const descuento = parseFloat(document.getElementById('descuento').value) || 0;
-            const montoDescuento = subtotal * (descuento / 100);
-            const total = subtotal - montoDescuento;
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-sm text-gray-600">Descuento (%):</label>
+                            <input type="number" id="descuentoModal" min="0" max="100" value="0"
+                                class="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm">
+                        </div>
 
-            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
-            document.getElementById('totalFinal').textContent = `$${total.toFixed(2)}`;
-            document.getElementById('totalCarrito').textContent = `$${total.toFixed(2)}`;
+                        <div class="flex justify-between font-bold text-lg border-t pt-2">
+                            <span>Total:</span>
+                            <span id="totalModal" class="text-green-600">Q0.00</span>
+                        </div>
+                    </div>
 
-            // Habilitar botón de procesar si hay items y cliente seleccionado
-            const cliente = document.getElementById('cliente').value;
-            const metodoPago = document.querySelector('input[name="metodoPago"]:checked');
-            document.getElementById('procesarVenta').disabled = !(carrito.length > 0 && cliente && metodoPago);
-        }
+                    <!-- Botón procesar venta -->
+                    <button id="procesarVentaModal" type="button"
+                        class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-color">
+                        <i class="fas fa-check mr-2"></i>Procesar Venta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        function limpiarFormulario() {
-            document.getElementById('cantidad').value = '';
-            // Reset filtros
-            ['categoria', 'subcategoria', 'marca', 'modelo', 'calibre', 'producto'].forEach(id => {
-                document.getElementById(id).selectedIndex = 0;
-            });
-            limpiarSelectsPosteriores(['subcategoria', 'marca', 'modelo', 'calibre', 'producto']);
-            productoActual = null;
-            document.getElementById('agregarCarrito').disabled = true;
-            actualizarDashboard();
-        }
 
-        // Event listeners para habilitar botón de procesar venta
-        document.getElementById('cliente').addEventListener('change', calcularTotal);
-        document.querySelectorAll('input[name="metodoPago"]').forEach(radio => {
-            radio.addEventListener('change', calcularTotal);
-        });
 
-        // Procesar venta
-        document.getElementById('procesarVenta').addEventListener('click', function() {
-            const cliente = document.getElementById('cliente').value;
-            const metodoPago = document.querySelector('input[name="metodoPago"]:checked')?.value;
-            const fecha = document.getElementById('fechaVenta').value;
-            
-            if (!cliente || !metodoPago || carrito.length === 0) {
-                alert('Por favor complete todos los campos requeridos');
-                return;
-            }
 
-            // Aquí enviarías los datos al servidor Laravel
-            const ventaData = {
-                cliente_id: cliente,
-                fecha: fecha,
-                metodo_pago: metodoPago,
-                descuento: parseFloat(document.getElementById('descuento').value) || 0,
-                items: carrito
-            };
 
-            console.log('Datos de venta:', ventaData);
-            alert('¡Venta procesada exitosamente!');
-            
-            // Limpiar formulario
-            carrito = [];
-            actualizarCarrito();
-            limpiarFormulario();
-            document.getElementById('cliente').selectedIndex = 0;
-            document.getElementById('descuento').value = 0;
-            document.querySelectorAll('input[name="metodoPago"]').forEach(radio => radio.checked = false);
-        });
 
-        // Guardar nuevo cliente
-        document.getElementById('guardarCliente').addEventListener('click', function() {
-            const nombre = document.getElementById('nombreCliente').value;
-            const cedula = document.getElementById('cedulaCliente').value;
-            
-            if (!nombre || !cedula) {
-                alert('Nombre y cédula son requeridos');
-                return;
-            }
 
-            // Aquí guardarías el cliente en la base de datos
-            console.log('Nuevo cliente:', {
-                nombre: nombre,
-                cedula: cedula,
-                telefono: document.getElementById('telefonoCliente').value,
-                email: document.getElementById('emailCliente').value
-            });
+    {{-- MODAL NUEVO CLIENTE --}}
+    <div id="modalNuevoCliente" class="fixed inset-0 z-50 hidden">
+        <!-- Overlay -->
+        <div id="modalOverlayNC" class="absolute inset-0 bg-black/40"></div>
 
-            alert('Cliente guardado exitosamente');
-            
-            // Agregar al select y seleccionar
-            const clienteSelect = document.getElementById('cliente');
-            const newOption = document.createElement('option');
-            newOption.value = 'nuevo_cliente';
-            newOption.textContent = `${nombre} - ${cedula}`;
-            clienteSelect.insertBefore(newOption, clienteSelect.lastElementChild);
-            clienteSelect.value = 'nuevo_cliente';
-            
-            // Ocultar formulario
-            document.getElementById('nuevoClienteForm').classList.add('hidden');
-        });
-    </script>
-</body>
-</html>
+        <!-- Contenido -->
+        <div class="relative mx-auto mt-12 w-11/12 sm:w-[42rem] bg-white rounded-xl shadow-2xl">
+            <!-- Header -->
+            <div class="p-4 border-b flex items-center justify-between">
+                <h3 class="text-lg font-semibold">
+                    <i class="fas fa-user-plus mr-2 text-emerald-600"></i>
+                    Registrar nuevo cliente
+                </h3>
+                <button id="modalCerrarNC" class="p-2 rounded hover:bg-gray-100">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4">
+                <form id="formNuevoCliente">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+
+                        <div class="grid grid-cols-2 gap-4 sm:col-span-2">
+                            <div>
+                                <label for="tipoCliente" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Tipo de Cliente
+                                </label>
+                                <select id="tipoCliente" name="cliente_tipo"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">Cliente Normal</option>
+                                    <option value="2">Cliente Premium</option>
+                                </select>
+                            </div>
+
+                            <!-- Cliente Premium -->
+                            <div id="selectorPremium" style="display: none;">
+                                <label for="clientePremium" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Cliente Premium
+                                </label>
+                                <select id="clientePremium" name="clientePremium"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Seleccionar cliente...</option>
+                                    @foreach ($clientes as $cliente)
+                                        <option value="{{ $cliente->user_id }}"
+                                            data-nombre1="{{ $cliente->user_primer_nombre }}"
+                                            data-nombre2="{{ $cliente->user_segundo_nombre ?? '' }}"
+                                            data-apellido1="{{ $cliente->user_primer_apellido }}"
+                                            data-apellido2="{{ $cliente->user_segundo_apellido ?? '' }}"
+                                            data-dpi="{{ $cliente->user_dpi_dni }}">
+                                            {{ $cliente->user_primer_nombre }} {{ $cliente->user_segundo_nombre }}
+                                            {{ $cliente->user_primer_apellido }} {{ $cliente->user_segundo_apellido }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Nombres -->
+                        <input id="nc_nombre1" name="cliente_nombre1" type="text" placeholder="Primer nombre"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input id="nc_nombre2" name="cliente_nombre2" type="text" placeholder="Segundo nombre"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                        <!-- Apellidos -->
+                        <input id="nc_apellido1" name="cliente_apellido1" type="text" placeholder="Primer apellido"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input id="nc_apellido2" name="cliente_apellido2" type="text" placeholder="Segundo apellido"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                        <!-- DPI y NIT -->
+                        <input id="nc_dpi" name="cliente_dpi" type="text" placeholder="DPI"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input id="nc_nit" name="cliente_nit" type="text" placeholder="NIT"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                        <!-- Teléfono y Correo -->
+                        <input id="nc_telefono" name="cliente_telefono" type="tel" placeholder="Teléfono"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input id="nc_correo" name="cliente_correo" type="email" placeholder="Correo"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                        <!-- Dirección -->
+                        <div class="sm:col-span-2">
+                            <input id="nc_direccion" name="cliente_direccion" type="text" placeholder="Dirección"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Estado mensajes -->
+                    <div id="nc_estado" class="text-xs text-gray-500"></div>
+                </form>
+            </div>
+
+
+            <!-- Footer -->
+            <div class="p-5 border-t flex items-center justify-end gap-2">
+                <button id="modalGuardarCliente"
+                    class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+                    <i class="fas fa-save mr-2"></i>Guardar
+                </button>
+                <button id="modalCancelarNC" class="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-200">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
 @endsection
 
-    @vite('resources/js/ventas/index.js')
+@vite('resources/js/ventas/index.js')

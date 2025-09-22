@@ -42,7 +42,7 @@ class MarcasController extends Controller
 
         Marcas::create([
             'marca_descripcion' => $request->marca_descripcion,
-            'marca_situacion'   => (int)$request->marca_situacion, // <— a int
+            'marca_situacion'   => (int)$request->marca_situacion, 
         ]);
 
         return redirect()->route('marcas.index')->with('success', 'Marca creada exitosamente');

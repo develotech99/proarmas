@@ -702,7 +702,6 @@ return new class extends Migration {
             }
 
             // Validaciones
-            $table->check('mov_cantidad > 0');
             $table->check('mov_precio_unitario IS NULL OR mov_precio_unitario >= 0');
         });
 
