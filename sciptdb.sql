@@ -214,6 +214,7 @@ CREATE TABLE pro_inventario_armas (
     arma_estado ENUM('disponible','vendida','reservada','baja') DEFAULT 'disponible',
     FOREIGN KEY (arma_modelo_id) REFERENCES pro_inventario_modelos(modelo_id)
 );
+
 -- ========================
 -- CLIENTES Y VENTAS
 -- ========================
@@ -287,6 +288,7 @@ CREATE TABLE pro_comprobantes_pago_ventas (
     FOREIGN KEY (comprobventas_pago_id) REFERENCES pro_pagos(pago_id)
 );
 
+
 -- TABLAS DE UBICACIONES  Y VISITAS DE USUARIOS 
 CREATE TABLE users_ubicaciones (
     ubi_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -322,14 +324,6 @@ CREATE TABLE users_historial_visitas (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (hist_visita_id) REFERENCES users_visitas(visita_id)
 );
-
-
-
-
-
-
-
-
 
 
 -- ========================
@@ -465,3 +459,4 @@ WHERE a.alerta_estado IN ('pendiente', 'vista')
 ORDER BY 
     FIELD(a.alerta_prioridad, 'critica', 'alta', 'media', 'baja'),
     a.alerta_fecha_generacion DESC;
+
