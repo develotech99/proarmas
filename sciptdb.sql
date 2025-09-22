@@ -288,3 +288,175 @@ CREATE TABLE pro_comprobantes_pago_ventas (
     FOREIGN KEY (comprobventas_pago_id) REFERENCES pro_pagos(pago_id)
 );
 
+
+-- TABLAS DE UBICACIONES  Y VISITAS DE USUARIOS 
+CREATE TABLE users_ubicaciones (
+    ubi_id INT AUTO_INCREMENT PRIMARY KEY,
+    ubi_user INT NOT NULL,
+    ubi_latitud DECIMAL(9, 6) NOT NULL,
+    ubi_longitud DECIMAL(9, 6) NOT NULL,
+    ubi_descripcion VARCHAR(255),
+    FOREIGN KEY (ubi_user) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE users_visitas (
+    visita_id INT AUTO_INCREMENT PRIMARY KEY,
+    visita_user INT NOT NULL,
+    visita_fecha DATETIME NULL,
+    visita_estado INT NOT NULL,      -- 1: Visitado no comprado, 2: Visitado comprado, 3: No visitado
+    visita_venta DECIMAL(10, 2) DEFAULT 0,
+    visita_descripcion TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (visita_user) REFERENCES users(user_id)
+);
+
+CREATE TABLE users_historial_visitas (
+    hist_id INT AUTO_INCREMENT PRIMARY KEY,
+    hist_visita_id INT NOT NULL,
+    hist_fecha_actualizacion DATETIME NOT NULL,
+    hist_estado_anterior INT,
+    hist_estado_nuevo INT,
+    hist_total_venta_anterior DECIMAL(10, 2),
+    hist_total_venta_nuevo DECIMAL(10, 2),
+    hist_descripcion TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (hist_visita_id) REFERENCES users_visitas(visita_id)
+);
+
+
+-- ========================
+-- TRIGGERS PARA GENERAR ALERTAS AUTOMÁTICAS
+-- ========================
+
+DELIMITER //
+
+-- Trigger para alertas de stock bajo
+CREATE TRIGGER tr_alerta_stock_bajo
+AFTER UPDATE ON pro_stock_actual
+FOR EACH ROW
+BEGIN
+    DECLARE producto_nombre VARCHAR(100);
+    DECLARE stock_minimo INT;
+    DECLARE sku_producto VARCHAR(100);
+    
+    IF NEW.stock_cantidad_disponible != OLD.stock_cantidad_disponible THEN
+        
+        SELECT p.producto_nombre, p.producto_stock_minimo, p.pro_codigo_sku
+        INTO producto_nombre, stock_minimo, sku_producto
+        FROM pro_productos p 
+        WHERE p.producto_id = NEW.stock_producto_id;
+        
+        -- Alerta de stock bajo
+        IF NEW.stock_cantidad_disponible <= stock_minimo AND stock_minimo > 0 THEN
+            
+            IF NOT EXISTS (
+                SELECT 1 FROM sys_alertas_notificaciones 
+                WHERE alerta_producto_id = NEW.stock_producto_id 
+                AND alerta_tipo = 'stock_bajo' 
+                AND alerta_estado IN ('pendiente', 'vista')
+            ) THEN
+                
+                INSERT INTO sys_alertas_notificaciones (
+                    alerta_tipo,
+                    alerta_titulo,
+                    alerta_mensaje,
+                    alerta_prioridad,
+                    alerta_producto_id,
+                    alerta_datos
+                ) VALUES (
+                    'stock_bajo',
+                    CONCAT('Stock bajo: ', producto_nombre),
+                    CONCAT('El producto "', producto_nombre, '" (SKU: ', sku_producto, ') tiene stock bajo. Stock actual: ', 
+                           NEW.stock_cantidad_disponible, ', Stock mínimo: ', stock_minimo),
+                    CASE 
+                        WHEN NEW.stock_cantidad_disponible = 0 THEN 'critica'
+                        WHEN NEW.stock_cantidad_disponible <= (stock_minimo * 0.5) THEN 'alta'
+                        ELSE 'media'
+                    END,
+                    NEW.stock_producto_id,
+                    JSON_OBJECT(
+                        'stock_actual', NEW.stock_cantidad_disponible,
+                        'stock_minimo', stock_minimo,
+                        'producto_nombre', producto_nombre,
+                        'sku', sku_producto
+                    )
+                );
+                
+            END IF;
+        END IF;
+        
+        -- Alerta de stock agotado
+        IF NEW.stock_cantidad_disponible = 0 AND OLD.stock_cantidad_disponible > 0 THEN
+            
+            INSERT INTO sys_alertas_notificaciones (
+                alerta_tipo,
+                alerta_titulo,
+                alerta_mensaje,
+                alerta_prioridad,
+                alerta_producto_id,
+                alerta_datos
+            ) VALUES (
+                'stock_agotado',
+                CONCAT('¡AGOTADO! ', producto_nombre),
+                CONCAT('El producto "', producto_nombre, '" (SKU: ', sku_producto, ') se ha AGOTADO completamente.'),
+                'critica',
+                NEW.stock_producto_id,
+                JSON_OBJECT(
+                    'producto_nombre', producto_nombre,
+                    'sku', sku_producto,
+                    'stock_anterior', OLD.stock_cantidad_disponible
+                )
+            );
+            
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
+
+-- ========================
+-- VISTAS ÚTILES
+-- ========================
+
+-- Vista de alertas pendientes con información completa
+CREATE VIEW v_alertas_pendientes AS
+SELECT 
+    a.alerta_id,
+    a.alerta_tipo,
+    a.alerta_titulo,
+    a.alerta_mensaje,
+    a.alerta_prioridad,
+    a.alerta_estado,
+    a.alerta_fecha_generacion,
+    
+    -- Información del producto si aplica
+    p.producto_nombre,
+    p.pro_codigo_sku,
+    
+    -- Información del usuario si aplica
+    CONCAT(u.user_primer_nombre, ' ', u.user_primer_apellido) as usuario_nombre,
+    
+    -- Stock actual si es alerta de stock
+    sa.stock_cantidad_disponible,
+    
+    -- Datos adicionales
+    a.alerta_datos,
+    
+    -- Control de emails
+    a.alerta_enviar_email,
+    a.alerta_email_enviado,
+    
+    -- Tiempo transcurrido
+    TIMESTAMPDIFF(MINUTE, a.alerta_fecha_generacion, NOW()) as minutos_transcurridos
+
+FROM sys_alertas_notificaciones a
+LEFT JOIN pro_productos p ON a.alerta_producto_id = p.producto_id
+LEFT JOIN users u ON a.alerta_usuario_id = u.user_id
+LEFT JOIN pro_stock_actual sa ON a.alerta_producto_id = sa.stock_producto_id
+WHERE a.alerta_estado IN ('pendiente', 'vista')
+ORDER BY 
+    FIELD(a.alerta_prioridad, 'critica', 'alta', 'media', 'baja'),
+    a.alerta_fecha_generacion DESC;
+

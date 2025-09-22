@@ -92,6 +92,40 @@
     #map_card.in-fullscreen #mobile-sidebar {
         display: none !important;
     }
+
+
+    /* estilos de datatable */
+    .dataTable-wrapper table button.bg-indigo-600 {
+        background-color: #4f46e5 !important;
+        color: #fff !important;
+    }
+
+    .dataTable-wrapper table button.bg-emerald-600 {
+        background-color: #059669 !important;
+        color: #fff !important;
+    }
+
+    .dataTable-wrapper table button.bg-rose-600 {
+        background-color: #dc2626 !important;
+        color: #fff !important;
+    }
+
+    .dataTable-wrapper table button:hover.bg-indigo-600 {
+        background-color: #6366f1 !important;
+    }
+
+    .dataTable-wrapper table button:hover.bg-emerald-600 {
+        background-color: #10b981 !important;
+    }
+
+    .dataTable-wrapper table button:hover.bg-rose-600 {
+        background-color: #e11d48 !important;
+    }
+
+    .dataTable-wrapper table button:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, .25);
+    }
 </style>
 
 @section('title', 'Ubicar cliente en el mapa')
@@ -124,6 +158,7 @@
 
         <div class="grid gap-8 grid-cols-1 lg:grid-cols-3">
 
+            {{-- Formulario --}}
             <div class="min-w-0">
                 <form id="FormRegistroUbicaciones"
                     class="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-6">
@@ -165,7 +200,7 @@
                         </select>
                     </div>
 
-                    {{-- Fecha visita (tu JS la oculta cuando es "No visitado") --}}
+                    {{-- FECHA visita (tu JS la oculta si "No visitado") --}}
                     <div id="grupo_fecha_visita" class="mb-5">
                         <label for="fecha_visita"
                             class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Fecha de la
@@ -174,42 +209,44 @@
                             class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
                     </div>
 
-                    {{-- Buscar lugar --}}
+
                     <div class="mb-5">
-                        <label for="busqueda_lugar"
-                            class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Buscar lugar</label>
-                        <div class="relative">
-                            <input id="busqueda_lugar" type="text" placeholder="Ej. Zona 1, Catedral, Tikal…"
-                                class="w-full pr-12 rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-                            <button id="btn_buscar_lugar" type="button"
-                                class="absolute inset-y-0 right-0 px-4 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400">
-                                {{-- Lupa --}}
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z" />
-                                </svg>
-                            </button>
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                            <!-- Latitud -->
+                            <div class="sm:col-span-5">
+                                <label for="lat"
+                                    class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Latitud</label>
+                                <input id="lat" name="lat" type="text" placeholder="14.6…"
+                                    class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+                            </div>
+
+                            <!-- Longitud -->
+                            <div class="sm:col-span-5">
+                                <label for="lng"
+                                    class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Longitud</label>
+                                <input id="lng" name="lng" type="text" placeholder="-90.5…"
+                                    class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+                            </div>
+
+                            <!-- Botón pequeño -->
+                            <div class="sm:col-span-2 flex justify-center">
+                                <button id="btn_plotear" type="button"
+                                    class="h-8 w-8 flex items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-500 transition"
+                                    title="Buscar coordenadas">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20"
+                                        fill="currentColor">
+                                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0
+                                           1110.89 3.476l4.817 4.817a1 1 0
+                                           01-1.414 1.414l-4.816-4.816A6 6
+                                           0 012 8z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    {{-- Coordenadas --}}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-                        <div>
-                            <label for="lat"
-                                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Latitud</label>
-                            <input id="lat" name="lat" type="text" placeholder="14.6…"
-                                class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-                        </div>
-                        <div>
-                            <label for="lng"
-                                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Longitud</label>
-                            <input id="lng" name="lng" type="text" placeholder="-90.5…"
-                                class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-                        </div>
-                    </div>
 
-                    {{-- Info venta (controlada por JS cuando visitado=2) --}}
+                    {{-- Info venta (tu JS la muestra si visitado=2) --}}
                     <div id="venta_info"
                         class="hidden mb-5 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20">
                         <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300 mb-3">Información de Venta
@@ -219,7 +256,7 @@
                                 <label for="cantidad_vendida"
                                     class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cantidad
                                     Vendida</label>
-                                <input id="cantidad_vendida" name="cantidad_vendida" type="number"
+                                <input id="cantidad_vendida" name="cantidad_vendida" type="number" step="0.01"
                                     class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
                             </div>
                             <div class="sm:col-span-2">
@@ -232,7 +269,7 @@
                         </div>
                     </div>
 
-                    {{-- Botones --}}
+                    {{-- Botones de formulario --}}
                     <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
                         <button id="btn_tomar_posicion" type="button"
                             class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border-2 border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
@@ -246,28 +283,16 @@
                             <span class="sm:hidden">Posición</span>
                         </button>
 
-                        <button id="btn_plotear" type="button"
-                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 transition whitespace-nowrap">
-                            {{-- map pin --}}
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
-                                fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M12 2.25a7.5 7.5 0 00-7.5 7.5c0 4.28 3.3 7.97 6.21 11.05.44.47.86.91 1.29 1.32.43-.41.85-.85 1.29-1.32 2.91-3.08 6.21-6.77 6.21-11.05a7.5 7.5 0 00-7.5-7.5zM12 13.5a3.75 3.75 0 110-7.5 3.75 3.75 0 010 7.5z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            Buscar Coordenadas
-                        </button>
-
                         <button id="btn_guardar" type="submit"
                             class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 transition">
-                            {{-- floppy --}}
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
                                 fill="currentColor">
                                 <path
                                     d="M17 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2zm-5 14a3 3 0 110-6 3 3 0 010 6z" />
                             </svg>
-                            Guardar
+                            <span id="btn_guardar_texto">Guardar</span>
                         </button>
+
                     </div>
                 </form>
             </div>
@@ -276,59 +301,78 @@
             <div class="lg:col-span-2 min-w-0">
                 <div id="map_card"
                     class="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
-                    <div class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
-                                </svg>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Mapa Interactivo</h2>
-                        </div>
 
-                        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                            <button id="btn_mi_ubicacion" type="button"
-                                class="w-full sm:w-auto inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
-                                {{-- location --}}
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
-                                    fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M12 2a9.99 9.99 0 00-7.07 2.93A9.99 9.99 0 002 12c0 5.52 4.48 10 10 10s10-4.48 10-10-4.48-10-10-10zm0 5a2 2 0 110 4 2 2 0 010-4zm0 11a7.97 7.97 0 01-6-2.7c.03-1.98 4-3.07 6-3.07s5.97 1.09 6 3.07a7.97 7.97 0 01-6 2.7z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                <span class="hidden sm:inline">Mi ubicación</span>
-                                <span class="sm:hidden">Ubicación</span>
-                            </button>
-                            <button id="btn_limpiar_mapa" type="button"
-                                class="w-full sm:w-auto inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
-                                {{-- trash --}}
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4a1 1 0 011 1v1h5m-6 0V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1m0 0H4" />
-                                </svg>
-                                Limpiar
-                            </button>
+                    {{-- Barra superior del mapa: UNA SOLA LÍNEA (responsiva) --}}
+                    <div class="p-4">
+                        <div class="flex flex-col md:flex-row md:items-center md:gap-3 gap-2 w-full">
+
+                            {{-- Título compacto --}}
+                            <div class="flex items-center gap-2 shrink-0">
+                                <div
+                                    class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
+                                    </svg>
+                                </div>
+                                <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Mapa Interactivo</h2>
+                            </div>
+
+                            {{-- Buscador (ocupa todo el ancho disponible) --}}
+                            <div class="relative flex-1 min-w-[220px]">
+                                <input id="busqueda_lugar" type="text"
+                                    placeholder="Ej. Zona 1, Catedral…  o  14.6349, -90.5069"
+                                    class="w-full pl-4 pr-12 rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 h-11">
+                                <button id="btn_buscar_lugar" type="button"
+                                    class="absolute inset-y-0 right-0 px-4 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+                                    title="Buscar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-4.35-4.35M16 10.5a5.5 5.5 0 11-11 0 5.5 5.5 0 0111 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {{-- Acciones a la derecha (mantienen 1 línea en md+) --}}
+                            <div class="flex items-stretch gap-2 shrink-0">
+                                <button id="btn_mi_ubicacion" type="button"
+                                    class="inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 h-11 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
+                                        fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M12 2a9.99 9.99 0 00-7.07 2.93A9.99 9.99 0 002 12c0 5.52 4.48 10 10 10s10-4.48 10-10-4.48-10-10-10zm0 5a2 2 0 110 4 2 2 0 010-4zm0 11a7.97 7.97 0 01-6-2.7c.03-1.98 4-3.07 6-3.07s5.97 1.09 6 3.07a7.97 7.97 0 01-6 2.7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span class="hidden sm:inline">Mi ubicación</span>
+                                    <span class="sm:hidden">Ubicación</span>
+                                </button>
+                                <button id="btn_limpiar_mapa" type="button"
+                                    class="inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 h-11 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4a1 1 0 011 1v1h5m-6 0V4a1 1 0 00-1 1v1m0 0H4" />
+                                    </svg>
+                                    Limpiar
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     {{-- Contenedor mapa --}}
                     <div class="relative">
-                        <div id="map" class="w-full"></div>
+                        <div id="map" class="w-full h-[56vh] sm:h-[60vh] lg:h-[66vh]"></div>
 
                         {{-- Botón fullscreen --}}
                         <button id="btn_fullscreen" type="button"
                             class="absolute top-4 right-4 z-[1000] inline-flex items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-3 py-3 shadow-lg hover:shadow-xl transition"
                             title="Pantalla completa">
-                            <!-- expandir -->
                             <svg id="icon_expand" class="h-5 w-5 block text-slate-700 dark:text-slate-200"
                                 viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
                             </svg>
-                            <!-- contraer -->
                             <svg id="icon_compress" class="h-5 w-5 hidden text-slate-700 dark:text-slate-200"
                                 viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
@@ -354,7 +398,7 @@
 
         {{-- Tabla --}}
         <div class="mt-10">
-            <div class="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
+            <div class="rounded-3x border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
                 <div class="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Clientes Georreferenciados
@@ -374,7 +418,6 @@
                         </div>
                         <button id="btn_exportar" type="button"
                             class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-                            {{-- download --}}
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2h-5.586a1 1 0 00-.707.293L9.293 9.707A1 1 0 009 10.414V18a2 2 0 002 2z" />
@@ -383,7 +426,6 @@
                         </button>
                         <button id="btn_ver_modal" type="button"
                             class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition">
-                            {{-- eye --}}
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M1.5 12s3.75-7.5 10.5-7.5S22.5 12 22.5 12 18.75 19.5 12 19.5 1.5 12 1.5 12z" />
@@ -418,6 +460,93 @@
             </div>
         </div>
     </div>
+
+
+    <!-- Modal Detalles Cliente -->
+    <div id="cliente_modal" class="fixed inset-0 z-[10000] hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+        <div class="relative mx-auto mt-12 w-full max-w-4xl">
+            <div class="rounded-2xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                        <h3 id="cm_nombre" class="text-lg font-semibold">Cliente</h3>
+                        <p id="cm_sub" class="text-xs text-slate-500">Resumen y actividad</p>
+                    </div>
+                    <button id="cm_close" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
+                </div>
+
+                <div class="p-6 grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div class="rounded-xl border p-4">
+                        <div class="text-xs">Visitas</div>
+                        <div id="cm_visitas" class="text-2xl font-bold">—</div>
+                    </div>
+                    <div class="rounded-xl border p-4">
+                        <div class="text-xs">Compras</div>
+                        <div id="cm_compras" class="text-2xl font-bold text-emerald-600">—</div>
+                    </div>
+                    <div class="rounded-xl border p-4">
+                        <div class="text-xs">No compró</div>
+                        <div id="cm_nocompra" class="text-2xl font-bold text-amber-600">—</div>
+                    </div>
+                    <div class="rounded-xl border p-4">
+                        <div class="text-xs">No visitado</div>
+                        <div id="cm_novisitado" class="text-2xl font-bold text-rose-600">—</div>
+                    </div>
+                    <div class="rounded-xl border p-4">
+                        <div class="text-xs">Total vendido</div>
+                        <div id="cm_total" class="text-2xl font-bold">—</div>
+                    </div>
+                </div>
+
+                <div class="px-6">
+                    <div class="flex gap-3 text-sm">
+                        <button id="tab_visitas"
+                            class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800">Ultima Visita</button>
+                        <button id="tab_hist" class="px-3 py-2 rounded-lg">Historial</button>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div id="cm_loading" class="text-sm text-slate-500">Cargando…</div>
+
+                    <div id="cm_visitas_pane" class="hidden overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-slate-50 dark:bg-slate-800/60">
+                                <tr>
+                                    <th class="text-left px-4 py-2">Fecha</th>
+                                    <th class="text-left px-4 py-2">Estado</th>
+                                    <th class="text-left px-4 py-2">Venta</th>
+                                    <th class="text-left px-4 py-2">Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cm_visitas_tb" class="divide-y"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="cm_hist_pane" class="hidden overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-slate-50 dark:bg-slate-800/60">
+                                <tr>
+                                    <th class="text-left px-4 py-2">Fecha actualización</th>
+                                    <th class="text-left px-4 py-2">Estado (antes → nuevo)</th>
+                                    <th class="text-left px-4 py-2">Venta (antes → nueva)</th>
+                                    <th class="text-left px-4 py-2">Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cm_hist_tb" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+                    <button id="cm_add_visita" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm">Registrar
+                        visita</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 @endsection
 
 @vite(['resources/js/usuarios/mapa.js'])

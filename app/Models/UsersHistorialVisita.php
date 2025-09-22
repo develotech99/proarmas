@@ -9,6 +9,7 @@ class UsersHistorialVisita extends Model
 {
     use HasFactory;
 
+    protected $table = 'users_historial_visitas';
     protected $primaryKey = 'hist_id';
 
     protected $fillable = [

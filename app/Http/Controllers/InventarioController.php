@@ -1390,6 +1390,9 @@ private function procesarPreciosIngreso(Request $request, $productoId, $movimien
                 ->orderBy('subcategoria_nombre')
                 ->get();
 
+                // echo json_encode($subcategorias);
+                // exit;
+
             return response()->json([
                 'success' => true,
                 'data' => $subcategorias
