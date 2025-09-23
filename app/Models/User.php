@@ -65,9 +65,24 @@ class User extends Authenticatable
         return $this->belongsTo(Rol::class, 'user_rol', 'id');
     }
 
+    // Relación con comisiones
+    public function comisiones()
+    {
+        return $this->hasMany(ProPorcentajeVendedor::class, 'porc_vend_user_id', 'user_id');
+    }
+
+    // Relación con ventas (como vendedor)
+    public function ventas()
+    {
+        return $this->hasMany(ProVenta::class, 'ven_user', 'user_id');
+    }
+
+    
+
     // Asegurar que Laravel sepa el nombre de la columna remember_token
     public function getRememberTokenName()
     {
         return 'remember_token';
     }
+    
 }

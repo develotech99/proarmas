@@ -1,3 +1,4 @@
+
 /**
  * Gestor del Sistema de Inventario para Armería
  * JavaScript puro - Laravel 12
@@ -10,6 +11,9 @@ class InventarioManager {
         this.modelos = [];
         this.paises = [];
         this.calibres = [];
+        this.productoSeleccionadoEgreso = null;
+        this.seriesSeleccionadasEgreso = [];
+        this.origenEgresoSeleccionado = null;
         this.licenciaSeleccionada = null;
         this.licenciaSeleccionadaRegistro = null;
         this.lotePreview = '';
@@ -180,6 +184,21 @@ class InventarioManager {
             });
         });
 
+        document.getElementById('egreso-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleEgresoSubmit();
+        });
+        
+        document.getElementById('buscar_producto_egreso').addEventListener('input', (e) => {
+            this.buscarProductosEgreso(e.target.value);
+        });
+
+        const buscarLoteInput = document.getElementById('buscar_lote');
+        if (buscarLoteInput) {
+            buscarLoteInput.addEventListener('input', (e) => {
+                this.buscarLotesExistentes(e.target.value);
+            });
+        }
     }
 
     /**
@@ -203,7 +222,59 @@ class InventarioManager {
     }
 
 
-    
+    resetEgresoForm() {
+        document.getElementById('egreso-form').reset();
+        this.clearErrors('egreso');
+        
+        document.getElementById('egreso-step-1').classList.remove('hidden');
+        document.getElementById('egreso-step-2').classList.add('hidden');
+        document.getElementById('productos_encontrados_egreso').classList.add('hidden');
+        
+        // Limpiar campos dinámicos
+        const cantidadInput = document.getElementById('egr_cantidad');
+        if (cantidadInput) {
+            cantidadInput.removeAttribute('max');
+            cantidadInput.placeholder = 'Ej: 5';
+        }
+        
+        // Limpiar labels dinámicos
+        const cantidadLabel = document.querySelector('#cantidad_section_egreso label');
+        if (cantidadLabel) {
+            cantidadLabel.textContent = 'Cantidad *';
+        }
+        
+        // Limpiar información de origen seleccionado
+        const origenInfo = document.getElementById('origen_seleccionado_info');
+        if (origenInfo) {
+            origenInfo.innerHTML = '';
+        }
+        
+        // Resetear radio buttons
+        const radios = document.querySelectorAll('input[name="origen_egreso"]');
+        radios.forEach(radio => {
+            radio.checked = false;
+        });
+        
+        // Resetear variables internas
+        this.productoSeleccionadoEgreso = null;
+        this.seriesSeleccionadasEgreso = [];
+        this.origenEgresoSeleccionado = null;
+    }
+
+    openEgresoModal() {
+        this.resetEgresoForm();
+        this.showModal('egreso');
+    } 
+
+    egresoRapido(productoId) {
+        // Pre-seleccionar el producto y abrir modal de egreso
+        this.openEgresoModal();
+        setTimeout(() => {
+            this.seleccionarProductoEgreso(productoId);
+        }, 100);
+    }
+  
+
 /**
  * NUEVO: Configurar tipo de lote seleccionado
  */
@@ -234,6 +305,525 @@ configurarTipoLote(tipo) {
     }
 }
 
+// Agregar las nuevas funciones
+async buscarProductosEgreso(query) {
+    const container = document.getElementById('productos_encontrados_egreso');
+    
+    if (!query || query.length < 2) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/inventario/buscar-productos?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderResultadosBusquedaEgreso(data.data || []);
+        }
+    } catch (error) {
+        console.error('Error buscando productos:', error);
+    }
+}
+
+renderResultadosBusquedaEgreso(productos) {
+    const container = document.getElementById('productos_encontrados_egreso');
+    
+    if (productos.length === 0) {
+        container.innerHTML = `<div class="p-3 text-center text-gray-500">No se encontraron productos</div>`;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    container.innerHTML = productos.map(producto => `
+        <div onclick="inventarioManager.seleccionarProductoEgreso(${producto.producto_id})" 
+             class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0">
+            <div class="font-medium text-gray-900">${producto.producto_nombre}</div>
+            <div class="text-sm text-gray-500">SKU: ${producto.pro_codigo_sku} • Stock: ${producto.stock_cantidad_disponible || 0}</div>
+        </div>
+    `).join('');
+    
+    container.classList.remove('hidden');
+}
+
+async seleccionarProductoEgreso(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.productoSeleccionadoEgreso = data.data;
+            
+            document.getElementById('egreso-step-1').classList.add('hidden');
+            document.getElementById('egreso-step-2').classList.remove('hidden');
+            
+            document.getElementById('producto_seleccionado_nombre_egreso').textContent = this.productoSeleccionadoEgreso.producto_nombre;
+            document.getElementById('producto_seleccionado_info_egreso').textContent = 
+                `Stock actual: ${this.productoSeleccionadoEgreso.stock_cantidad_disponible || 0} • SKU: ${this.productoSeleccionadoEgreso.pro_codigo_sku}`;
+            
+            const cantidadSection = document.getElementById('cantidad_section_egreso');
+            const seriesSection = document.getElementById('series_section_egreso');
+            
+            if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
+                // PRODUCTO CON SERIE: Mostrar series para seleccionar
+                cantidadSection.classList.add('hidden');
+                seriesSection.classList.remove('hidden');
+                this.cargarSeriesDisponibles(productoId);
+                
+                // Cambiar label para series
+                const label = seriesSection.querySelector('label');
+                if (label) {
+                    label.textContent = 'Seleccionar series a egresar *';
+                }
+            } else {
+                // PRODUCTO SIN SERIE: Mostrar lotes + stock sin lote
+                cantidadSection.classList.add('hidden');
+                seriesSection.classList.remove('hidden');
+                this.cargarStockPorLotes(productoId);
+                
+                // Cambiar label para lotes
+                const label = seriesSection.querySelector('label');
+                if (label) {
+                    label.textContent = 'Seleccionar origen del egreso *';
+                }
+            }
+            
+            document.getElementById('productos_encontrados_egreso').classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error al cargar el producto');
+    }
+}
+// Nueva función para cargar stock por lotes
+async cargarStockPorLotes(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}/stock-lotes`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderStockPorLotes(data.data || {});
+        } else {
+            this.renderStockPorLotes({});
+        }
+    } catch (error) {
+        console.error('Error cargando stock por lotes:', error);
+        this.renderStockPorLotes({});
+    }
+}
+
+
+// Nueva función para stock por lotes
+renderStockPorLotes(stockData) {
+    const container = document.getElementById('series_disponibles_container');
+    this.origenEgresoSeleccionado = null;
+    
+    if (!stockData.lotes && !stockData.sin_lote) {
+        container.innerHTML = `
+            <div class="p-4 text-center text-gray-500">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
+                <p class="text-sm">No hay stock disponible para egreso</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="p-3 border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+            <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Stock total disponible: ${stockData.total_disponible} unidades
+            </div>
+        </div>
+    `;
+    
+    // Mostrar lotes disponibles
+    if (stockData.lotes && stockData.lotes.length > 0) {
+        html += `
+            <div class="p-2 bg-blue-50 dark:bg-blue-900">
+                <h4 class="text-sm font-medium text-blue-700 dark:text-blue-300">Stock en Lotes</h4>
+            </div>
+        `;
+        
+        stockData.lotes.forEach(lote => {
+            html += `
+                <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <div class="flex items-center">
+                        <input type="radio" 
+                               name="origen_egreso" 
+                               value="lote_${lote.lote_id}" 
+                               class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 mr-3"
+                               onchange="inventarioManager.seleccionarOrigenEgreso('lote', ${lote.lote_id}, ${lote.cantidad_disponible}, '${lote.lote_codigo}')">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-gray-100">${lote.lote_codigo}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                Ingreso: ${new Date(lote.fecha_ingreso).toLocaleDateString()}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        ${lote.cantidad_disponible} uds
+                    </span>
+                </div>
+            `;
+        });
+    }
+    
+    // Mostrar stock sin lote
+    if (stockData.sin_lote > 0) {
+        html += `
+            <div class="p-2 bg-gray-50 dark:bg-gray-800">
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">Stock Sin Lote</h4>
+            </div>
+            <div class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <div class="flex items-center">
+                    <input type="radio" 
+                           name="origen_egreso" 
+                           value="sin_lote" 
+                           class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 mr-3"
+                           onchange="inventarioManager.seleccionarOrigenEgreso('sin_lote', null, ${stockData.sin_lote}, 'Stock General')">
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-gray-100">Stock General</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            Sin asignación de lote específico
+                        </div>
+                    </div>
+                </div>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    ${stockData.sin_lote} uds
+                </span>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Mostrar campo de cantidad después de la selección
+    this.mostrarCamposCantidad();
+}
+
+// Nueva función para manejar selección de origen (solo para productos sin serie)
+seleccionarOrigenEgreso(tipo, loteId, cantidadMaxima, nombre) {
+    this.origenEgresoSeleccionado = {
+        tipo: tipo,
+        lote_id: loteId,
+        cantidad_maxima: cantidadMaxima,
+        nombre: nombre
+    };
+    
+    // Mostrar campos de cantidad
+    this.mostrarCamposCantidad();
+    
+    // Actualizar información
+    const infoElement = document.getElementById('origen_seleccionado_info');
+    if (infoElement) {
+        infoElement.innerHTML = `
+            <div class="mt-3 p-2 bg-blue-50 dark:bg-blue-900 rounded">
+                <span class="text-sm text-blue-700 dark:text-blue-300">
+                    Origen seleccionado: <strong>${nombre}</strong> (${cantidadMaxima} disponibles)
+                </span>
+            </div>
+        `;
+    }
+}
+
+// Función para mostrar campos de cantidad (solo para productos sin serie)
+mostrarCamposCantidad() {
+    if (this.productoSeleccionadoEgreso.producto_requiere_serie) return;
+    
+    const cantidadSection = document.getElementById('cantidad_section_egreso');
+    const cantidadInput = document.getElementById('egr_cantidad');
+    
+    cantidadSection.classList.remove('hidden');
+    
+    if (this.origenEgresoSeleccionado) {
+        cantidadInput.max = this.origenEgresoSeleccionado.cantidad_maxima;
+        cantidadInput.placeholder = `Máximo: ${this.origenEgresoSeleccionado.cantidad_maxima}`;
+        
+        const label = cantidadSection.querySelector('label');
+        if (label) {
+            label.textContent = `Cantidad a egresar (máx: ${this.origenEgresoSeleccionado.cantidad_maxima}) *`;
+        }
+    }
+}
+
+
+// Nueva función para cargar series disponibles
+async cargarSeriesDisponibles(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}/series-disponibles`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderSeriesDisponibles(data.data || []);
+        } else {
+            this.renderSeriesDisponibles([]);
+        }
+    } catch (error) {
+        console.error('Error cargando series:', error);
+        this.renderSeriesDisponibles([]);
+    }
+}
+
+// Renderizar series disponibles para selección
+renderSeriesDisponibles(series) {
+    const container = document.getElementById('series_disponibles_container');
+    this.seriesSeleccionadasEgreso = []; // Resetear selección
+    this.actualizarContadorSeries();
+    
+    if (series.length === 0) {
+        container.innerHTML = `
+            <div class="p-4 text-center text-gray-500">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
+                <p class="text-sm">No hay series disponibles para egreso</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="p-3 border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ${series.length} series disponibles
+                </span>
+                <div class="space-x-2">
+                    <button onclick="inventarioManager.seleccionarTodasLasSeries()" 
+                            class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Seleccionar todas
+                    </button>
+                    <button onclick="inventarioManager.deseleccionarTodasLasSeries()" 
+                            class="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">
+                        Deseleccionar todas
+                    </button>
+                </div>
+            </div>
+        </div>
+        ${series.map(serie => `
+            <div class="flex items-center p-3 border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <input type="checkbox" 
+                       id="serie_${serie.serie_id}" 
+                       class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded mr-3"
+                       onchange="inventarioManager.toggleSerieSeleccion(${serie.serie_id}, '${serie.serie_numero_serie}')">
+                <label for="serie_${serie.serie_id}" class="flex-1 cursor-pointer">
+                    <div class="font-mono text-sm text-gray-900 dark:text-gray-100">${serie.serie_numero_serie}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        Ingresado: ${new Date(serie.serie_fecha_ingreso).toLocaleDateString()}
+                    </div>
+                </label>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    Disponible
+                </span>
+            </div>
+        `).join('')}
+    `;
+}
+
+// Toggle selección de serie individual
+toggleSerieSeleccion(serieId, numeroSerie) {
+    const checkbox = document.getElementById(`serie_${serieId}`);
+    
+    if (checkbox.checked) {
+        // Agregar a seleccionadas
+        if (!this.seriesSeleccionadasEgreso.find(s => s.id === serieId)) {
+            this.seriesSeleccionadasEgreso.push({ id: serieId, numero: numeroSerie });
+        }
+    } else {
+        // Remover de seleccionadas
+        this.seriesSeleccionadasEgreso = this.seriesSeleccionadasEgreso.filter(s => s.id !== serieId);
+    }
+    
+    this.actualizarContadorSeries();
+}
+
+// Seleccionar todas las series
+seleccionarTodasLasSeries() {
+    const checkboxes = document.querySelectorAll('#series_disponibles_container input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    });
+}
+
+// Deseleccionar todas las series
+deseleccionarTodasLasSeries() {
+    const checkboxes = document.querySelectorAll('#series_disponibles_container input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    });
+}
+
+
+actualizarContadorSeries() {
+    const countElement = document.getElementById('series_seleccionadas_count');
+    const hiddenInput = document.getElementById('series_seleccionadas_input');
+    
+    if (countElement) {
+        countElement.textContent = this.seriesSeleccionadasEgreso.length;
+    }
+    
+    // Actualizar input hidden con las series seleccionadas
+    if (hiddenInput) {
+        hiddenInput.value = JSON.stringify(this.seriesSeleccionadasEgreso);
+    }
+}
+
+
+
+
+async handleEgresoSubmit() {
+    if (!this.productoSeleccionadoEgreso) {
+        this.showAlert('error', 'Error', 'Debe seleccionar un producto');
+        return;
+    }
+
+    if (!this.validateEgresoForm()) {
+        return;
+    }
+
+    // MOVER LA DECLARACIÓN DE formData AQUÍ AL INICIO
+    const formData = new FormData();
+    formData.append('producto_id', this.productoSeleccionadoEgreso.producto_id);
+    
+    // Verificar que los elementos existen antes de acceder a value
+    const tipoElement = document.getElementById('egr_tipo');
+    const destinoElement = document.getElementById('egr_destino');
+    const observacionesElement = document.getElementById('egr_observaciones');
+    
+    if (!tipoElement || !destinoElement) {
+        this.showAlert('error', 'Error', 'Error en el formulario. Recarga la página e intenta de nuevo.');
+        return;
+    }
+    
+    formData.append('mov_tipo', tipoElement.value);
+    formData.append('mov_destino', destinoElement.value);
+    formData.append('mov_observaciones', observacionesElement ? observacionesElement.value : '');
+
+    if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
+        // PRODUCTO CON SERIE
+        if (!this.seriesSeleccionadasEgreso || this.seriesSeleccionadasEgreso.length === 0) {
+            this.showAlert('error', 'Error', 'Debe seleccionar al menos una serie');
+            return;
+        }
+        formData.append('series_seleccionadas', JSON.stringify(this.seriesSeleccionadasEgreso));
+    } else {
+        // PRODUCTO SIN SERIE CON LOTES
+        const cantidadElement = document.getElementById('egr_cantidad');
+        if (!cantidadElement) {
+            this.showAlert('error', 'Error', 'Campo cantidad no encontrado');
+            return;
+        }
+        
+        if (!this.origenEgresoSeleccionado) {
+            this.showAlert('error', 'Error', 'Debe seleccionar el origen del egreso');
+            return;
+        }
+        
+        formData.append('mov_cantidad', cantidadElement.value);
+        formData.append('origen_tipo', this.origenEgresoSeleccionado.tipo);
+        
+        if (this.origenEgresoSeleccionado.lote_id) {
+            formData.append('lote_especifico_id', this.origenEgresoSeleccionado.lote_id);
+        }
+    }
+
+    this.setLoading('egreso', true);
+
+    try {
+        const response = await fetch('/inventario/egresar', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            this.showAlert('success', 'Éxito', data.message);
+            this.resetEgresoForm();
+            this.closeModal('egreso');
+            
+            await Promise.all([
+                this.loadProductos(),
+                this.loadStats(),
+                this.loadAlertas()
+            ]);
+        } else {
+            if (data.errors) {
+                this.showValidationErrors('egreso', data.errors);
+            } else {
+                this.showAlert('error', 'Error', data.message || 'Error al procesar egreso');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    } finally {
+        this.setLoading('egreso', false);
+    }
+}
+
+validateEgresoForm() {
+    const tipo = document.getElementById('egr_tipo').value;
+    const destino = document.getElementById('egr_destino').value.trim();
+    
+    this.clearErrors('egreso');
+    let isValid = true;
+    
+    if (!tipo) {
+        this.showFieldError('egr_tipo', 'El tipo de movimiento es obligatorio');
+        isValid = false;
+    }
+    
+    if (!destino) {
+        this.showFieldError('egr_destino', 'El destino es obligatorio');
+        isValid = false;
+    }
+    
+    if (this.productoSeleccionadoEgreso.producto_requiere_serie) {
+        // VALIDACIÓN PARA SERIES
+        if (!this.seriesSeleccionadasEgreso || this.seriesSeleccionadasEgreso.length === 0) {
+            this.showFieldError('numeros_series_egreso', 'Debe seleccionar al menos una serie');
+            isValid = false;
+        }
+    } else {
+        // VALIDACIÓN PARA LOTES/CANTIDAD
+        if (!this.origenEgresoSeleccionado) {
+            this.showFieldError('egr_cantidad', 'Debe seleccionar el origen del egreso');
+            isValid = false;
+        }
+        
+        const cantidad = document.getElementById('egr_cantidad').value;
+        if (!cantidad || parseInt(cantidad) <= 0) {
+            this.showFieldError('egr_cantidad', 'La cantidad debe ser mayor a 0');
+            isValid = false;
+        } else if (parseInt(cantidad) > this.origenEgresoSeleccionado.cantidad_maxima) {
+            this.showFieldError('egr_cantidad', `Cantidad excede el máximo disponible: ${this.origenEgresoSeleccionado.cantidad_maxima}`);
+            isValid = false;
+        }
+    }
+    
+    return isValid;
+}
+
+
+
+
+resetEgresoForm() {
+    document.getElementById('egreso-form').reset();
+    this.clearErrors('egreso');
+    
+    document.getElementById('egreso-step-1').classList.remove('hidden');
+    document.getElementById('egreso-step-2').classList.add('hidden');
+    document.getElementById('productos_encontrados_egreso').classList.add('hidden');
+    
+    this.productoSeleccionadoEgreso = null;
+    this.seriesSeleccionadasEgreso = [];
+    this.origenEgresoSeleccionado = null; // AGREGAR ESTA LÍNEA
+}
 
 
 /**
@@ -285,6 +875,183 @@ async loadProductos() {
     }
 }
 
+
+/**
+ * Buscar lotes existentes
+ */
+async buscarLotesExistentes(query) {
+    const container = document.getElementById('lotes_encontrados');
+    
+    if (!query || query.length < 2) {
+        if (container) {
+            container.classList.add('hidden');
+        }
+        return;
+    }
+
+    // Mostrar loading
+    if (container) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-gray-500 dark:text-gray-400">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+                Buscando lotes...
+            </div>
+        `;
+        container.classList.remove('hidden');
+    }
+
+    try {
+        const response = await fetch(`/inventario/lotes/buscar?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderResultadosLotes(data.data || []);
+        } else {
+            this.renderResultadosLotes([]);
+        }
+    } catch (error) {
+        console.error('Error buscando lotes:', error);
+        if (container) {
+            container.innerHTML = `
+                <div class="p-3 text-center text-red-500 dark:text-red-400">
+                    Error al buscar lotes
+                </div>
+            `;
+        }
+    }
+}
+
+/**
+ * Renderizar resultados de búsqueda de lotes
+ */
+renderResultadosLotes(lotes) {
+    const container = document.getElementById('lotes_encontrados');
+    if (!container) return;
+    
+    if (lotes.length === 0) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-gray-500 dark:text-gray-400">
+                No se encontraron lotes
+            </div>
+        `;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    container.innerHTML = lotes.map(lote => `
+        <div onclick="inventarioManager.seleccionarLoteExistente(${lote.lote_id})" 
+             class="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <div class="font-medium text-gray-900 dark:text-gray-100">${lote.lote_codigo}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                        ${lote.lote_descripcion || 'Sin descripción'}
+                    </div>
+                    <div class="text-xs text-gray-400 dark:text-gray-500">
+                        Creado: ${new Date(lote.lote_fecha).toLocaleDateString()}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                                 ${lote.lote_situacion === 1 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">
+                        ${lote.lote_situacion === 1 ? 'Activo' : 'Cerrado'}
+                    </span>
+                    <div class="text-xs text-gray-500 mt-1">
+                        Disponible: ${lote.cantidad_disponible || 0}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.classList.remove('hidden');
+}
+
+/**
+ * Seleccionar lote existente
+ */
+async seleccionarLoteExistente(loteId) {
+    try {
+        const response = await fetch(`/inventario/lotes/${loteId}`);
+        if (response.ok) {
+            const data = await response.json();
+            const lote = data.data;
+            
+            // Actualizar interfaz
+            const container = document.getElementById('lote_seleccionado');
+            const inputHidden = document.getElementById('lote_id');
+            const searchInput = document.getElementById('buscar_lote');
+            
+            if (container) {
+                container.innerHTML = `
+                    <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg">
+                        <div class="flex-1">
+                            <div class="font-medium text-green-900 dark:text-green-100">
+                                ${lote.lote_codigo}
+                            </div>
+                            <div class="text-sm text-green-700 dark:text-green-300">
+                                ${lote.lote_descripcion || 'Lote seleccionado'}
+                            </div>
+                            <div class="text-xs text-green-600 dark:text-green-400">
+                                Disponible: ${lote.cantidad_disponible || 0} unidades
+                            </div>
+                        </div>
+                        <button onclick="inventarioManager.limpiarLoteSeleccionado()" 
+                                class="ml-3 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            
+            if (inputHidden) {
+                inputHidden.value = loteId;
+            }
+            
+            if (searchInput) {
+                searchInput.value = lote.lote_codigo;
+            }
+            
+            // Ocultar resultados de búsqueda
+            document.getElementById('lotes_encontrados').classList.add('hidden');
+            
+            // Mostrar mensaje de éxito
+            this.showToast(`Lote seleccionado: ${lote.lote_codigo}`, 'success');
+            
+        } else {
+            this.showAlert('error', 'Error', 'No se pudo obtener la información del lote');
+        }
+    } catch (error) {
+        console.error('Error obteniendo lote:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Limpiar lote seleccionado
+ */
+limpiarLoteSeleccionado() {
+    const container = document.getElementById('lote_seleccionado');
+    const inputHidden = document.getElementById('lote_id');
+    const searchInput = document.getElementById('buscar_lote');
+    
+    if (container) {
+        container.innerHTML = `
+            <div class="p-3 bg-gray-100 dark:bg-gray-600 rounded-md text-sm text-gray-500 dark:text-gray-400">
+                Ningún lote seleccionado
+            </div>
+        `;
+    }
+    
+    if (inputHidden) {
+        inputHidden.value = '';
+    }
+    
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    this.showToast('Lote deseleccionado', 'info');
+}
 
 
 /**
@@ -570,6 +1337,8 @@ limpiarLicenciaSeleccionadaRegistro() {
             });
         }
 
+     
+
         // Drag & Drop
         const dropZone = document.getElementById('foto_drop_zone');
         if (dropZone) {
@@ -580,26 +1349,78 @@ limpiarLicenciaSeleccionadaRegistro() {
     /**
      * Manejar fotos seleccionadas
      */
-    handleFotosSeleccionadas(archivos) {
-        if (archivos.length > 5) {
-            this.showAlert('warning', 'Límite excedido', 'Máximo 5 fotos por producto');
-            return;
-        }
-
-        // Validar tipos de archivo
-        const tiposValidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        const archivosInvalidos = Array.from(archivos).filter(archivo => 
-            !tiposValidos.includes(archivo.type) || archivo.size > 2048000
-        );
-
-        if (archivosInvalidos.length > 0) {
-            this.showAlert('error', 'Archivos inválidos', 'Solo se permiten JPG, PNG, WebP hasta 2MB');
-            return;
-        }
-
-        this.previewFotos(archivos);
+ /**
+ * Manejar fotos seleccionadas
+ */
+/**
+ * Manejar fotos seleccionadas
+ */
+handleFotosSeleccionadas(archivos) {
+    if (archivos.length > 5) {
+        this.showAlert('warning', 'Límite excedido', 'Máximo 5 fotos por producto');
+        return;
     }
 
+    // Validar tipos de archivo
+    const tiposValidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const archivosInvalidos = Array.from(archivos).filter(archivo => 
+        !tiposValidos.includes(archivo.type) || archivo.size > 2048000
+    );
+
+    if (archivosInvalidos.length > 0) {
+        this.showAlert('error', 'Archivos inválidos', 'Solo se permiten JPG, PNG, WebP hasta 2MB');
+        return;
+    }
+
+    // ✅ Determinar qué contenedor usar
+    const previewContainerRegistro = document.getElementById('preview_fotos');
+    const previewContainerGestion = document.getElementById('preview_nuevas_fotos');
+    
+    // Verificar cuál modal está activo
+    const modalRegistro = document.getElementById('registro-modal');
+    const modalGestion = document.getElementById('fotos-modal');
+    
+    if (modalGestion && !modalGestion.classList.contains('hidden')) {
+        // Estamos en el modal de gestión
+        this.previewFotosGestion(archivos);
+    } else if (modalRegistro && !modalRegistro.classList.contains('hidden')) {
+        // Estamos en el modal de registro
+        this.previewFotos(archivos);
+    }
+}
+
+/**
+ * ✅ NUEVA FUNCIÓN: Preview específico para gestión de fotos
+ */
+previewFotosGestion(archivos) {
+    const container = document.getElementById('preview_nuevas_fotos');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    Array.from(archivos).forEach((archivo, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const previewDiv = document.createElement('div');
+            previewDiv.className = 'relative group';
+            previewDiv.innerHTML = `
+                <div class="relative">
+                    <img src="${e.target.result}" 
+                        alt="Preview ${index + 1}"
+                        class="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-600">
+                    <button type="button" 
+                            onclick="this.closest('.relative.group').remove()"
+                            class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        ×
+                    </button>
+                  
+                </div>
+            `;
+            container.appendChild(previewDiv);
+        };
+        reader.readAsDataURL(archivo);
+    });
+}
     /**
      * Mostrar preview de fotos
      */
@@ -696,79 +1517,187 @@ limpiarLicenciaSeleccionadaRegistro() {
     /**
      * Abrir modal de gestión de fotos
      */
-    async openFotosModal(productoId) {
-        this.currentProductoId = productoId;
-        
+/**
+ * Abrir modal de gestión de fotos
+ */
+async openFotosModal(productoId) {
+    this.currentProductoId = productoId;
+    
+    try {
+        // Cargar fotos existentes
+        const response = await fetch(`/inventario/productos/${productoId}/fotos`);
+        if (response.ok) {
+            const data = await response.json();
+            this.renderFotosExistentes(data.data || []);
+            this.showModal('fotos');
+
+          
+            const inputNuevasFotos = document.getElementById('nuevas_fotos');
+            if (inputNuevasFotos) {
+                inputNuevasFotos.addEventListener('change', (e) => {
+                    this.handleFotosSeleccionadas(e.target.files);
+                });
+            }
+            
+            // Cargar información del producto
+            this.cargarInfoProductoFotos(productoId);
+        }
+    } catch (error) {
+        console.error('Error cargando fotos:', error);
+        this.showAlert('error', 'Error', 'No se pudieron cargar las fotos');
+    }
+}
+/**
+ * Cargar información del producto en modal de fotos
+ */
+    async cargarInfoProductoFotos(productoId) {
         try {
-            // Cargar fotos existentes
-            const response = await fetch(`/inventario/productos/${productoId}/fotos`);
+            const response = await fetch(`/inventario/productos/${productoId}`);
             if (response.ok) {
                 const data = await response.json();
-                this.renderFotosExistentes(data.data || []);
-                this.showModal('fotos');
+                const infoElement = document.getElementById('fotos_producto_info');
+                if (infoElement) {
+                    infoElement.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-box text-blue-500"></i>
+                            <div>
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100">${data.data.producto_nombre}</h4>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">SKU: ${data.data.pro_codigo_sku}</p>
+                            </div>
+                        </div>
+                    `;
+                }
             }
         } catch (error) {
-            console.error('Error cargando fotos:', error);
-            this.showAlert('error', 'Error', 'No se pudieron cargar las fotos');
+            console.error('Error cargando info del producto:', error);
         }
     }
 
     /**
-     * Renderizar fotos existentes en modal - Corregido para tu modelo
+     * Renderizar fotos existentes en modal
      */
+ 
+
     renderFotosExistentes(fotos) {
         const container = document.getElementById('fotos_existentes');
+        const countElement = document.getElementById('fotos_count');
+        
         if (!container) return;
-
+    
+        // Actualizar contador
+        if (countElement) {
+            countElement.textContent = `${fotos.length}/5 fotos`;
+            countElement.className = fotos.length >= 5 ? 'text-red-600 font-medium' : 'text-gray-600';
+        }
+    
         if (fotos.length === 0) {
             container.innerHTML = `
-                <div class="text-center py-8">
-                    <i class="fas fa-image text-gray-400 text-3xl mb-2"></i>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">No hay fotos para este producto</p>
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-image text-gray-400 text-4xl mb-3"></i>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">No hay fotos para este producto</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">Sube hasta 5 fotos para mostrar tu producto</p>
                 </div>
             `;
+            this.actualizarEstadoSubida(0);
             return;
         }
-
-        container.innerHTML = fotos.map(foto => `
-            <div class="relative group">
-                <img src="${foto.foto_url}" 
-                    alt="Foto producto"
-                    class="w-24 h-24 object-cover rounded-lg border-2 ${foto.foto_principal ? 'border-blue-500' : 'border-gray-200 dark:border-gray-600'}">
+    
+        // Estructura mejorada con botones SIEMPRE visibles
+        container.innerHTML = fotos.map((foto, index) => `
+            <div class="relative group" style="min-height: 120px; min-width: 120px;">
+                <img src="${foto.foto_url}"
+                     alt="Foto producto"
+                     class="w-24 h-24 object-cover rounded-lg border-2 ${foto.foto_principal ? 'border-blue-500' : 'border-gray-200 dark:border-gray-600'}"
+                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIGltYWdlbjwvdGV4dD48L3N2Zz4=';">
                 
+                <!-- Botón eliminar - MÁS VISIBLE -->
+                <button onclick="inventarioManager.eliminarFotoProducto(${foto.foto_id})"
+                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 transition-colors z-10 flex items-center justify-center shadow-lg"
+                title="Eliminar foto">
+            ×
+        </button>
                 ${foto.foto_principal ? 
-                    '<span class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-1 rounded">Principal</span>' : 
-                    `<button onclick="inventarioManager.establecerPrincipal(${foto.foto_id})"
-                            class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gray-500 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500">
+                    '<span class="absolute -top-1 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-1 rounded z-10">Principal</span>' : 
+                    `<button onclick="inventarioManager.establecerPrincipal(${foto.foto_id})" 
+                             class="absolute -top-1 left-1/2 transform -translate-x-1/2 bg-gray-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-500 transition-colors z-10 opacity-80 hover:opacity-100">
                         Hacer Principal
-                    </button>`
+                     </button>`
                 }
                 
-                <button onclick="inventarioManager.eliminarFotoProducto(${foto.foto_id})"
-                        class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    ×
-                </button>
+                <!-- Número de orden -->
+                <div class="absolute bottom-1 left-1">
+                <span class="bg-black bg-opacity-70 text-white text-xs px-1 py-0.5 rounded">
+                    ${index + 1}
+                </span>
+            </div>
             </div>
         `).join('');
+        
+        // Actualizar estado del botón de subir
+        this.actualizarEstadoSubida(fotos.length);
+        this.actualizarEstadisticasFotos({
+            total_fotos: fotos.length,
+            tamaño_total: this.calcularTamañoTotal(fotos)
+        });
     }
+    /**
+ * Actualizar estadísticas en el modal
+ */
+actualizarEstadisticasFotos(stats) {
+    const container = document.getElementById('fotos_estadisticas');
+    if (!container) return;
 
+    container.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+            <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center">
+                <div class="font-medium text-gray-900 dark:text-gray-100">${stats.total_fotos}/5</div>
+                <div class="text-gray-500 dark:text-gray-400">Fotos</div>
+            </div>
+            <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded text-center">
+                <div class="font-medium text-gray-900 dark:text-gray-100">${stats.tamaño_total || '0 KB'}</div>
+                <div class="text-gray-500 dark:text-gray-400">Tamaño</div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Calcular tamaño total (placeholder)
+ */
+calcularTamañoTotal(fotos) {
+    // Si las fotos tienen información de tamaño, la sumamos
+    let totalKB = 0;
+    fotos.forEach(foto => {
+        if (foto.size_info) {
+            const match = foto.size_info.match(/(\d+(?:\.\d+)?)\s*KB/);
+            if (match) {
+                totalKB += parseFloat(match[1]);
+            }
+        }
+    });
+    
+    if (totalKB > 1024) {
+        return `${(totalKB / 1024).toFixed(1)} MB`;
+    }
+    return totalKB > 0 ? `${totalKB.toFixed(0)} KB` : '0 KB';
+}
     /**
      * Subir nuevas fotos
      */
     async subirNuevasFotos() {
         const inputFile = document.getElementById('nuevas_fotos');
         if (!inputFile.files || inputFile.files.length === 0) {
-            this.showAlert('warning', 'Sin archivos', 'Selecciona al menos una foto');
+            this.showAlert('warning', 'Sin archivos', 'Selecciona al menos una foto para subir');
             return;
         }
-
+    
         const formData = new FormData();
         Array.from(inputFile.files).forEach(archivo => {
             formData.append('fotos[]', archivo);
         });
-
-        this.setLoading('fotos', true);
-
+    
+        this.mostrarProgresoSubida();
+        
         try {
             const response = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`, {
                 method: 'POST',
@@ -778,43 +1707,130 @@ limpiarLicenciaSeleccionadaRegistro() {
                     'X-Requested-With': 'XMLHttpRequest',
                 }
             });
-
+    
             const data = await response.json();
-
+    
             if (response.ok && data.success) {
                 this.showAlert('success', 'Éxito', data.message);
-                // Recargar fotos
-                this.openFotosModal(this.currentProductoId);
-                // Limpiar input
+                
+                // Recargar fotos existentes
+                const fotosResponse = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`);
+                if (fotosResponse.ok) {
+                    const fotosData = await fotosResponse.json();
+                    this.renderFotosExistentes(fotosData.data || []);
+                }
+                
+                // Limpiar input y preview
                 inputFile.value = '';
+                const previewContainer = document.getElementById('preview_nuevas_fotos');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '';
+                }
+                
             } else {
                 this.showAlert('error', 'Error', data.message || 'Error al subir fotos');
             }
         } catch (error) {
             console.error('Error:', error);
-            this.showAlert('error', 'Error', 'Error de conexión');
+            this.showAlert('error', 'Error', 'Error de conexión al subir fotos');
         } finally {
-            this.setLoading('fotos', false);
+            this.ocultarProgresoSubida();
         }
     }
+    
+/**
+ * Validar archivos antes de subir
+ */
+    validarArchivos(files) {
+        const errores = [];
+        const tiposValidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const tamañoMaximo = 2 * 1024 * 1024; // 2MB
+    
+        Array.from(files).forEach((file, index) => {
+            if (!tiposValidos.includes(file.type)) {
+                errores.push(`Archivo ${index + 1}: Tipo no válido (${file.type})`);
+            }
+            
+            if (file.size > tamañoMaximo) {
+                errores.push(`Archivo ${index + 1}: Tamaño excede 2MB`);
+            }
+        });
+    
+        return errores;
+    }
 
+
+    mostrarProgresoSubida() {
+        const botonSubir = document.querySelector('[onclick="inventarioManager.subirNuevasFotos()"]');
+        if (botonSubir) {
+            botonSubir.disabled = true;
+            botonSubir.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Subiendo...';
+        }
+    }
+    
+    /**
+     * Ocultar progreso y restaurar botón
+     */
+    ocultarProgresoSubida() {
+        const botonSubir = document.querySelector('[onclick="inventarioManager.subirNuevasFotos()"]');
+        if (botonSubir) {
+            botonSubir.disabled = false;
+            botonSubir.innerHTML = '<i class="fas fa-upload mr-2"></i>Subir Fotos';
+        }
+    }
+    actualizarEstadoSubida(fotosActuales) {
+        const seccionSubida = document.getElementById('seccion_subir_fotos');
+        const inputFile = document.getElementById('nuevas_fotos');
+        const botonSubir = document.querySelector('[onclick="inventarioManager.subirNuevasFotos()"]');
+        const mensajeLimite = document.getElementById('mensaje_limite_fotos');
+        
+        if (fotosActuales >= 5) {
+            if (seccionSubida) seccionSubida.classList.add('opacity-50', 'pointer-events-none');
+            if (inputFile) inputFile.disabled = true;
+            if (botonSubir) {
+                botonSubir.disabled = true;
+                botonSubir.innerHTML = '<i class="fas fa-ban mr-2"></i>Límite alcanzado';
+            }
+            if (mensajeLimite) {
+                mensajeLimite.textContent = 'Límite máximo alcanzado (5/5 fotos). Elimina fotos para subir nuevas.';
+                mensajeLimite.className = 'mt-2 text-xs text-red-500 font-medium';
+            }
+        } else {
+            if (seccionSubida) seccionSubida.classList.remove('opacity-50', 'pointer-events-none');
+            if (inputFile) inputFile.disabled = false;
+            if (botonSubir) {
+                botonSubir.disabled = false;
+                botonSubir.innerHTML = '<i class="fas fa-upload mr-2"></i>Subir Fotos';
+            }
+            if (mensajeLimite) {
+                const restantes = 5 - fotosActuales;
+                mensajeLimite.textContent = `Puedes subir ${restantes} foto${restantes > 1 ? 's' : ''} más`;
+                mensajeLimite.className = 'mt-2 text-xs text-gray-500 dark:text-gray-400';
+            }
+        }
+    }
     /**
      * Eliminar foto del producto
      */
     async eliminarFotoProducto(fotoId) {
         const confirmacion = await Swal.fire({
             title: '¿Eliminar foto?',
-            text: 'Esta acción no se puede deshacer',
+            text: 'Esta acción eliminará permanentemente la foto del producto',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
             cancelButtonColor: '#6b7280',
             confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
+            cancelButtonText: 'Cancelar',
+            customClass: {
+                popup: 'dark:bg-gray-800',
+                title: 'dark:text-gray-100',
+                content: 'dark:text-gray-300'
+            }
         });
-
+    
         if (!confirmacion.isConfirmed) return;
-
+    
         try {
             const response = await fetch(`/inventario/fotos/${fotoId}`, {
                 method: 'DELETE',
@@ -823,13 +1839,18 @@ limpiarLicenciaSeleccionadaRegistro() {
                     'X-Requested-With': 'XMLHttpRequest',
                 }
             });
-
+    
             const data = await response.json();
-
+    
             if (response.ok && data.success) {
                 this.showAlert('success', 'Éxito', data.message);
+                
                 // Recargar fotos
-                this.openFotosModal(this.currentProductoId);
+                const fotosResponse = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`);
+                if (fotosResponse.ok) {
+                    const fotosData = await fotosResponse.json();
+                    this.renderFotosExistentes(fotosData.data || []);
+                }
             } else {
                 this.showAlert('error', 'Error', data.message || 'Error al eliminar foto');
             }
@@ -851,13 +1872,19 @@ limpiarLicenciaSeleccionadaRegistro() {
                     'X-Requested-With': 'XMLHttpRequest',
                 }
             });
-
+    
             const data = await response.json();
-
+    
             if (response.ok && data.success) {
                 this.showAlert('success', 'Éxito', data.message);
-                // Recargar fotos
-                this.openFotosModal(this.currentProductoId);
+                
+                // Recargar fotos para reflejar cambios
+                const fotosResponse = await fetch(`/inventario/productos/${this.currentProductoId}/fotos`);
+                if (fotosResponse.ok) {
+                    const fotosData = await fotosResponse.json();
+                    this.renderFotosExistentes(fotosData.data || []);
+                }
+                
             } else {
                 this.showAlert('error', 'Error', data.message || 'Error al actualizar foto principal');
             }
@@ -1543,6 +2570,11 @@ renderProductoCard(producto) {
                             title="Ingreso rápido">
                         <i class="fas fa-plus-circle"></i>
                     </button>
+                    <button onclick="inventarioManager.egresoRapido(${producto.producto_id})" 
+                            class="p-1 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 rounded"
+                            title="Egreso rápido">
+                        <i class="fas fa-minus-circle"></i>
+                    </button>
                     <!-- Botón Gestión de Precios -->
                     <button onclick="inventarioManager.gestionarPrecios(${producto.producto_id})" 
                     class="p-1 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900 rounded"
@@ -1761,16 +2793,18 @@ renderProductoCard(producto) {
     /**
      * Abrir modal de egreso
      */
-    openEgresoModal() {
-        this.showAlert('info', 'Próximamente', 'Función de egreso en desarrollo');
-    }
+   /**
+ * Abrir modal de egreso
+ */
+openEgresoModal() {
+    this.resetEgresoForm();
+    this.showModal('egreso');
+}
 
     /**
      * Ver historial de movimientos
      */
-    verHistorial() {
-        this.showAlert('info', 'Próximamente', 'Historial de movimientos en desarrollo');
-    }
+   
 
     /**
      * Generar reporte
@@ -3375,6 +4409,314 @@ renderHistorialPrecios(precios) {
 }
 
 //termina actualizar precios
+
+
+
+
+// mostrar las alertas
+
+
+/**
+ * Mostrar alertas en SweetAlert
+ */
+async toggleAlertas() {
+    try {
+        const response = await fetch('/inventario/alertas-stock');
+        if (response.ok) {
+            const data = await response.json();
+            this.mostrarAlertasDetalladas(data.data || []);
+        } else {
+            this.showAlert('error', 'Error', 'No se pudieron cargar las alertas');
+        }
+    } catch (error) {
+        console.error('Error cargando alertas:', error);
+        this.showAlert('error', 'Error', 'Error de conexión al cargar alertas');
+    }
+}
+
+/**
+ * Mostrar alertas detalladas en SweetAlert
+ */
+/**
+ * Mostrar alertas detalladas en SweetAlert
+ */
+/**
+ * Mostrar alertas detalladas con paginación
+ */
+async mostrarAlertasDetalladas(alertas, pagination = null) {
+    if (!pagination && alertas.length === 0) {
+        Swal.fire({
+            title: 'Sin alertas pendientes',
+            html: `
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle text-green-500 text-4xl mb-3"></i>
+                    <p class="text-gray-600">¡Perfecto! No hay productos con stock bajo.</p>
+                </div>
+            `,
+            icon: 'success',
+            confirmButtonColor: '#10b981',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+
+    // Header con información de paginación
+    const headerInfo = pagination ? 
+        `Mostrando ${alertas.length} de ${pagination.total_items} alertas (Página ${pagination.current_page} de ${pagination.total_pages})` :
+        `${alertas.length} productos requieren atención`;
+
+    let contenidoHTML = `
+        <div class="text-left">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 class="font-medium text-yellow-800 mb-3 flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Productos que requieren atención
+                </h4>
+                <div class="space-y-2 max-h-64 overflow-y-auto">
+                    ${alertas.map(producto => {
+                        const stock = producto.stock_cantidad_disponible || producto.stock_actual || 0;
+                        const minimo = producto.producto_stock_minimo || 0;
+                        const isAgotado = stock <= 0;
+                        
+                        return `
+                            <div class="flex justify-between items-center py-2 px-3 ${isAgotado ? 'bg-red-100 border border-red-200' : 'bg-white border border-gray-200'} rounded">
+                                <div>
+                                    <div class="font-medium ${isAgotado ? 'text-red-800' : 'text-yellow-800'}">${producto.producto_nombre}</div>
+                                    <div class="text-xs text-gray-600">SKU: ${producto.pro_codigo_sku || 'N/A'}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-medium ${isAgotado ? 'text-red-600' : 'text-yellow-600'}">
+                                        ${stock} / ${minimo}
+                                    </div>
+                                    <div class="text-xs ${isAgotado ? 'text-red-500' : 'text-yellow-500'}">
+                                        ${isAgotado ? 'AGOTADO' : 'STOCK BAJO'}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Agregar controles de paginación si hay múltiples páginas
+    if (pagination && pagination.total_pages > 1) {
+        contenidoHTML += `
+            <div class="mt-4 flex justify-between items-center">
+                <button onclick="inventarioManager.cargarAlertasPagina(${pagination.current_page - 1})" 
+                        ${pagination.current_page <= 1 ? 'disabled' : ''} 
+                        class="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50">
+                    ← Anterior
+                </button>
+                <span class="text-sm text-gray-600">
+                    Página ${pagination.current_page} de ${pagination.total_pages}
+                </span>
+                <button onclick="inventarioManager.cargarAlertasPagina(${pagination.current_page + 1})" 
+                        ${pagination.current_page >= pagination.total_pages ? 'disabled' : ''} 
+                        class="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50">
+                    Siguiente →
+                </button>
+            </div>
+        `;
+    }
+
+    Swal.fire({
+        title: headerInfo,
+        html: contenidoHTML,
+        icon: 'warning',
+        width: '650px',
+        confirmButtonColor: '#f59e0b',
+        confirmButtonText: 'Cerrar',
+        customClass: {
+            popup: 'text-left'
+        }
+    });
+}
+
+/**
+ * Cargar alertas por página
+ */
+async cargarAlertasPagina(page) {
+    try {
+        const response = await fetch(`/inventario/alertas-stock?page=${page}&limit=20`);
+        if (response.ok) {
+            const data = await response.json();
+            this.mostrarAlertasDetalladas(data.data || [], data.pagination);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error al cargar la página');
+    }
+}
+
+
+
+
+//VER HISTORIAL 
+
+/**
+ * Ver historial de movimientos
+ */
+verHistorial() {
+    this.showModal('historial');
+    setTimeout(() => {
+        this.initHistorialDataTable();
+    }, 100);
+}
+
+/**
+ * Inicializar DataTable para historial
+ */
+initHistorialDataTable() {
+    // Destruir tabla existente si existe
+    if ($.fn.DataTable.isDataTable('#historial-table')) {
+        $('#historial-table').DataTable().destroy();
+    }
+
+    const table = $('#historial-table').DataTable({
+        processing: true,
+        serverSide: true,
+        responsive: true,
+        ajax: {
+            url: '/inventario/movimientos',
+            type: 'GET',
+            data: function(d) {
+                // Convertir parámetros de DataTables a tu formato
+                d.page = Math.floor(d.start / d.length) + 1;
+                d.limit = d.length;
+                d.search = d.search.value;
+                d.filtro_producto = $('#filtro_producto').val();
+                d.filtro_tipo = $('#filtro_tipo').val();
+                d.filtro_fecha = $('#filtro_fecha').val();
+            },
+            dataSrc: function(json) {
+                // Convertir tu respuesta al formato que espera DataTables
+                return json.data;
+            }
+        },
+        columns: [
+            { 
+                data: 'mov_fecha',
+                title: 'Fecha',
+                render: function(data) {
+                    const fecha = new Date(data);
+                    return fecha.toLocaleDateString() + '<br><small class="text-gray-500">' + fecha.toLocaleTimeString() + '</small>';
+                }
+            },
+            { 
+                data: 'producto_nombre',
+                title: 'Producto',
+                render: function(data, type, row) {
+                    return `<strong class="text-gray-900 dark:text-gray-100">${data}</strong><br><small class="text-gray-500">${row.producto_sku}</small>`;
+                }
+            },
+            { 
+                data: 'mov_tipo',
+                title: 'Tipo',
+                render: function(data, type, row) {
+                    const color = row.mov_cantidad > 0 ? 'text-green-600' : 'text-red-600';
+                    const icon = row.mov_cantidad > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                    return `<span class="${color}"><i class="fas ${icon} mr-1"></i>${data}</span>`;
+                }
+            },
+            { 
+                data: 'mov_cantidad',
+                title: 'Cantidad',
+                render: function(data) {
+                    const color = data > 0 ? 'text-green-600' : 'text-red-600';
+                    return `<span class="${color} font-medium">${data > 0 ? '+' : ''}${data}</span>`;
+                }
+            },
+            { 
+                data: 'mov_origen',
+                title: 'Origen/Destino'
+            },
+            { 
+                data: 'lote_codigo',
+                title: 'Lote/Serie',
+                render: function(data, type, row) {
+                    let html = '';
+                    if (row.lote_codigo) {
+                        html += `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1">L: ${row.lote_codigo}</span>`;
+                    }
+                    if (row.serie_numero) {
+                        html += `<span class="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">S: ${row.serie_numero}</span>`;
+                    }
+                    return html || '<span class="text-gray-400">-</span>';
+                }
+            },
+            { 
+                data: 'usuario_nombre',
+                title: 'Usuario'
+            }
+        ],
+        order: [[0, 'desc']],
+        pageLength: 25,
+        language: {
+            processing: "Procesando...",
+            lengthMenu: "Mostrar _MENU_ registros",
+            zeroRecords: "No se encontraron resultados",
+            emptyTable: "No hay datos disponibles",
+            info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+            infoEmpty: "Mostrando 0 a 0 de 0 registros",
+            infoFiltered: "(filtrado de _MAX_ registros totales)",
+            search: "Buscar:",
+            paginate: {
+                first: "Primero",
+                last: "Último",
+                next: "Siguiente",
+                previous: "Anterior"
+            }
+        },
+        // DOM personalizado para Tailwind
+        dom: '<"flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4"<"mb-2 sm:mb-0"l><"mb-2 sm:mb-0"B><"sm:ml-auto"f>>rtip',
+        buttons: [
+            {
+                extend: 'excel',
+                text: '<i class="fas fa-file-excel mr-1"></i> Excel',
+                className: 'bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm mr-2 transition-colors'
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="fas fa-file-pdf mr-1"></i> PDF',
+                className: 'bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm mr-2 transition-colors'
+            },
+            {
+                extend: 'print',
+                text: '<i class="fas fa-print mr-1"></i> Imprimir',
+                className: 'bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm transition-colors'
+            }
+        ],
+        // Aplicar estilos de Tailwind después de inicializar
+        initComplete: function() {
+            // Estilos para controles
+            $('.dataTables_length select').addClass('border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-700 dark:text-gray-100');
+            $('.dataTables_filter input').addClass('border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm ml-2 bg-white dark:bg-gray-700 dark:text-gray-100');
+            
+            // Estilos para paginación
+            $('.dataTables_paginate .paginate_button').addClass('px-3 py-1 mx-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors');
+            $('.dataTables_paginate .paginate_button.current').addClass('bg-blue-500 text-white border-blue-500');
+            $('.dataTables_paginate .paginate_button.disabled').addClass('opacity-50 cursor-not-allowed');
+            
+            // Estilos para info
+            $('.dataTables_info').addClass('text-sm text-gray-700 dark:text-gray-300');
+            $('.dataTables_length').addClass('text-sm text-gray-700 dark:text-gray-300');
+            $('.dataTables_filter').addClass('text-sm text-gray-700 dark:text-gray-300');
+        }
+    });
+
+    // Event listeners para filtros
+    $('#filtro_producto, #filtro_tipo, #filtro_fecha').on('change keyup', function() {
+        table.draw();
+    });
+
+    return table;
+}
+
+
+
+
 
 ///aquí terminarán los vergazos de las acciones 
 

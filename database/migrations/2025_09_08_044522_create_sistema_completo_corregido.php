@@ -747,7 +747,6 @@ Schema::create('pro_licencias_total_pagado', function (Blueprint $table) {
             }
 
             // Validaciones
-            $table->check('mov_cantidad > 0');
             $table->check('mov_precio_unitario IS NULL OR mov_precio_unitario >= 0');
         });
 
