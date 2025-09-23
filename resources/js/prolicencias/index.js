@@ -438,6 +438,7 @@ async openPagosModal(licenciaId) {
   this.selectedLicenciaId = licenciaId;
   this.showPagosModal = true;
   await this.loadPagosList(licenciaId);
+  
 
   if (Array.isArray(this.pagosList) && this.pagosList.length > 0) {
     this.selectedPagoId = this.pagosList[0].pago_lic_id;
@@ -448,16 +449,49 @@ async openPagosModal(licenciaId) {
   }
 },
 
-// Trae TODOS los pagos de la licencia (formato JSON)
-async loadPagosList(licId) {
-  try {
-    const res = await fetch(`/prolicencias/${licId}/pagos`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
-    if (!res.ok) { this.pagosList = []; return; }
-    this.pagosList = await res.json();
-  } catch {
-    this.pagosList = [];
+async openPagosModal(licenciaId) {
+  this.selectedLicenciaId = licenciaId;
+  this.showPagosModal = true;
+
+  await this.loadPagosList(licenciaId);
+
+  if (Array.isArray(this.pagosList) && this.pagosList.length > 0) {
+    // Usa 'pago_lic_licencia_id' en lugar de 'pago_lic_id'
+    this.selectedPagoId = this.pagosList[0].pago_lic_licencia_id;
+    this.pagoData = this.mapPagoFromApi(this.pagosList[0], licenciaId);
+  } else {
+    this.selectedPagoId = 'new';
+    this.initNewPago(licenciaId);
   }
+  console.log('lista de pagos', this.pagosList);
 },
+
+// Trae TODOS los pagos de la licencia (formato JSON)
+// async loadPagosList(licId) {
+//   try {
+//     const res = await fetch(`/prolicencias/${licId}/pagos`, {
+//       headers: { 'Accept': 'application/json' },
+//       credentials: 'same-origin',
+//     });
+
+//     if (!res.ok) {
+//       console.error(`Error al obtener datos de pagos para la licencia ${licId}: ${res.statusText}`);
+//       this.pagosList = [];
+//       return;
+//     }
+
+//     const data = await res.json();
+//     console.log('Datos obtenidos de la API:', data);  // Verificar qué datos está recibiendo
+//     this.pagosList = data;
+//   } catch (error) {
+//     console.error('Error al cargar pagos:', error);
+//     this.pagosList = [];
+//   }
+// console.log('lista de pagos', this.pagosList);
+
+
+// },
+
 
 // Inicializa pago vacío
 initNewPago(licId) {
