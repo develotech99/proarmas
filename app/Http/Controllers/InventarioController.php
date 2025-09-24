@@ -877,10 +877,26 @@ public function getPaisesActivos(): JsonResponse
                 ]);
             }
     
-            // PASO 6: Procesar licencias si es producto importado
-            if ($request->filled('producto_es_importado') && $request->producto_es_importado) {
-                // Aquí manejar la asignación a licencia
-                $mensajeAdicional .= " (asignado a licencia: {$request->licencia_id_registro})";
+         // PASO 6: Procesar licencias si es producto importado
+            if ($request->filled('producto_es_importado') && $request->producto_es_importado && $request->filled('licencia_id_registro')) {
+                
+                // Crear o actualizar la asignación producto-licencia
+                $asignacion = LicenciaAsignacionProducto::buscarOCrear(
+                    $producto->producto_id,
+                    $request->licencia_id_registro,
+                    $cantidadIngreso
+                );
+                
+                // Si el producto requiere serie, asociar las series creadas a la asignación de licencia
+                if ($producto->producto_requiere_serie && !empty($series)) {
+                    // Actualizar las series recién creadas con la asignación de licencia
+                    SerieProducto::where('serie_producto_id', $producto->producto_id)
+                        ->whereIn('serie_numero_serie', $series)
+                        ->where('serie_situacion', 1)
+                        ->update(['serie_asignacion_id' => $asignacion->asignacion_id]);
+                }
+                
+                $mensajeAdicional .= " (asignado a licencia póliza: {$request->licencia_id_registro})";
             }
     
             // PASO 7: Actualizar stock (SIN PRECIOS)
