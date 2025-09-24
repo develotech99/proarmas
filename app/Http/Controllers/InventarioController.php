@@ -2569,5 +2569,124 @@ public function obtenerLote($id)
         ], 500);
     }
 }
+public function getProductosExcel(Request $request): JsonResponse
+{
+    try {
+        $productos = DB::table('pro_productos as p')
+            ->leftJoin('pro_categorias as cat', 'p.producto_categoria_id', '=', 'cat.categoria_id')
+            ->leftJoin('pro_subcategorias as sub', 'p.producto_subcategoria_id', '=', 'sub.subcategoria_id')
+            ->leftJoin('pro_marcas as mar', 'p.producto_marca_id', '=', 'mar.marca_id')
+            ->leftJoin('pro_modelo as mod', 'p.producto_modelo_id', '=', 'mod.modelo_id')
+            ->leftJoin('pro_calibres as cal', 'p.producto_calibre_id', '=', 'cal.calibre_id')
+            ->leftJoin('pro_series_productos as sp', function($join) {
+                $join->on('p.producto_id', '=', 'sp.serie_producto_id')
+                     ->where('p.producto_requiere_serie', '=', 1)
+                     ->where('sp.serie_situacion', '=', 1);
+            })
+            // JOIN para obtener licencias asociadas al producto
+            ->leftJoin('pro_licencia_asignacion_producto as lap', 'p.producto_id', '=', 'lap.asignacion_producto_id')
+            ->leftJoin('pro_licencias_para_importacion as lic', function($join) {
+                $join->on('lap.asignacion_licencia_id', '=', 'lic.lipaimp_id')
+                     ->where('lap.asignacion_situacion', '=', 1);
+            })
+            ->leftJoin(DB::raw('(
+                SELECT 
+                    mov_producto_id,
+                    SUM(CASE 
+                        WHEN mov_tipo IN ("ingreso", "ajuste_positivo") THEN mov_cantidad 
+                        WHEN mov_tipo IN ("egreso", "venta", "ajuste_negativo") THEN -mov_cantidad 
+                        ELSE 0 
+                    END) as stock_actual
+                FROM pro_movimientos 
+                WHERE mov_situacion = 1 
+                GROUP BY mov_producto_id
+            ) as stock_calc'), 'p.producto_id', '=', 'stock_calc.mov_producto_id')
+            ->leftJoin(DB::raw('(
+                SELECT 
+                    precio_producto_id,
+                    precio_costo,
+                    precio_venta,
+                    precio_venta_empresa,
+                    precio_especial,
+                    precio_moneda
+                FROM pro_precios p1
+                WHERE precio_situacion = 1 
+                AND precio_fecha_asignacion = (
+                    SELECT MAX(precio_fecha_asignacion)
+                    FROM pro_precios p2 
+                    WHERE p2.precio_producto_id = p1.precio_producto_id 
+                    AND p2.precio_situacion = 1
+                )
+            ) as pre'), 'p.producto_id', '=', 'pre.precio_producto_id')
+            ->leftJoin(DB::raw('(
+                SELECT DISTINCT 
+                    mov_producto_id, 
+                    mov_lote_id
+                FROM pro_movimientos 
+                WHERE mov_situacion = 1 AND mov_lote_id IS NOT NULL
+            ) as mov_lote'), 'p.producto_id', '=', 'mov_lote.mov_producto_id')
+            ->leftJoin('pro_lotes as lot', 'mov_lote.mov_lote_id', '=', 'lot.lote_id')
+            ->select([
+                'p.producto_id',
+                'p.producto_nombre',
+                'p.pro_codigo_sku as codigo',
+                'cat.categoria_nombre',
+                'sub.subcategoria_nombre',
+                'mar.marca_descripcion as marca_nombre',
+                'mod.modelo_descripcion as modelo_nombre',
+                'cal.calibre_nombre',
+                DB::raw('CASE 
+                    WHEN p.producto_requiere_serie = 1 THEN sp.serie_numero_serie
+                    ELSE NULL 
+                END as numero_serie'),
+                DB::raw('CASE 
+                    WHEN p.producto_requiere_serie = 1 THEN sp.serie_estado
+                    ELSE "disponible"
+                END as estado'),
+                DB::raw('CASE 
+                    WHEN lic.lipaimp_poliza IS NOT NULL THEN CONCAT("Póliza: ", lic.lipaimp_poliza)
+                    ELSE "-"
+                END as licencia_codigo'),
+                'lot.lote_codigo',
+                DB::raw('CASE 
+                    WHEN p.producto_requiere_serie = 1 THEN 1
+                    ELSE COALESCE(stock_calc.stock_actual, 0)
+                END as stock'),
+                DB::raw('COALESCE(pre.precio_costo, 0) as precio_costo'),
+                DB::raw('COALESCE(pre.precio_venta, 0) as precio_venta'),
+                DB::raw('COALESCE(pre.precio_venta_empresa, 0) as precio_venta_empresa'),
+                'pre.precio_especial',
+                DB::raw('COALESCE(pre.precio_moneda, "GTQ") as precio_moneda'),
+                DB::raw('CASE 
+                    WHEN p.producto_requiere_serie = 1 THEN sp.serie_fecha_ingreso
+                    ELSE p.created_at
+                END as fecha_ingreso')
+            ])
+            ->where('p.producto_situacion', 1)
+            ->where(function($query) {
+                $query->where(function($q) {
+                    $q->where('p.producto_requiere_serie', 1)
+                      ->whereNotNull('sp.serie_id');
+                })->orWhere('p.producto_requiere_serie', 0);
+            })
+            ->orderBy('p.producto_nombre')
+            ->orderBy('sp.serie_numero_serie')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $productos,
+            'total' => $productos->count()
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error en getProductosExcel: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar vista detallada: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
 }

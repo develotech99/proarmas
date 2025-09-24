@@ -18,7 +18,9 @@ class Precio extends Model
         'precio_producto_id',
         'precio_costo',
         'precio_venta',
+        'precio_venta_empresa',
         'precio_margen',
+        'precio_margen_empresa',
         'precio_especial',
         'precio_moneda',            // NUEVO CAMPO
         'precio_justificacion',
@@ -30,7 +32,9 @@ class Precio extends Model
     protected $casts = [
         'precio_costo' => 'decimal:2',
         'precio_venta' => 'decimal:2',
+        'precio_venta_empresa' => 'decimal:2',
         'precio_margen' => 'decimal:2',
+        'precio_margen_empresa' => 'decimal:2',
         'precio_especial' => 'decimal:2',
         'precio_fecha_asignacion' => 'date',
         'precio_situacion' => 'integer'

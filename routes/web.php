@@ -252,6 +252,8 @@ Route::middleware('auth')->group(function () {
 
       Route::get('/inventario/productos/{id}/series-disponibles', [InventarioController::class, 'getSeriesDisponibles'])
             ->name('inventario.producto.series-disponibles');
+      
+      Route::get('/inventario/productos-excel', [InventarioController::class, 'getProductosExcel'])->name('inventario.productos-excel');
 
       // En la sección de inventario
       Route::get('/inventario/movimientos', [InventarioController::class, 'getMovimientos'])

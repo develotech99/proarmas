@@ -17,6 +17,11 @@ class InventarioManager {
         this.licenciaSeleccionada = null;
         this.licenciaSeleccionadaRegistro = null;
         this.lotePreview = '';
+        this.excelData = [];
+        this.excelFilteredData = [];
+        this.excelCurrentPage = 1;
+        this.excelRecordsPerPage = 50;
+        this.excelIsExpanded = false;
         this.currentProductoId = null;
         this.stats = {
             totalProductos: 0,
@@ -199,6 +204,12 @@ class InventarioManager {
                 this.buscarLotesExistentes(e.target.value);
             });
         }
+
+       // Event listener para búsqueda Excel
+            const excelSearchInput = document.getElementById('excel-search');
+            if (excelSearchInput) {
+                excelSearchInput.addEventListener('input', () => this.buscarEnExcel());
+            }
     }
 
     /**
@@ -1162,6 +1173,9 @@ async seleccionarLicenciaRegistro(licenciaId) {
         console.error('Error obteniendo licencia en ingreso:', error);
     }
 }
+
+
+
 
 /**
  * Limpiar licencia seleccionada en ingreso
@@ -4719,6 +4733,253 @@ initHistorialDataTable() {
 
 
 ///aquí terminarán los vergazos de las acciones 
+
+
+
+
+/// aqui otro purrum que pidio el cliente 
+
+
+// ================================
+// VISTA EXCEL - NUEVAS FUNCIONES
+// ================================
+
+/**
+ * Alternar vista Excel
+ */
+toggleExcelView() {
+    const content = document.getElementById('excel-content');
+    const chevron = document.getElementById('excel-chevron');
+    
+    this.excelIsExpanded = !this.excelIsExpanded;
+    
+    if (this.excelIsExpanded) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+        
+        // Cargar datos si no están cargados
+        if (this.excelData.length === 0) {
+            this.cargarDatosExcel();
+        }
+    } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+    }
+}
+
+/**
+ * Cargar datos para vista Excel
+ */
+async cargarDatosExcel() {
+    try {
+        this.showToast('Cargando vista detallada...', 'info');
+        
+        const response = await fetch('/inventario/productos-excel');
+        const data = await response.json();
+        
+        if (data.success) {
+            this.excelData = data.data;
+            this.excelFilteredData = [...this.excelData];
+            this.actualizarContadorExcel();
+            this.mostrarDatosExcel();
+            this.showToast('Vista detallada cargada', 'success');
+        } else {
+            this.showAlert('error', 'Error', 'Error al cargar datos: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Mostrar datos en la tabla Excel
+ *//**
+ * Mostrar datos en la tabla Excel - VERSIÓN ACTUALIZADA
+ */
+mostrarDatosExcel() {
+    const tbody = document.getElementById('excel-tbody');
+    
+    // Calcular registros para la página actual
+    const startIndex = (this.excelCurrentPage - 1) * this.excelRecordsPerPage;
+    const endIndex = startIndex + this.excelRecordsPerPage;
+    const pageData = this.excelFilteredData.slice(startIndex, endIndex);
+    
+    // Generar HTML de las filas
+    let html = '';
+    pageData.forEach((item, index) => {
+        const globalIndex = startIndex + index + 1;
+        const simboloMoneda = item.precio_moneda === 'USD' ? '$' : 'Q';
+        
+        html += `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+                <td class="px-3 py-3 text-sm text-gray-900 dark:text-gray-100">${globalIndex}</td>
+                <td class="px-3 py-3 text-sm text-gray-900 dark:text-gray-100 font-mono">${item.codigo || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium">${item.producto_nombre}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.categoria_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.subcategoria_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.marca_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.modelo_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.calibre_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm font-mono ${item.numero_serie ? 'text-blue-600' : 'text-gray-400'} dark:${item.numero_serie ? 'text-blue-400' : 'text-gray-500'}">
+                    ${item.numero_serie || 'Sin serie'}
+                </td>
+                <td class="px-3 py-3 text-sm">
+                    <span class="px-2 py-1 text-xs rounded-full ${this.getEstadoBadgeClass(item.estado)}">
+                        ${item.estado || 'disponible'}
+                    </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.licencia_codigo || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.lote_codigo || '-'}</td>
+                <td class="px-3 py-3 text-sm text-center font-medium dark:text-gray-100">${item.stock || 0}</td>
+                <td class="px-3 py-3 text-sm text-gray-900 dark:text-gray-100">${simboloMoneda}${parseFloat(item.precio_costo || 0).toFixed(2)}</td>
+                <td class="px-3 py-3 text-sm text-green-600 dark:text-green-400">${simboloMoneda}${parseFloat(item.precio_venta || 0).toFixed(2)}</td>
+                <td class="px-3 py-3 text-sm text-blue-600 dark:text-blue-400">${simboloMoneda}${parseFloat(item.precio_venta_empresa || 0).toFixed(2)}</td>
+                <td class="px-3 py-3 text-sm text-purple-600 dark:text-purple-400">${item.precio_especial ? simboloMoneda + parseFloat(item.precio_especial).toFixed(2) : '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${this.formatearFecha(item.fecha_ingreso)}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    this.actualizarPaginacionExcel();
+}
+
+/**
+ * Buscar en vista Excel
+ */
+buscarEnExcel() {
+    const searchTerm = document.getElementById('excel-search').value.toLowerCase();
+    
+    if (searchTerm.trim() === '') {
+        this.excelFilteredData = [...this.excelData];
+    } else {
+        this.excelFilteredData = this.excelData.filter(item => 
+            (item.producto_nombre?.toLowerCase().includes(searchTerm)) ||
+            (item.codigo?.toLowerCase().includes(searchTerm)) ||
+            (item.marca_nombre?.toLowerCase().includes(searchTerm)) ||
+            (item.modelo_nombre?.toLowerCase().includes(searchTerm)) ||
+            (item.numero_serie?.toLowerCase().includes(searchTerm)) ||
+            (item.categoria_nombre?.toLowerCase().includes(searchTerm)) ||
+            (item.calibre_nombre?.toLowerCase().includes(searchTerm))
+        );
+    }
+    
+    this.excelCurrentPage = 1;
+    this.mostrarDatosExcel();
+    this.actualizarContadorExcel();
+}
+
+/**
+ * Limpiar búsqueda Excel
+ */
+limpiarBusquedaExcel() {
+    document.getElementById('excel-search').value = '';
+    this.buscarEnExcel();
+}
+
+/**
+ * Cambiar página Excel
+ */
+cambiarPaginaExcel(direction) {
+    const totalPages = Math.ceil(this.excelFilteredData.length / this.excelRecordsPerPage);
+    
+    if (direction === 'prev' && this.excelCurrentPage > 1) {
+        this.excelCurrentPage--;
+    } else if (direction === 'next' && this.excelCurrentPage < totalPages) {
+        this.excelCurrentPage++;
+    } else if (typeof direction === 'number') {
+        this.excelCurrentPage = direction;
+    }
+    
+    this.mostrarDatosExcel();
+}
+
+/**
+ * Actualizar contador Excel
+ */
+actualizarContadorExcel() {
+    const countElement = document.getElementById('excel-count');
+    if (countElement) {
+        countElement.textContent = `${this.excelFilteredData.length} registros`;
+    }
+}
+
+/**
+ * Actualizar paginación Excel
+ */
+actualizarPaginacionExcel() {
+    const total = this.excelFilteredData.length;
+    const totalPages = Math.ceil(total / this.excelRecordsPerPage);
+    const start = Math.min((this.excelCurrentPage - 1) * this.excelRecordsPerPage + 1, total);
+    const end = Math.min(this.excelCurrentPage * this.excelRecordsPerPage, total);
+    
+    // Actualizar información de registros mostrados
+    const startElement = document.getElementById('excel-showing-start');
+    const endElement = document.getElementById('excel-showing-end');
+    const totalElement = document.getElementById('excel-total-records');
+    
+    if (startElement) startElement.textContent = start;
+    if (endElement) endElement.textContent = end;
+    if (totalElement) totalElement.textContent = total;
+    
+    // Actualizar botones de navegación
+    const prevButton = document.getElementById('excel-btn-prev');
+    const nextButton = document.getElementById('excel-btn-next');
+    
+    if (prevButton) prevButton.disabled = this.excelCurrentPage === 1;
+    if (nextButton) nextButton.disabled = this.excelCurrentPage === totalPages;
+    
+    // Generar números de página
+    const pageNumbers = document.getElementById('excel-page-numbers');
+    if (pageNumbers) {
+        let html = '';
+        
+        const startPage = Math.max(1, this.excelCurrentPage - 2);
+        const endPage = Math.min(totalPages, this.excelCurrentPage + 2);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const isActive = i === this.excelCurrentPage;
+            html += `
+                <button onclick="inventarioManager.cambiarPaginaExcel(${i})" 
+                        class="px-3 py-1 text-sm border rounded-md ${isActive ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-100'}">
+                    ${i}
+                </button>
+            `;
+        }
+        
+        pageNumbers.innerHTML = html;
+    }
+}
+
+/**
+ * Obtener clase CSS para badge de estado
+ */
+getEstadoBadgeClass(estado) {
+    switch(estado) {
+        case 'disponible':
+            return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        case 'reservado':
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+        case 'vendido':
+            return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        case 'baja':
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+        default:
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+}
+
+/**
+ * Formatear fecha
+ */
+formatearFecha(fecha) {
+    if (!fecha) return '-';
+    return new Date(fecha).toLocaleDateString('es-GT');
+}
+
+
+//termina purrum que pidio el cliente ver en texto plano 
 
     /**
      * Establecer estado de carga

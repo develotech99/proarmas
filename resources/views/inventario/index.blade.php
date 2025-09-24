@@ -235,6 +235,111 @@
         </div>
     </div>
 
+
+<!-- ==================================================== -->
+<!-- div tipo excel que pidio cliente -->
+<!-- ==================================================== -->
+
+<!-- Vista Excel Expandible -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+    <!-- Header del div expandible -->
+    <div class="px-6 py-4 border-b border-gray-200 cursor-pointer" 
+         onclick="inventarioManager.toggleExcelView()" 
+         id="excel-header">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-table text-green-600"></i>
+                <h3 class="text-lg font-semibold text-gray-800">Vista Detallada (Modo Excel)</h3>
+                <span class="text-sm text-gray-500">- Ver todos los productos con series individuales</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-sm text-gray-500" id="excel-count">0 registros</span>
+                <i class="fas fa-chevron-down transition-transform duration-200" id="excel-chevron"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido expandible -->
+    <div id="excel-content" class="hidden">
+        <!-- Buscador interno -->
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <div class="flex items-center space-x-4">
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" 
+                           id="excel-search" 
+                           placeholder="Buscar en vista detallada..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <button onclick="inventarioManager.limpiarBusquedaExcel()" 
+                        class="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50">
+                    <i class="fas fa-times"></i> Limpiar
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabla Excel -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <!-- Actualizar el thead de la tabla -->
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategoría</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marca</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calibre</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serie</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Licencia</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lote</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Costo</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Individual</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Empresa</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Especial</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Ingreso</th>
+                    </tr>
+                </thead>
+                <tbody id="excel-tbody" class="bg-white divide-y divide-gray-200">
+                    <!-- Los datos se llenan con JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        <div class="px-6 py-3 bg-gray-50 border-t border-gray-200">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                    Mostrando <span id="excel-showing-start">0</span> a <span id="excel-showing-end">0</span> 
+                    de <span id="excel-total-records">0</span> registros
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="inventarioManager.cambiarPaginaExcel('prev')" 
+                            id="excel-btn-prev"
+                            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <div id="excel-page-numbers" class="flex space-x-1">
+                        <!-- Los números de página se generan con JavaScript -->
+                    </div>
+                    <button onclick="inventarioManager.cambiarPaginaExcel('next')" 
+                            id="excel-btn-next"
+                            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    
+
     <!-- Modal Registrar Producto -->
     <div id="registro-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
