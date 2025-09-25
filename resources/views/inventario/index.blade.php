@@ -224,11 +224,11 @@
                             <i class="fas fa-history mr-2"></i>
                             Ver Historial
                         </button>
-                        <button onclick="inventarioManager.generarReporte()"
+                        <!-- <button onclick="inventarioManager.generarReporte()"
                             class="w-full inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                             <i class="fas fa-chart-bar mr-2"></i>
                             Generar Reporte
-                        </button>
+                        </button> -->
                     </div>
                 </div>
             </div>
