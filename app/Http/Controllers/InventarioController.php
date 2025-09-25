@@ -762,20 +762,28 @@ public function getPaisesActivos(): JsonResponse
                 $series = array_filter(array_map('trim', explode("\n", $request->numeros_series)));
                 
                 if (empty($series)) {
+                    DB::rollback();
                     return response()->json([
                         'success' => false,
                         'message' => 'Debe proporcionar al menos un número de serie válido'
                     ], 422);
                 }
     
-                // Verificar series duplicadas
+                // CORRECCIÓN: Verificar series duplicadas SOLO EN EL MISMO PRODUCTO
                 $seriesExistentes = SerieProducto::whereIn('serie_numero_serie', $series)
-                    ->pluck('serie_numero_serie');
+                    ->where('serie_producto_id', $producto->producto_id) // ← LÍNEA CRÍTICA AGREGADA
+                    ->where('serie_situacion', 1) // Solo series activas
+                    ->select('serie_numero_serie')
+                    ->get();
                 
                 if ($seriesExistentes->isNotEmpty()) {
+                    $seriesDuplicadas = $seriesExistentes->pluck('serie_numero_serie');
+                    
+                    DB::rollback();
                     return response()->json([
                         'success' => false,
-                        'message' => 'Las siguientes series ya existen: ' . $seriesExistentes->implode(', ')
+                        'message' => 'Las siguientes series ya existen en este producto: ' . $seriesDuplicadas->implode(', '),
+                        'series_duplicadas' => $seriesDuplicadas->toArray()
                     ], 422);
                 }
     
@@ -876,37 +884,37 @@ public function getPaisesActivos(): JsonResponse
                     'mov_situacion' => 1
                 ]);
             }
-                    // PASO 6: Procesar licencias si es producto importado (SOLO PARA SERIES)
-                if ($request->filled('producto_es_importado') && $request->producto_es_importado && $request->filled('licencia_id_registro')) {
-                    
-                    // Solo procesar licencias para productos CON SERIE
-                    if ($producto->producto_requiere_serie && isset($series) && !empty($series)) {
-                        
-                        $seriesCreadas = SerieProducto::where('serie_producto_id', $producto->producto_id)
-                            ->whereIn('serie_numero_serie', $series)
-                            ->where('serie_situacion', 1)
-                            ->pluck('serie_id')
-                            ->toArray();
-                            
-                        LicenciaAsignacionProducto::asignarSeries(
-                            $producto->producto_id,
-                            $request->licencia_id_registro,
-                            $seriesCreadas,
-                            "Ingreso importado - " . $request->mov_origen
-                        );
-                        
-                        $licencia = DB::table('pro_licencias_para_importacion')
-                            ->where('lipaimp_id', $request->licencia_id_registro)
-                            ->first();
-                        
-                        $polizaNumero = $licencia ? $licencia->lipaimp_poliza : $request->licencia_id_registro;
-                        $mensajeAdicional .= " (asignado a licencia póliza: {$polizaNumero})";
-                    }
-                    // Si no requiere serie pero está marcado como importado, solo ignoramos la licencia
-
-                }
     
-            // PASO 7: Actualizar stock (SIN PRECIOS)
+            // PASO 6: Procesar licencias si es producto importado (SOLO PARA SERIES)
+            if ($request->filled('producto_es_importado') && $request->producto_es_importado && $request->filled('licencia_id_registro')) {
+                
+                // Solo procesar licencias para productos CON SERIE
+                if ($producto->producto_requiere_serie && isset($series) && !empty($series)) {
+                    
+                    $seriesCreadas = SerieProducto::where('serie_producto_id', $producto->producto_id)
+                        ->whereIn('serie_numero_serie', $series)
+                        ->where('serie_situacion', 1)
+                        ->pluck('serie_id')
+                        ->toArray();
+                        
+                    LicenciaAsignacionProducto::asignarSeries(
+                        $producto->producto_id,
+                        $request->licencia_id_registro,
+                        $seriesCreadas,
+                        "Ingreso importado - " . $request->mov_origen
+                    );
+                    
+                    $licencia = DB::table('pro_licencias_para_importacion')
+                        ->where('lipaimp_id', $request->licencia_id_registro)
+                        ->first();
+                    
+                    $polizaNumero = $licencia ? $licencia->lipaimp_poliza : $request->licencia_id_registro;
+                    $mensajeAdicional .= " (asignado a licencia póliza: {$polizaNumero})";
+                }
+                // Si no requiere serie pero está marcado como importado, solo ignoramos la licencia
+            }
+    
+            // PASO 7: Actualizar stock
             $this->actualizarStock($producto->producto_id);
     
             DB::commit();
@@ -929,7 +937,6 @@ public function getPaisesActivos(): JsonResponse
             ], 500);
         }
     }
-    
 
     private function registrarPreciosProducto(Request $request, $productoId): void
 {
@@ -2069,17 +2076,12 @@ public function update(Request $request, $id): JsonResponse
 
 //actualizar precio de un producto 
 
-
-// Agregar estos métodos a tu InventarioController
-
-/**
- * Actualizar precios de un producto
- */
 public function actualizarPrecios(Request $request, $id): JsonResponse
 {
     $validator = Validator::make($request->all(), [
         'precio_costo' => 'required|numeric|min:0.01',
         'precio_venta' => 'required|numeric|min:0.01|gt:precio_costo',
+        'precio_venta_empresa' => 'required|numeric|min:0.01|gt:precio_costo', // AGREGADO
         'precio_especial' => 'nullable|numeric|min:0',
         'precio_justificacion' => 'required|string|max:255',
         'precio_moneda' => 'nullable|string|in:GTQ,USD,EUR'
@@ -2097,8 +2099,9 @@ public function actualizarPrecios(Request $request, $id): JsonResponse
     try {
         $producto = Producto::findOrFail($id);
         
-        // Calcular margen
+        // Calcular márgenes para ambos precios
         $margen = (($request->precio_venta - $request->precio_costo) / $request->precio_costo) * 100;
+        $margen_empresa = (($request->precio_venta_empresa - $request->precio_costo) / $request->precio_costo) * 100;
         
         // Marcar precios anteriores como históricos
         Precio::where('precio_producto_id', $id)
@@ -2110,7 +2113,9 @@ public function actualizarPrecios(Request $request, $id): JsonResponse
             'precio_producto_id' => $id,
             'precio_costo' => $request->precio_costo,
             'precio_venta' => $request->precio_venta,
+            'precio_venta_empresa' => $request->precio_venta_empresa, // AGREGADO
             'precio_margen' => round($margen, 2),
+            'precio_margen_empresa' => round($margen_empresa, 2), // AGREGADO
             'precio_especial' => $request->precio_especial,
             'precio_moneda' => $request->precio_moneda ?? 'GTQ',
             'precio_justificacion' => $request->precio_justificacion,
@@ -2135,7 +2140,6 @@ public function actualizarPrecios(Request $request, $id): JsonResponse
         ], 500);
     }
 }
-
 /**
  * Obtener historial de precios de un producto
  */
@@ -2414,17 +2418,23 @@ public function getProductosExcel(Request $request): JsonResponse
             ->leftJoin('pro_marcas as mar', 'p.producto_marca_id', '=', 'mar.marca_id')
             ->leftJoin('pro_modelo as mod', 'p.producto_modelo_id', '=', 'mod.modelo_id')
             ->leftJoin('pro_calibres as cal', 'p.producto_calibre_id', '=', 'cal.calibre_id')
+            
+            // JOIN con series (sin cambios)
             ->leftJoin('pro_series_productos as sp', function($join) {
                 $join->on('p.producto_id', '=', 'sp.serie_producto_id')
-                     ->where('p.producto_requiere_serie', '=', 1)
                      ->where('sp.serie_situacion', '=', 1);
             })
-            // JOIN para obtener licencias asociadas al producto
-            ->leftJoin('pro_licencia_asignacion_producto as lap', 'p.producto_id', '=', 'lap.asignacion_producto_id')
-            ->leftJoin('pro_licencias_para_importacion as lic', function($join) {
-                $join->on('lap.asignacion_licencia_id', '=', 'lic.lipaimp_id')
+            
+            // CORREGIDO: Obtener licencia por SERIE específica (no por producto)
+            ->leftJoin('pro_licencia_asignacion_producto as lap', function($join) {
+                $join->on('sp.serie_id', '=', 'lap.asignacion_serie_id')
                      ->where('lap.asignacion_situacion', '=', 1);
             })
+            
+            // JOIN con licencia usando la asignación por serie
+            ->leftJoin('pro_licencias_para_importacion as lic', 'lap.asignacion_licencia_id', '=', 'lic.lipaimp_id')
+            
+            // Stock calculado (sin cambios)
             ->leftJoin(DB::raw('(
                 SELECT 
                     mov_producto_id,
@@ -2437,6 +2447,8 @@ public function getProductosExcel(Request $request): JsonResponse
                 WHERE mov_situacion = 1 
                 GROUP BY mov_producto_id
             ) as stock_calc'), 'p.producto_id', '=', 'stock_calc.mov_producto_id')
+            
+            // Precios más recientes (sin cambios)
             ->leftJoin(DB::raw('(
                 SELECT 
                     precio_producto_id,
@@ -2454,14 +2466,25 @@ public function getProductosExcel(Request $request): JsonResponse
                     AND p2.precio_situacion = 1
                 )
             ) as pre'), 'p.producto_id', '=', 'pre.precio_producto_id')
+            
+            // Lotes (solo el más reciente por producto)
             ->leftJoin(DB::raw('(
                 SELECT DISTINCT 
                     mov_producto_id, 
                     mov_lote_id
-                FROM pro_movimientos 
+                FROM pro_movimientos m1
                 WHERE mov_situacion = 1 AND mov_lote_id IS NOT NULL
+                AND mov_id = (
+                    SELECT MAX(mov_id)
+                    FROM pro_movimientos m2 
+                    WHERE m2.mov_producto_id = m1.mov_producto_id 
+                    AND m2.mov_lote_id IS NOT NULL
+                    AND m2.mov_situacion = 1
+                )
             ) as mov_lote'), 'p.producto_id', '=', 'mov_lote.mov_producto_id')
+            
             ->leftJoin('pro_lotes as lot', 'mov_lote.mov_lote_id', '=', 'lot.lote_id')
+            
             ->select([
                 'p.producto_id',
                 'p.producto_nombre',
@@ -2471,40 +2494,54 @@ public function getProductosExcel(Request $request): JsonResponse
                 'mar.marca_descripcion as marca_nombre',
                 'mod.modelo_descripcion as modelo_nombre',
                 'cal.calibre_nombre',
+                
+                // Serie específica
                 DB::raw('CASE 
                     WHEN p.producto_requiere_serie = 1 THEN sp.serie_numero_serie
                     ELSE NULL 
                 END as numero_serie'),
+                
                 DB::raw('CASE 
                     WHEN p.producto_requiere_serie = 1 THEN sp.serie_estado
                     ELSE "disponible"
                 END as estado'),
+                
+                // CORREGIDO: Licencia específica para ESTA serie individual
                 DB::raw('CASE 
                     WHEN lic.lipaimp_poliza IS NOT NULL THEN CONCAT("Póliza: ", lic.lipaimp_poliza)
                     ELSE "-"
                 END as licencia_codigo'),
+                
                 'lot.lote_codigo',
+                
+                // Stock: 1 por serie individual o total calculado
                 DB::raw('CASE 
                     WHEN p.producto_requiere_serie = 1 THEN 1
                     ELSE COALESCE(stock_calc.stock_actual, 0)
                 END as stock'),
+                
                 DB::raw('COALESCE(pre.precio_costo, 0) as precio_costo'),
                 DB::raw('COALESCE(pre.precio_venta, 0) as precio_venta'),
                 DB::raw('COALESCE(pre.precio_venta_empresa, 0) as precio_venta_empresa'),
                 'pre.precio_especial',
                 DB::raw('COALESCE(pre.precio_moneda, "GTQ") as precio_moneda'),
+                
                 DB::raw('CASE 
                     WHEN p.producto_requiere_serie = 1 THEN sp.serie_fecha_ingreso
                     ELSE p.created_at
                 END as fecha_ingreso')
             ])
             ->where('p.producto_situacion', 1)
+            
+            // Filtro: productos sin serie O productos con serie que tienen series registradas
             ->where(function($query) {
-                $query->where(function($q) {
-                    $q->where('p.producto_requiere_serie', 1)
-                      ->whereNotNull('sp.serie_id');
-                })->orWhere('p.producto_requiere_serie', 0);
+                $query->where('p.producto_requiere_serie', 0) // Productos sin serie
+                      ->orWhere(function($q) {
+                          $q->where('p.producto_requiere_serie', 1) // Productos con serie
+                            ->whereNotNull('sp.serie_id');
+                      });
             })
+            
             ->orderBy('p.producto_nombre')
             ->orderBy('sp.serie_numero_serie')
             ->get();
@@ -2524,5 +2561,4 @@ public function getProductosExcel(Request $request): JsonResponse
         ], 500);
     }
 }
-
 }

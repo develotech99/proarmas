@@ -2001,12 +2001,85 @@ calcularTamañoTotal(fotos) {
     // ================================
 // 4. NUEVO MÉTODO: setupPreciosHandling()
 // ================================
+/**
+ * Configurar manejo de precios en formulario de registro - VERSIÓN ACTUALIZADA
+ */
 setupPreciosHandling() {
-    // Cálculo automático de margen
-    ['precio_costo', 'precio_venta'].forEach(id => {
+    // Función para calcular margenes tanto individual como empresa
+    const calcularMargenRegistro = () => {
+        const costInput = document.getElementById('precio_costo');
+        const ventaInput = document.getElementById('precio_venta');
+        const ventaEmpresaInput = document.getElementById('precio_venta_empresa');
+        const margenElement = document.getElementById('margen_calculado');
+        const gananciaElement = document.getElementById('ganancia_calculada');
+        const margenElementEmpresa = document.getElementById('margen_calculado_empresa');
+        const gananciaElementEmpresa = document.getElementById('ganancia_calculada_empresa');
+
+        if (!costInput || !ventaInput || !ventaEmpresaInput) return;
+
+        const costo = parseFloat(costInput.value) || 0;
+        const venta = parseFloat(ventaInput.value) || 0;
+        const ventaEmpresa = parseFloat(ventaEmpresaInput.value) || 0;
+
+        // CÁLCULO PARA PRECIO INDIVIDUAL
+        if (margenElement && gananciaElement && costo > 0 && venta > 0) {
+            const ganancia = venta - costo;
+            const margen = ((ganancia / costo) * 100);
+            
+            margenElement.textContent = `${margen.toFixed(1)}%`;
+            gananciaElement.textContent = `Q${ganancia.toFixed(2)}`;
+            
+            // Colorear según el margen
+            if (margen < 10) {
+                margenElement.className = 'text-red-600 font-bold';
+            } else if (margen < 25) {
+                margenElement.className = 'text-yellow-600 font-bold';
+            } else {
+                margenElement.className = 'text-green-600 font-bold';
+            }
+        } else if (margenElement && gananciaElement) {
+            margenElement.textContent = '0%';
+            gananciaElement.textContent = 'Q0.00';
+            margenElement.className = 'text-gray-400 font-bold';
+        }
+
+        // CÁLCULO PARA PRECIO EMPRESA
+        if (margenElementEmpresa && gananciaElementEmpresa && costo > 0 && ventaEmpresa > 0) {
+            const gananciaEmpresa = ventaEmpresa - costo;
+            const margenEmpresa = ((gananciaEmpresa / costo) * 100);
+            
+            margenElementEmpresa.textContent = `${margenEmpresa.toFixed(1)}%`;
+            gananciaElementEmpresa.textContent = `Q${gananciaEmpresa.toFixed(2)}`;
+            
+            // Colorear según el margen empresa
+            if (margenEmpresa < 10) {
+                margenElementEmpresa.className = 'text-red-600 font-bold';
+            } else if (margenEmpresa < 25) {
+                margenElementEmpresa.className = 'text-yellow-600 font-bold';
+            } else {
+                margenElementEmpresa.className = 'text-green-600 font-bold';
+            }
+        } else if (margenElementEmpresa && gananciaElementEmpresa) {
+            margenElementEmpresa.textContent = '0%';
+            gananciaElementEmpresa.textContent = 'Q0.00';
+            margenElementEmpresa.className = 'text-gray-400 font-bold';
+        }
+    };
+
+    // Agregar event listeners a todos los campos de precio
+    const camposPrecios = ['precio_costo', 'precio_venta', 'precio_venta_empresa'];
+    
+    camposPrecios.forEach(id => {
         const input = document.getElementById(id);
         if (input) {
-            input.addEventListener('input', () => this.calcularMargen());
+            // Remover listener anterior si existe
+            if (input._calcularMargenRegistroHandler) {
+                input.removeEventListener('input', input._calcularMargenRegistroHandler);
+            }
+            
+            // Crear y almacenar nueva función handler
+            input._calcularMargenRegistroHandler = calcularMargenRegistro;
+            input.addEventListener('input', input._calcularMargenRegistroHandler);
         }
     });
 }
@@ -3194,61 +3267,74 @@ async verificarRequiereLicencia(productoId) {
     /**
      * Validar formulario de registro
      */
-    validateRegistroForm() {
-        const nombre = document.getElementById('producto_nombre').value.trim();
-        const categoria = document.getElementById('producto_categoria').value;
-        const subcategoria = document.getElementById('producto_subcategoria').value;
-        const marca = document.getElementById('producto_marca').value;
-        
-        this.clearErrors('registro');
-        
-        let isValid = true;
-        
-        if (!nombre) {
-            this.showFieldError('producto_nombre', 'El nombre del producto es obligatorio');
-            isValid = false;
-        }
-        
-        if (!categoria) {
-            this.showFieldError('producto_categoria_id', 'La categoría es obligatoria');
-            isValid = false;
-        }
-        
-        if (!subcategoria) {
-            this.showFieldError('producto_subcategoria_id', 'La subcategoría es obligatoria');
-            isValid = false;
-        }
-        
-        if (!marca) {
-            this.showFieldError('producto_marca_id', 'La marca es obligatoria');
-            isValid = false;
-        }
+    /**
+ * Validar formulario de registro - VERSIÓN ACTUALIZADA para dos precios
+ */
+validateRegistroForm() {
+    const nombre = document.getElementById('producto_nombre').value.trim();
+    const categoria = document.getElementById('producto_categoria').value;
+    const subcategoria = document.getElementById('producto_subcategoria').value;
+    const marca = document.getElementById('producto_marca').value;
     
-        // MANTENER: Validaciones de precios en registro
-        const agregaPrecios = document.getElementById('agregar_precios')?.checked;
-        if (agregaPrecios) {
-            const precioCosto = document.getElementById('precio_costo').value;
-            const precioVenta = document.getElementById('precio_venta').value;
-            
-            if (!precioCosto || parseFloat(precioCosto) <= 0) {
-                this.showFieldError('precio_costo', 'El precio de costo es obligatorio');
-                isValid = false;
-            }
-            
-            if (!precioVenta || parseFloat(precioVenta) <= 0) {
-                this.showFieldError('precio_venta', 'El precio de venta es obligatorio');
-                isValid = false;
-            }
+    this.clearErrors('registro');
     
-            if (parseFloat(precioVenta) <= parseFloat(precioCosto)) {
-                this.showFieldError('precio_venta', 'El precio de venta debe ser mayor al costo');
-                isValid = false;
-            }
-        }
-        
-        return isValid;
+    let isValid = true;
+    
+    // Validaciones básicas del producto
+    if (!nombre) {
+        this.showFieldError('producto_nombre', 'El nombre del producto es obligatorio');
+        isValid = false;
     }
     
+    if (!categoria) {
+        this.showFieldError('producto_categoria_id', 'La categoría es obligatoria');
+        isValid = false;
+    }
+    
+    if (!subcategoria) {
+        this.showFieldError('producto_subcategoria_id', 'La subcategoría es obligatoria');
+        isValid = false;
+    }
+    
+    if (!marca) {
+        this.showFieldError('producto_marca_id', 'La marca es obligatoria');
+        isValid = false;
+    }
+
+    // VALIDACIONES DE PRECIOS ACTUALIZADAS
+    const agregaPrecios = document.getElementById('agregar_precios')?.checked;
+    if (agregaPrecios) {
+        const precioCosto = parseFloat(document.getElementById('precio_costo').value) || 0;
+        const precioVenta = parseFloat(document.getElementById('precio_venta').value) || 0;
+        const precioVentaEmpresa = parseFloat(document.getElementById('precio_venta_empresa').value) || 0;
+        
+        // Validación precio de costo
+        if (precioCosto <= 0) {
+            this.showFieldError('precio_costo', 'El precio de costo debe ser mayor a 0');
+            isValid = false;
+        }
+        
+        // Validación precio de venta individual
+        if (precioVenta <= 0) {
+            this.showFieldError('precio_venta', 'El precio de venta individual debe ser mayor a 0');
+            isValid = false;
+        } else if (precioVenta <= precioCosto) {
+            this.showFieldError('precio_venta', 'El precio de venta individual debe ser mayor al costo');
+            isValid = false;
+        }
+        
+        // Validación precio de venta empresa
+        if (precioVentaEmpresa <= 0) {
+            this.showFieldError('precio_venta_empresa', 'El precio de venta empresa debe ser mayor a 0');
+            isValid = false;
+        } else if (precioVentaEmpresa <= precioCosto) {
+            this.showFieldError('precio_venta_empresa', 'El precio de venta empresa debe ser mayor al costo');
+            isValid = false;
+        }
+    }
+    
+    return isValid;
+}
 
     /**
      * Validar formulario de ingreso
@@ -3417,14 +3503,62 @@ async verificarRequiereLicencia(productoId) {
     /**
      * Resetear formulario de registro
      */
-    resetRegistroForm() {
-        document.getElementById('registro-form').reset();
-        this.clearErrors('registro');
-        
-        // Resetear selects a su estado inicial
-        document.getElementById('producto_subcategoria').innerHTML = '<option value="">Seleccionar subcategoría</option>';
-        document.getElementById('producto_modelo').innerHTML = '<option value="">Seleccionar modelo</option>';
+/**
+ * Resetear formulario de registro - VERSIÓN ACTUALIZADA
+ */
+resetRegistroForm() {
+    document.getElementById('registro-form').reset();
+    this.clearErrors('registro');
+    
+    // Resetear selects a su estado inicial
+    document.getElementById('producto_subcategoria').innerHTML = '<option value="">Seleccionar subcategoría</option>';
+    document.getElementById('producto_modelo').innerHTML = '<option value="">Seleccionar modelo</option>';
+    
+    // Limpiar secciones opcionales
+    const seccionFotos = document.getElementById('seccion_fotos');
+    const seccionPrecios = document.getElementById('seccion_precios');
+    
+    if (seccionFotos) {
+        seccionFotos.classList.add('hidden');
     }
+    
+    if (seccionPrecios) {
+        seccionPrecios.classList.add('hidden');
+    }
+    
+    // Resetear checkboxes
+    const checkboxFotos = document.getElementById('agregar_fotos');
+    const checkboxPrecios = document.getElementById('agregar_precios');
+    
+    if (checkboxFotos) {
+        checkboxFotos.checked = false;
+    }
+    
+    if (checkboxPrecios) {
+        checkboxPrecios.checked = false;
+    }
+    
+    // Limpiar preview de fotos
+    this.limpiarPreviewFotos();
+    
+    // Limpiar displays de precios de manera segura
+    const preciosDisplays = [
+        { id: 'margen_calculado', defaultText: '0%', className: 'text-gray-400 font-bold' },
+        { id: 'ganancia_calculada', defaultText: 'Q0.00' },
+        { id: 'margen_calculado_empresa', defaultText: '0%', className: 'text-gray-400 font-bold' },
+        { id: 'ganancia_calculada_empresa', defaultText: 'Q0.00' }
+    ];
+    
+    preciosDisplays.forEach(({ id, defaultText, className }) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = defaultText;
+            if (className) {
+                element.className = className;
+            }
+        }
+    });
+}
 
     /**
      * Resetear formulario de ingreso
@@ -4194,6 +4328,9 @@ async gestionarPrecios(productoId) {
 /**
  * Preparar modal de gestión de precios
  */
+/**
+ * Preparar modal de gestión de precios - VERSIÓN CORREGIDA
+ */
 prepararGestionPrecios(producto) {
     // Actualizar título
     document.getElementById('precios_producto_nombre').textContent = 
@@ -4203,17 +4340,25 @@ prepararGestionPrecios(producto) {
     document.getElementById('precio-form').reset();
     this.clearErrors('precios');
 
-    const margenElement = document.getElementById('nuevo_margen_calculado');
-    const gananciaElement = document.getElementById('nueva_ganancia_calculada');
+    // Limpiar los displays de margen y ganancia de forma segura
+    const elementos = [
+        'nuevo_margen_calculado',
+        'nueva_ganancia_calculada',
+        'nuevo_margen_calculado_empresa',
+        'nueva_ganancia_calculada_empresa'
+    ];
     
-    if (margenElement) {
-        margenElement.textContent = '0%';
-        margenElement.className = 'font-medium text-gray-600';
-    }
-    
-    if (gananciaElement) {
-        gananciaElement.textContent = 'Q0.00';
-    }
+    elementos.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (id.includes('margen')) {
+                element.textContent = '0%';
+                element.className = 'font-medium text-gray-600';
+            } else {
+                element.textContent = 'Q0.00';
+            }
+        }
+    });
     
     // Configurar cálculo automático de margen
     this.setupCalculoMargenPrecios();
@@ -4225,28 +4370,26 @@ prepararGestionPrecios(producto) {
 /**
  * Configurar cálculo automático de margen en precios
  */
+/**
+ * Configurar cálculo automático de margen en precios - VERSIÓN CORREGIDA
+ */
 setupCalculoMargenPrecios() {
     const costInput = document.getElementById('nuevo_precio_costo');
     const ventaInput = document.getElementById('nuevo_precio_venta');
     const ventaInputEmpresa = document.getElementById('nuevo_precio_venta_empresa');
-
-    
-
-
     
     const calcularMargen = () => {
-        const costo = parseFloat(costInput.value) || 0;
-        const venta = parseFloat(ventaInput.value) || 0;
-        const c = parseFloat(ventaInputEmpresa.value) || 0;
-
+        const costo = parseFloat(costInput?.value) || 0;
+        const venta = parseFloat(ventaInput?.value) || 0;
+        const ventaEmpresa = parseFloat(ventaInputEmpresa?.value) || 0;
         
         const margenElement = document.getElementById('nuevo_margen_calculado');
         const gananciaElement = document.getElementById('nueva_ganancia_calculada');
-
         const margenElementEmpresa = document.getElementById('nuevo_margen_calculado_empresa');
         const gananciaElementEmpresa = document.getElementById('nueva_ganancia_calculada_empresa');
         
-        if (costo > 0 && venta > 0) {
+        // CÁLCULO PARA PRECIO INDIVIDUAL
+        if (margenElement && gananciaElement && costo > 0 && venta > 0) {
             const ganancia = venta - costo;
             const margen = ((ganancia / costo) * 100);
             
@@ -4261,42 +4404,63 @@ setupCalculoMargenPrecios() {
             } else {
                 margenElement.className = 'font-medium text-green-600';
             }
-        } else {
+        } else if (margenElement && gananciaElement) {
             margenElement.textContent = '0%';
             gananciaElement.textContent = 'Q0.00';
             margenElement.className = 'font-medium text-gray-600';
         }
-
-        if (costo > 0 && ventaEmpresa > 0) {
-            const ganancia = ventaEmpresa - costo;
-            const margen = ((ganancia / costo) * 100);
+        
+        // CÁLCULO PARA PRECIO EMPRESA
+        if (margenElementEmpresa && gananciaElementEmpresa && costo > 0 && ventaEmpresa > 0) {
+            const gananciaEmpresa = ventaEmpresa - costo;
+            const margenEmpresa = ((gananciaEmpresa / costo) * 100);
             
-            margenElementEmpresa.textContent = `${margen.toFixed(1)}%`;
-            gananciaElementEmpresa.textContent = `Q${ganancia.toFixed(2)}`;
+            margenElementEmpresa.textContent = `${margenEmpresa.toFixed(1)}%`;
+            gananciaElementEmpresa.textContent = `Q${gananciaEmpresa.toFixed(2)}`;
             
-            // Colorear según el margen
-            if (margen < 10) {
+            // Colorear según el margen empresa
+            if (margenEmpresa < 10) {
                 margenElementEmpresa.className = 'font-medium text-red-600';
-            } else if (margen < 25) {
+            } else if (margenEmpresa < 25) {
                 margenElementEmpresa.className = 'font-medium text-yellow-600';
             } else {
                 margenElementEmpresa.className = 'font-medium text-green-600';
             }
-        } else {
+        } else if (margenElementEmpresa && gananciaElementEmpresa) {
             margenElementEmpresa.textContent = '0%';
             gananciaElementEmpresa.textContent = 'Q0.00';
             margenElementEmpresa.className = 'font-medium text-gray-600';
         }
     };
     
+    // Remover listeners anteriores SOLO si los elementos existen
+    if (costInput) {
+        // Crear función bound para poder removerla después
+        if (!costInput._calcularMargenHandler) {
+            costInput._calcularMargenHandler = calcularMargen;
+        } else {
+            costInput.removeEventListener('input', costInput._calcularMargenHandler);
+        }
+        costInput.addEventListener('input', costInput._calcularMargenHandler);
+    }
     
-    // Remover listeners anteriores y agregar nuevos
-    costInput.removeEventListener('input', calcularMargen);
-    ventaInput.removeEventListener('input', calcularMargen);
-    ventaInputEmpresa.removeEventListener('input', calcularMargen)
-    costInput.addEventListener('input', calcularMargen);
-    ventaInput.addEventListener('input', calcularMargen);
-    ventaInputEmpresa.addEventListener('input', calcularMargen); 
+    if (ventaInput) {
+        if (!ventaInput._calcularMargenHandler) {
+            ventaInput._calcularMargenHandler = calcularMargen;
+        } else {
+            ventaInput.removeEventListener('input', ventaInput._calcularMargenHandler);
+        }
+        ventaInput.addEventListener('input', ventaInput._calcularMargenHandler);
+    }
+    
+    if (ventaInputEmpresa) {
+        if (!ventaInputEmpresa._calcularMargenHandler) {
+            ventaInputEmpresa._calcularMargenHandler = calcularMargen;
+        } else {
+            ventaInputEmpresa.removeEventListener('input', ventaInputEmpresa._calcularMargenHandler);
+        }
+        ventaInputEmpresa.addEventListener('input', ventaInputEmpresa._calcularMargenHandler);
+    }
 }
 
 /**
@@ -4318,6 +4482,9 @@ setupPreciosFormSubmit() {
 /**
  * Manejar envío del formulario de precios
  */
+/**
+ * Manejar envío del formulario de precios - VERSIÓN CORREGIDA
+ */
 async handlePreciosSubmit() {
     if (!this.validatePreciosForm()) {
         return;
@@ -4326,6 +4493,7 @@ async handlePreciosSubmit() {
     const formData = new URLSearchParams();
     formData.append('precio_costo', document.getElementById('nuevo_precio_costo').value);
     formData.append('precio_venta', document.getElementById('nuevo_precio_venta').value);
+    formData.append('precio_venta_empresa', document.getElementById('nuevo_precio_venta_empresa').value);
     formData.append('precio_especial', document.getElementById('nuevo_precio_especial').value || '');
     formData.append('precio_justificacion', document.getElementById('nuevo_precio_justificacion').value);
     formData.append('precio_moneda', document.getElementById('nuevo_precio_moneda').value);
@@ -4351,10 +4519,26 @@ async handlePreciosSubmit() {
             // Recargar historial de precios
             this.loadHistorialPrecios(this.currentProductoId);
             
-            // Limpiar formulario
+            // Limpiar formulario y displays
             document.getElementById('precio-form').reset();
-            document.getElementById('nuevo_margen_calculado').textContent = '0%';
-            document.getElementById('nueva_ganancia_calculada').textContent = 'Q0.00';
+            
+            // Limpiar displays de manera segura
+            const displayElements = [
+                { id: 'nuevo_margen_calculado', defaultText: '0%' },
+                { id: 'nueva_ganancia_calculada', defaultText: 'Q0.00' },
+                { id: 'nuevo_margen_calculado_empresa', defaultText: '0%' },
+                { id: 'nueva_ganancia_calculada_empresa', defaultText: 'Q0.00' }
+            ];
+            
+            displayElements.forEach(({ id, defaultText }) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = defaultText;
+                    if (id.includes('margen')) {
+                        element.className = 'font-medium text-gray-600';
+                    }
+                }
+            });
             
         } else {
             if (data.errors) {
@@ -4370,34 +4554,47 @@ async handlePreciosSubmit() {
         this.setLoading('precios', false);
     }
 }
-
 /**
  * Validar formulario de precios
+ */
+/**
+ * Validar formulario de precios - VERSIÓN CORREGIDA
  */
 validatePreciosForm() {
     const costo = parseFloat(document.getElementById('nuevo_precio_costo').value) || 0;
     const venta = parseFloat(document.getElementById('nuevo_precio_venta').value) || 0;
+    const ventaEmpresa = parseFloat(document.getElementById('nuevo_precio_venta_empresa').value) || 0;
     const justificacion = document.getElementById('nuevo_precio_justificacion').value.trim();
     
     this.clearErrors('precios');
     
     let isValid = true;
     
+    // Validación precio de costo
     if (costo <= 0) {
         this.showFieldError('nuevo_precio_costo', 'El precio de costo debe ser mayor a 0');
         isValid = false;
     }
     
+    // Validación precio de venta individual
     if (venta <= 0) {
         this.showFieldError('nuevo_precio_venta', 'El precio de venta debe ser mayor a 0');
         isValid = false;
-    }
-    
-    if (venta <= costo) {
+    } else if (venta <= costo) {
         this.showFieldError('nuevo_precio_venta', 'El precio de venta debe ser mayor al costo');
         isValid = false;
     }
     
+    // Validación precio de venta empresa
+    if (ventaEmpresa <= 0) {
+        this.showFieldError('nuevo_precio_venta_empresa', 'El precio de venta empresa debe ser mayor a 0');
+        isValid = false;
+    } else if (ventaEmpresa <= costo) {
+        this.showFieldError('nuevo_precio_venta_empresa', 'El precio de venta empresa debe ser mayor al costo');
+        isValid = false;
+    }
+    
+    // Validación justificación
     if (!justificacion) {
         this.showFieldError('nuevo_precio_justificacion', 'Debe indicar el motivo del cambio de precio');
         isValid = false;

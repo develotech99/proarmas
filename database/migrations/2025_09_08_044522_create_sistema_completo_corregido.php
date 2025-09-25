@@ -509,8 +509,7 @@ Schema::create('pro_licencias_total_pagado', function (Blueprint $table) {
             // Validaciones
             $table->check('asignacion_cantidad > 0');
 
-            // Constraint único: un producto no puede estar duplicado en la misma licencia
-            $table->unique(['asignacion_producto_id', 'asignacion_licencia_id'], 'unique_producto_licencia');
+       
         });
 
 
@@ -543,7 +542,7 @@ Schema::create('pro_licencias_total_pagado', function (Blueprint $table) {
             $table->id('serie_id');
             $table->unsignedBigInteger('serie_producto_id');
             $table->unsignedBigInteger('serie_asignacion_id')->nullable()->comment('FK a la asignación licencia-producto si aplica');
-            $table->string('serie_numero_serie', 200)->unique();
+            $table->string('serie_numero_serie', 200);
             $table->string('serie_estado', 25)->default('disponible');
             $table->timestamp('serie_fecha_ingreso')->useCurrent();
             $table->string('serie_observaciones', 255)->nullable();
