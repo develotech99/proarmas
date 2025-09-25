@@ -567,6 +567,18 @@
                                         <div>
                                             <label
                                                 class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
+                                                de venta Empresa*</label>
+                                            <input type="number" id="precio_venta_empresa" name="precio_venta_empresa" step="0.01"
+                                                min="0" placeholder="0.00"
+                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                            <div id="precio_venta_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                                            <small class="text-xs text-gray-500 dark:text-gray-400">Precio de venta a empresa
+                                            </small>
+                                        </div>
+
+                                        <div>
+                                            <label
+                                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
                                                 especial</label>
                                             <input type="number" id="precio_especial" name="precio_especial" step="0.01"
                                                 min="0" placeholder="0.00"
@@ -598,10 +610,14 @@
                                     <!-- Cálculo automático de margen -->
                                     <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                         <div class="text-sm text-gray-600 dark:text-gray-400">
-                                            <span class="font-medium">Margen calculado:</span>
+                                            <span class="font-medium">Margen calculado Individual:</span>
                                             <span id="margen_calculado" class="text-green-600 font-bold">0%</span>
-                                            <span class="ml-4 font-medium">Ganancia por unidad:</span>
+                                            <span class="ml-4 font-medium">Ganancia por unidad Individual:</span>
                                             <span id="ganancia_calculada" class="text-blue-600 font-bold">Q0.00</span>
+                                            <span class="font-medium">Margen calculado Empresa:</span>
+                                            <span id="margen_calculado_empresa" class="text-green-600 font-bold">0%</span>
+                                            <span class="ml-4 font-medium">Ganancia por unidad Empresa:</span>
+                                            <span id="ganancia_calculada_empresa" class="text-blue-600 font-bold">Q0.00</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1665,6 +1681,16 @@
                                         <div id="nuevo_precio_venta_error" class="mt-1 text-sm text-red-600 hidden">
                                         </div>
                                     </div>
+                                    <!-- precio venta empresa  -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
+                                            de venta Empresa*</label>
+                                        <input type="number" id="nuevo_precio_venta" name="precio_venta_empresa" step="0.01"
+                                            min="0" placeholder="0.00" required
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        <div id="nuevo_precio_venta_error" class="mt-1 text-sm text-red-600 hidden">
+                                        </div>
+                                    </div>
 
                                     <!-- Precio Especial -->
                                     <div>
@@ -1703,7 +1729,7 @@
                                     <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
                                         <div class="text-sm">
                                             <div class="flex justify-between mb-2">
-                                                <span class="text-gray-600 dark:text-gray-400">Margen calculado:</span>
+                                                <span class="text-gray-600 dark:text-gray-400">Margen calculado Individual:</span>
                                                 <span id="nuevo_margen_calculado"
                                                     class="font-medium text-green-600">0%</span>
                                             </div>
@@ -1711,6 +1737,17 @@
                                                 <span class="text-gray-600 dark:text-gray-400">Ganancia por
                                                     unidad:</span>
                                                 <span id="nueva_ganancia_calculada"
+                                                    class="font-medium text-blue-600">Q0.00</span>
+                                            </div>
+                                            <div class="flex justify-between mb-2">
+                                                <span class="text-gray-600 dark:text-gray-400">Margen calculado Empresa:</span>
+                                                <span id="nuevo_margen_calculado_empresa"
+                                                    class="font-medium text-green-600">0%</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600 dark:text-gray-400">Ganancia por
+                                                    unidad Empresa:</span>
+                                                <span id="nueva_ganancia_calculada_empresa"
                                                     class="font-medium text-blue-600">Q0.00</span>
                                             </div>
                                         </div>

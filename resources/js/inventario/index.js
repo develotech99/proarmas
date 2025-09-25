@@ -2238,13 +2238,18 @@ contarSeries(texto) {
 calcularMargen() {
     const costInput = document.getElementById('precio_costo');
     const ventaInput = document.getElementById('precio_venta');
+    const ventaInputEmpresa = document.getElementById('precio_venta_empresa');
     const margenElement = document.getElementById('margen_calculado');
     const gananciaElement = document.getElementById('ganancia_calculada');
+    const margenElementEmpresa = document.getElementById('margen_calculado_empresa');
+    const gananciaElementEmpresa = document.getElementById('ganancia_calculada_empresa');
     
     if (!costInput || !ventaInput || !margenElement || !gananciaElement) return;
     
     const costo = parseFloat(costInput.value) || 0;
     const venta = parseFloat(ventaInput.value) || 0;
+    const ventaEmpresa = parseFloat(ventaInputEmpresa.value) || 0;
+
     
     if (costo > 0 && venta > 0) {
         const ganancia = venta - costo;
@@ -2265,6 +2270,28 @@ calcularMargen() {
         margenElement.textContent = '0%';
         gananciaElement.textContent = 'Q0.00';
         margenElement.className = 'text-gray-400 font-bold';
+    }
+
+
+    if (costo > 0 && ventaEmpresa > 0) {
+        const ganancia = ventaEmpresa - costo;
+        const margen = ((ganancia / costo) * 100);
+        
+        margenElementEmpresa.textContent = `${margen.toFixed(1)}%`;
+        gananciaElementEmpresa.textContent = `Q${ganancia.toFixed(2)}`;
+        
+        // Colorear según el margen
+        if (margen < 10) {
+            margenElementEmpresa.className = 'text-red-600 font-bold';
+        } else if (margen < 25) {
+            margenElementEmpresa.className = 'text-yellow-600 font-bold';
+        } else {
+            margenElementEmpresa.className = 'text-green-600 font-bold';
+        }
+    } else {
+        margenElementEmpresa.textContent = '0%';
+        gananciaElementEmpresa.textContent = 'Q0.00';
+        margenElementEmpresa.className = 'text-gray-400 font-bold';
     }
 }
 
@@ -4201,13 +4228,23 @@ prepararGestionPrecios(producto) {
 setupCalculoMargenPrecios() {
     const costInput = document.getElementById('nuevo_precio_costo');
     const ventaInput = document.getElementById('nuevo_precio_venta');
+    const ventaInputEmpresa = document.getElementById('nuevo_precio_venta_empresa');
+
+    
+
+
     
     const calcularMargen = () => {
         const costo = parseFloat(costInput.value) || 0;
         const venta = parseFloat(ventaInput.value) || 0;
+        const c = parseFloat(ventaInputEmpresa.value) || 0;
+
         
         const margenElement = document.getElementById('nuevo_margen_calculado');
         const gananciaElement = document.getElementById('nueva_ganancia_calculada');
+
+        const margenElementEmpresa = document.getElementById('nuevo_margen_calculado_empresa');
+        const gananciaElementEmpresa = document.getElementById('nueva_ganancia_calculada_empresa');
         
         if (costo > 0 && venta > 0) {
             const ganancia = venta - costo;
@@ -4229,13 +4266,37 @@ setupCalculoMargenPrecios() {
             gananciaElement.textContent = 'Q0.00';
             margenElement.className = 'font-medium text-gray-600';
         }
+
+        if (costo > 0 && ventaEmpresa > 0) {
+            const ganancia = ventaEmpresa - costo;
+            const margen = ((ganancia / costo) * 100);
+            
+            margenElementEmpresa.textContent = `${margen.toFixed(1)}%`;
+            gananciaElementEmpresa.textContent = `Q${ganancia.toFixed(2)}`;
+            
+            // Colorear según el margen
+            if (margen < 10) {
+                margenElementEmpresa.className = 'font-medium text-red-600';
+            } else if (margen < 25) {
+                margenElementEmpresa.className = 'font-medium text-yellow-600';
+            } else {
+                margenElementEmpresa.className = 'font-medium text-green-600';
+            }
+        } else {
+            margenElementEmpresa.textContent = '0%';
+            gananciaElementEmpresa.textContent = 'Q0.00';
+            margenElementEmpresa.className = 'font-medium text-gray-600';
+        }
     };
+    
     
     // Remover listeners anteriores y agregar nuevos
     costInput.removeEventListener('input', calcularMargen);
     ventaInput.removeEventListener('input', calcularMargen);
+    ventaInputEmpresa.removeEventListener('input', calcularMargen)
     costInput.addEventListener('input', calcularMargen);
     ventaInput.addEventListener('input', calcularMargen);
+    ventaInputEmpresa.addEventListener('input', calcularMargen); 
 }
 
 /**
