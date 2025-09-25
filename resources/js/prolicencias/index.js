@@ -203,80 +203,83 @@ async loadPagosList(licId) {
       headers: { 'Accept': 'application/json' }, 
       credentials: 'same-origin' 
     });
-    
     const list = res.ok ? await res.json() : [];
-    
-    // Normaliza las URLs en todos los comprobantes
-    list.forEach(p => 
-      (p.metodos || []).forEach(m => 
-        (m.comprobantes || []).forEach(c => {
-          const normalizedUrl = this.toRelativeStorage(c.comprob_url || c.comprob_ruta || '');
-          c.comprob_url = normalizedUrl;
-          c.comprob_ruta = normalizedUrl; // Por si acaso se usa en otro lado
-        })
-      )
-    );
+
+    const toAbs = u => new URL(u, window.location.origin).toString();
+    const isPdf = (url, mime='') =>
+      (mime.toLowerCase().includes('pdf')) || /\.pdf(\?|#|$)/i.test(url);
+    const isImg = (url, mime='') =>
+      (mime.toLowerCase().startsWith('image/')) || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(url);
+
+    list.forEach(p => (p.metodos || []).forEach(m => {
+      m.comprobantes = (m.comprobantes || []).map(c => {
+        const normalized = this.toRelativeStorage(c.comprob_url || c.comprob_ruta || '');
+        const abs = toAbs(normalized);
+        const mime = c.comprob_mime || '';
+            console.log('ruta normalizada:', normalized);
+    console.log('ruta absoluta:', abs);
+        return {
+          ...c,
+          comprob_url: normalized,
+          comprob_ruta: normalized,
+          file: null,           // remoto
+          _url: abs,            // usar en <iframe>/<img>
+          _remoteUrl: abs,
+          _isRemote: true,
+          _isPdf: isPdf(abs, mime),
+          _isImage: isImg(abs, mime),
+        };
+      });
+    }));
+  
     
     this.pagosList = list;
-  } catch (error) {
-    console.error('Error cargando lista de pagos:', error);
+  } catch (e) {
+    console.error('Error cargando lista de pagos:', e);
     this.pagosList = [];
   }
 },
 
-// Convierte URLs a usar las rutas del controlador
-toRelativeStorage(u) {
+
+ toRelativeStorage(u) {
   if (!u) return '';
   u = String(u).replace(/\\/g, '/'); // quita backslashes de Windows
-  
+
+  const baseUrl = window.location.origin; // http://127.0.0.1:8000
+
   try {
-    const url = new URL(u);
+    const url = new URL(u, baseUrl);
     const p = url.pathname || '';
-    
-    // Si ya es una ruta de nuestro controlador, déjala así
-    if (p.includes('/prolicencias/comprobante/') || p.includes('/prolicencias/file/')) {
-      return p;
+
+    // Si ya está en /storage/pagos/comprobantes, lo devuelvo completo
+    if (p.includes('/storage/pagos/comprobantes/')) {
+      return `${baseUrl}${p}`;
     }
-    
-    // Extraer solo el nombre del archivo para comprobantes
-    if (p.includes('pagos/comprobantes/') || p.includes('/storage/pagos/comprobantes/')) {
+
+    // Si es un comprobante en pagos/comprobantes
+    if (p.includes('pagos/comprobantes/')) {
       const fileName = p.split('/').pop();
       if (fileName && fileName.includes('.')) {
-        return `/prolicencias/comprobante/${fileName}`;
+        return `${baseUrl}/storage/pagos/comprobantes/${fileName}`;
       }
     }
-    
-    // Para otros archivos, usar la ruta genérica
-    if (p.includes('/storage/')) {
-      const storageIndex = p.indexOf('/storage/');
-      const relativePath = p.substring(storageIndex + 9); // 9 = length of '/storage/'
-      return `/prolicencias/file/${encodeURIComponent(relativePath)}`;
-    }
-    
-    // Si es una ruta relativa que parece ser un archivo
+
+    // Si es un archivo con extensión
     if (p.includes('.')) {
       const fileName = p.split('/').pop();
-      return `/prolicencias/comprobante/${fileName}`;
+      return `${baseUrl}/storage/pagos/comprobantes/${fileName}`;
     }
-    
-    return `/prolicencias/file/${encodeURIComponent(p.replace(/^\/+/, ''))}`;
-    
+
+    // Caso genérico: le agregamos como si fuera comprobante
+    return `${baseUrl}/storage/pagos/comprobantes/${encodeURIComponent(p.replace(/^\/+/, ''))}`;
+
   } catch {
-    // Si no parsea como URL, trata u como ruta
-    if (u.includes('/prolicencias/comprobante/') || u.includes('/prolicencias/file/')) {
-      return u;
-    }
-    
-    // Si parece ser un comprobante (contiene nombre de archivo con extensión)
-    if (u.includes('pagos/comprobantes/') || (u.includes('.') && !u.includes('/'))) {
-      const fileName = u.split('/').pop();
-      return `/prolicencias/comprobante/${fileName}`;
-    }
-    
-    // Para cualquier otra cosa, usar ruta genérica
-    return `/prolicencias/file/${encodeURIComponent(u.replace(/^\/+/, ''))}`;
+    // Si no parsea como URL (ej. solo nombre de archivo)
+    const fileName = u.split('/').pop();
+    return `${baseUrl}/storage/pagos/comprobantes/${fileName}`;
   }
 },
+
 
 // Actualizar normalizeUrl
 normalizeUrl(u) {
@@ -434,20 +437,6 @@ cleanupPreviews() {
 },
 
 // Abre modal y pinta lo guardado (último pago por defecto)
-async openPagosModal(licenciaId) {
-  this.selectedLicenciaId = licenciaId;
-  this.showPagosModal = true;
-  await this.loadPagosList(licenciaId);
-  
-
-  if (Array.isArray(this.pagosList) && this.pagosList.length > 0) {
-    this.selectedPagoId = this.pagosList[0].pago_lic_id;
-    this.pagoData = this.mapPagoFromApi(this.pagosList[0], licenciaId);
-  } else {
-    this.selectedPagoId = 'new';
-    this.initNewPago(licenciaId);
-  }
-},
 
 async openPagosModal(licenciaId) {
   this.selectedLicenciaId = licenciaId;
@@ -463,34 +452,8 @@ async openPagosModal(licenciaId) {
     this.selectedPagoId = 'new';
     this.initNewPago(licenciaId);
   }
-  console.log('lista de pagos', this.pagosList);
+
 },
-
-// Trae TODOS los pagos de la licencia (formato JSON)
-// async loadPagosList(licId) {
-//   try {
-//     const res = await fetch(`/prolicencias/${licId}/pagos`, {
-//       headers: { 'Accept': 'application/json' },
-//       credentials: 'same-origin',
-//     });
-
-//     if (!res.ok) {
-//       console.error(`Error al obtener datos de pagos para la licencia ${licId}: ${res.statusText}`);
-//       this.pagosList = [];
-//       return;
-//     }
-
-//     const data = await res.json();
-//     console.log('Datos obtenidos de la API:', data);  // Verificar qué datos está recibiendo
-//     this.pagosList = data;
-//   } catch (error) {
-//     console.error('Error al cargar pagos:', error);
-//     this.pagosList = [];
-//   }
-// console.log('lista de pagos', this.pagosList);
-
-
-// },
 
 
 // Inicializa pago vacío
@@ -552,6 +515,16 @@ async loadPago(licId, pagoId) {
     // Si todo está bien, procesamos la respuesta
     const api = await res.json();
     this.pagoData = this.mapPagoFromApi(api, licId);
+    Swal.fire({
+  icon: 'success',
+  title: '¡comprobante cargado!',
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true
+});
+   
   } catch (e) {
     console.error('Error en loadPago:', e);
     // En caso de error, no resetear los datos, solo loguear el error
@@ -637,8 +610,60 @@ removeComprobante(mIdx, cIdx) {
 
 async savePago() {
   this.isSubmittingPago = true;
-  
+    const isNil = v => v === null || v === undefined;
+  const isBlank = v => (typeof v === 'string' ? v.trim() === '' : false);
+  const hasValue = v => !(isNil(v) || (typeof v === 'string' && isBlank(v)));
+  const isPosNumber = v => !isNaN(Number(v)) && Number(v) > 0;
+ 
+
+
+
   try {
+    // -------- 1) VALIDAR TODO EL FORMULARIO --------
+    const errors = [];
+
+    // Pago principal
+    if (!hasValue(this.pagoData?.pago_lic_total) || !isPosNumber(this.pagoData.pago_lic_total)) {
+      errors.push('El "Total del Pago" es obligatorio y debe ser mayor a 0.');
+    }
+
+    
+    // Métodos
+    if (!Array.isArray(this.pagoData?.metodos) || this.pagoData.metodos.length === 0) {
+      errors.push('Debes agregar al menos un método de pago.');
+    }
+
+    // Validaciones por método + suma
+    let sumaMetodos = 0;
+
+  (this.pagoData.metodos || []).forEach((m, i) => {
+  const label = `Método #${i + 1}`;
+
+  if (!hasValue(m?.pagomet_metodo)) {
+    errors.push(`${label}: selecciona el "Método de Pago".`);
+  }
+
+  if (!hasValue(m?.pagomet_monto) || !isPosNumber(m.pagomet_monto)) {
+    errors.push(`${label}: el "Monto" es obligatorio y debe ser mayor a 0.`);
+  } else {
+    sumaMetodos += Number(m.pagomet_monto);
+  }
+}); // ✅ aquí cerramos el forEach
+
+// Si hay errores, alertar y detener
+if (errors.length > 0) {
+  Swal.fire({
+    icon: 'warning',
+    title: 'Faltan campos obligatorios',
+    html: `<ul style="text-align:left;margin:0;padding-left:18px;">
+      ${errors.map(e => `<li>${e}</li>`).join('')}
+    </ul>`,
+    confirmButtonText: 'Corregir'
+  });
+  return;
+}
+
+
     const fd = new FormData();
 
     const payload = JSON.parse(JSON.stringify(this.pagoData));
@@ -653,6 +678,8 @@ async savePago() {
           comprob_mime: c.comprob_mime
         }));
     });
+
+    
 
     fd.append('payload', JSON.stringify(payload));
     
@@ -705,12 +732,30 @@ async savePago() {
     await this.loadPagosList(this.selectedLicenciaId);
     this.selectedPagoId = this.pagoData.pago_lic_id;
 
+Swal.fire({
+  icon: 'success',
+  title: '¡comprobante guardado!',
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true
+});
+
+
   } catch (e) {
     console.error('Error completo:', e);
+    Swal.fire({
+  icon: 'error',
+  title: '¡Error inesperado!',
+  text: e.message || 'Revisa la consola para más detalles.',
+  confirmButtonText: 'Aceptar'
+});
+
   } finally {
     this.isSubmittingPago = false;
   }
-  this.closePagosModal();
+
 },
     // Formatear tamaño de archivo
     formatFileSize(bytes) {
@@ -758,8 +803,16 @@ async deletePagoActual() {
       this.selectedPagoId = 'new';
       this.initNewPago(this.selectedLicenciaId);
     }
-    this.notice = { type: 'success', text: 'Pago eliminado' };
-    setTimeout(() => { if (this.notice?.type==='success') this.notice = null; }, 1500);
+Swal.fire({
+  icon: 'success',
+  title: 'Pago eliminado',
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 1500,
+  timerProgressBar: true
+});
+
 
   } catch (e) {
     console.error('Error al eliminar:', e);
