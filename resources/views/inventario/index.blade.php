@@ -1361,7 +1361,7 @@
                         </div>
 
                         <!-- Producto Importado y Licencias -->
-                        <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
+                        <div class="border-gray-200 dark:border-gray-700 pt-4 mb-4" id="contenedor_importacion">
                             <div class="flex items-center mb-3">
                                 <input type="checkbox" id="producto_es_importado" name="producto_es_importado" value="1"
                                     class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">

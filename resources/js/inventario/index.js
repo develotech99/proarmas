@@ -2391,7 +2391,8 @@ async seleccionarProducto(productoId) {
             // Obtener elementos del DOM
             const cantidadSection = document.getElementById('cantidad_section');
             const seriesSection = document.getElementById('series_section');
-            const loteSection = document.getElementById('lote_section'); // SIEMPRE MOSTRAR SECCIÓN DE LOTES
+            const loteSection = document.getElementById('lote_section');
+            const importadoSection = document.getElementById('contenedor_importacion'); 
             const movCantidadInput = document.getElementById('mov_cantidad');
             const numerosSeriesTextarea = document.getElementById('numeros_series');
             
@@ -2403,7 +2404,7 @@ async seleccionarProducto(productoId) {
                 // Mostrar sección de series, ocultar cantidad
                 if (seriesSection) seriesSection.classList.remove('hidden');
                 if (cantidadSection) cantidadSection.classList.add('hidden');
-                
+             
                 // Configurar atributos required
                 if (movCantidadInput) {
                     movCantidadInput.removeAttribute('required');
@@ -2420,7 +2421,7 @@ async seleccionarProducto(productoId) {
                 // Mostrar sección de cantidad, ocultar series
                 if (cantidadSection) cantidadSection.classList.remove('hidden');
                 if (seriesSection) seriesSection.classList.add('hidden');
-                
+  
                 // Configurar atributos required
                 if (movCantidadInput) {
                     movCantidadInput.setAttribute('required', 'required');
@@ -2429,6 +2430,18 @@ async seleccionarProducto(productoId) {
                 if (numerosSeriesTextarea) {
                     numerosSeriesTextarea.removeAttribute('required');
                     numerosSeriesTextarea.value = '';
+                }
+            }
+            
+            // GESTIÓN DE SECCIÓN DE IMPORTACIÓN
+            // Solo mostrar si el producto ES importado
+            if (importadoSection) {
+                if (this.productoSeleccionado.producto_es_importado) {
+                    importadoSection.classList.remove('hidden');
+                    console.log('Producto importado - mostrando sección de importación');
+                } else {
+                    importadoSection.classList.add('hidden');
+                    console.log('Producto NO importado - ocultando sección de importación');
                 }
             }
             
@@ -2900,7 +2913,6 @@ renderProductoCard(producto) {
      * Abrir modal de ingreso a inventario
      */
     openIngresoModal() {
-        this.resetIngresoForm();
         this.showModal('ingreso');
     }
 
@@ -3579,11 +3591,13 @@ resetRegistroForm() {
         const cantidadSection = document.getElementById('cantidad_section');
         const seriesSection = document.getElementById('series_section');
         const loteSection = document.getElementById('lote_section');
+        const importadoSection = document.getElementById('contenedor_importacion');
         
-        // Estado inicial: mostrar cantidad, ocultar series y lotes
+        // Estado inicial: mostrar cantidad, ocultar series, lotes e importación
         if (cantidadSection) cantidadSection.classList.remove('hidden');
         if (seriesSection) seriesSection.classList.add('hidden');
         if (loteSection) loteSection.classList.remove('hidden');
+        if (importadoSection) importadoSection.classList.add('hidden'); // 👈 OCULTAR POR DEFECTO
         
         // Estado inicial de required attributes
         if (movCantidadInput) {
@@ -3594,7 +3608,7 @@ resetRegistroForm() {
             numerosSeriesTextarea.removeAttribute('required');
             numerosSeriesTextarea.value = '';
         }
-    
+        
         // Resetear todas las secciones opcionales
         const seccionLicenciaRegistro = document.getElementById('seccion_licencia_registro');
         const seccionPrecios = document.getElementById('seccion_precios');
@@ -3603,7 +3617,7 @@ resetRegistroForm() {
         if (seccionLicenciaRegistro) seccionLicenciaRegistro.classList.add('hidden');
         if (seccionPrecios) seccionPrecios.classList.add('hidden');
         if (opcionesLote) opcionesLote.classList.add('hidden');
-    
+        
         // Resetear checkboxes
         const checkboxImportado = document.getElementById('producto_es_importado');
         const checkboxPrecios = document.getElementById('agregar_precios');
@@ -3612,14 +3626,14 @@ resetRegistroForm() {
         if (checkboxImportado) checkboxImportado.checked = false;
         if (checkboxPrecios) checkboxPrecios.checked = false;
         if (checkboxUsarLotes) checkboxUsarLotes.checked = false;
-    
+        
         // Limpiar configuración de lotes
         this.limpiarConfiguracionLotes();
-    
+        
         // Resetear licencias seleccionadas
         this.limpiarLicenciaSeleccionada();
         this.limpiarLicenciaSeleccionadaRegistro();
-    
+        
         // Resetear estado interno
         this.productoSeleccionado = null;
         this.licenciaSeleccionada = null;
@@ -3628,7 +3642,6 @@ resetRegistroForm() {
         
         console.log('Formulario de ingreso reseteado correctamente');
     }
-
 
     
 // ================================
