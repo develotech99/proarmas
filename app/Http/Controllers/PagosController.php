@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NotificarpagoMail;
 use App\Models\ProVenta;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Log;
+use Mail;
+use PhpParser\Node\Expr;
 
 class PagosController extends Controller
 {
@@ -238,84 +242,71 @@ class PagosController extends Controller
         }
     }
 
-
-    public function pagarCuotas(PagarCuotasRequest $req)
+    public function pagarCuotas(Request $request)
     {
-        $user = $req->user();
 
-        return DB::transaction(function () use ($req, $user) {
-
-            $venta = Venta::where('id', $req->venta_id)
-                ->where('user_id', $user->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            // Trae y valida cuotas seleccionadas pertenecen a la venta y están pendientes
-            $cuotas = Cuota::whereIn('id', $req->cuotas)
-                ->where('venta_id', $venta->id)
-                ->where('estado', 'PENDIENTE')
-                ->get();
-
-            if ($cuotas->isEmpty()) {
-                return response()->json(['codigo' => 0, 'mensaje' => 'Las cuotas seleccionadas no están disponibles'], 422);
-            }
-
-            $totalCuotas = (float) $cuotas->sum('monto');
-
-            // Crea el pago (validación suave: permitimos pequeñas diferencias)
-            $montoComprobante = round((float)$req->monto, 2);
-            $diff = abs($montoComprobante - $totalCuotas);
-
-            if ($diff > 0.05) {
-                // Si quieres bloquear, devuelve error. Si no, solo marca "PARCIAL".
-                // Aquí solo lo anotamos en observación de estado.
-            }
-
-            $path = null;
-            if ($req->hasFile('comprobante')) {
-                $path = $req->file('comprobante')->store('comprobantes', 'public');
-            }
-
-            $pago = Pago::create([
-                'venta_id'       => $venta->id,
-                'user_id'        => $user->id,
-                'banco_id'       => $req->banco_id,
-                'banco_nombre'   => $req->banco_nombre,
-                'monto'          => $montoComprobante,
-                'fecha'          => $req->fecha ? now()->parse($req->fecha) : null,
-                'referencia'     => $req->referencia,
-                'concepto'       => $req->concepto,
-                'comprobante_path' => $path,
-                'estado_validacion' => 'PENDIENTE',
+        try {
+            $user = $request->user();
+            $data = $request->validate([
+                'venta_id'     => ['required', 'string'],
+                'cuotas'       => ['required', 'string'],
+                'monto_total'  => ['required'],
+                'fecha'        => ['nullable', 'date_format:Y-m-d\TH:i'],
+                'monto'        => ['required'],
+                'referencia'   => ['required', 'string', 'min:6', 'max:64'],
+                'concepto'     => ['nullable', 'string', 'max:255'],
+                'banco_id'     => ['nullable', 'string', 'max:16'],
+                'banco_nombre' => ['nullable', 'string', 'max:64'],
+                'comprobante'  => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
-            // Vincula cuotas al pago
-            $pago->cuotas()->sync($cuotas->pluck('id')->all());
 
-            // (Opcional) actualiza totales de la venta y marca cuotas como pendientes de revisión
-            // NO las marcamos PAGADAS hasta que el admin apruebe
-            // Si quieres marcarlas "EN_REVISION", agrega esa columna/valor.
-
-            // Notifica por correo
-            try {
-                Mail::to(config('mail.pagos_admin', env('PAGOS_ADMIN_EMAIL')))
-                    ->send(new PagoEnviado($pago));
-            } catch (\Throwable $e) {
-                // Log y continuo; el pago queda registrado igual
-                \Log::warning('No se pudo enviar correo de pago: ' . $e->getMessage());
+            $cuotasArr = json_decode($data['cuotas'], true);
+            if (!is_array($cuotasArr)) {
+                $cuotasArr = [];
             }
+
+            $payload = [
+                'venta_id'     => $data['venta_id'],
+                'cuotas'       => $cuotasArr,
+                'monto_total'  => $data['monto_total'],
+                'fecha'        => $data['fecha'] ?? null,
+                'monto'        => $data['monto'],
+                'referencia'   => $data['referencia'],
+                'concepto'     => $data['concepto'] ?? null,
+                'banco_id'     => $data['banco_id'] ?? null,
+                'banco_nombre' => $data['banco_nombre'] ?? null,
+                'cliente'      => [
+                    'id'     => $user->id ?? $user->user_id ?? null,
+                    'nombre' => $user->name ?? ($user->nombre ?? 'Cliente'),
+                    'email'  => $user->email ?? 'sin-correo',
+                ],
+            ];
+
+
+            $destinatario = env('PAYMENTS_TO', env('MAIL_FROM_ADMIN') ?: config('mail.from.address'));
+
+            if (!$destinatario) {
+                return response()->json([
+                    'codigo'  => 0,
+                    'mensaje' => 'No hay destinatario configurado (PAYMENTS_TO / MAIL_FROM_ADMIN / mail.from.address).',
+                ], 500);
+            }
+
+
+            Mail::to($destinatario)
+                ->send(new NotificarpagoMail($payload, $request->file('comprobante')));
 
             return response()->json([
                 'codigo'  => 1,
-                'mensaje' => 'Pago recibido y enviado para validación',
-                'data'    => [
-                    'pago_id'       => $pago->id,
-                    'total_cuotas'  => $totalCuotas,
-                    'monto_ingresado' => $montoComprobante,
-                    'estado'        => $pago->estado_validacion
-                ]
-            ]);
-        });
+                'mensaje' => 'Pago Registrado Exitosamente, Adicional a ello se le ha notificado al Administrador de su pago',
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => $e->getMessage()
+            ], 200);
+        }
     }
     public function create()
     {
