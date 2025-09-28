@@ -1,23 +1,23 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\MetodoPagoController;
-use App\Http\Controllers\PaisController;
-use App\Http\Controllers\UnidadMedidaController;
-use App\Http\Controllers\InventarioController;
-use App\Http\Controllers\CalibreController;
-use App\Http\Controllers\CategoriasController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PaisController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\MarcasController;
+use App\Http\Controllers\VentasController;
+use App\Http\Controllers\CalibreController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
-use App\Http\Controllers\ProLicenciaParaImportacionController;
-use App\Http\Controllers\ProEmpresaDeImportacionController;
-use App\Http\Controllers\UsersUbicacionController;
-use App\Http\Controllers\VentasController;
+use App\Http\Controllers\CategoriasController;
 use App\Http\Controllers\ComisionesController;
-use App\Http\Controllers\ReportesController;
+use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\MetodoPagoController;
+use App\Http\Controllers\UnidadMedidaController;
+use App\Http\Controllers\UsersUbicacionController;
+use App\Http\Controllers\ProEmpresaDeImportacionController;
+use App\Http\Controllers\ProLicenciaParaImportacionController;
 
 
 
@@ -426,6 +426,52 @@ Route::middleware('auth')->group(function () {
       Route::put('/comisiones', [ComisionesController::class, 'update'])->name('comisiones.update');
       Route::put('/comisiones/cancelar', [ComisionesController::class, 'cancelar'])->name('comisiones.cancelar');
 
+
+      // ================================
+      // RUTAS PARA SISTEMA DE REPORTES
+      // ================================
+
+      // Vista principal de reportes
+      Route::get('/reportes', [ReportesController::class, 'index'])->name('reportes.index');
+      // ================================
+      // APIs PARA DASHBOARD Y KPIS
+      // ================================
+      // Dashboard principal con KPIs y gráficos
+      Route::get('/reportes/dashboard', [ReportesController::class, 'getDashboard'])->name('reportes.dashboard');
+      // Filtros para formularios (vendedores, categorías, etc.)
+      Route::get('/reportes/filtros', [ReportesController::class, 'getFiltros'])->name('reportes.filtros');
+
+      // ================================
+      // REPORTES ESPECÍFICOS
+      // ================================    
+      // Reporte detallado de ventas
+      Route::get('/reportes/ventas', [ReportesController::class, 'getReporteVentas'])->name('reportes.ventas');   
+      // Reporte de productos más vendidos
+      Route::get('/reportes/productos', [ReportesController::class, 'getReporteProductos'])->name('reportes.productos');   
+      // Reporte de comisiones de vendedores
+      Route::get('/reportes/comisiones', [ReportesController::class, 'getReporteComisiones'])->name('reportes.comisiones');   
+      // Reporte de pagos y cuotas
+      Route::get('/reportes/pagos', [ReportesController::class, 'getReportePagos'])->name('reportes.pagos');
+      // ================================
+      // EXPORTACIÓN DE REPORTES
+      // ================================ 
+      // Exportar a PDF
+      Route::get('/reportes/exportar-pdf', [ReportesController::class, 'exportarPDF'])->name('reportes.exportar.pdf'); 
+      // Exportar a Excel
+      Route::get('/reportes/exportar-excel', [ReportesController::class, 'exportarExcel'])->name('reportes.exportar.excel');
+
+      // ================================
+      // RUTAS ADICIONALES (OPCIONALES)
+      // ================================
+      // Detalle específico de una venta
+      Route::get('/reportes/ventas/{id}/detalle', [ReportesController::class, 'getDetalleVenta'])->name('reportes.venta.detalle');
+      // Imprimir comprobante de venta
+      Route::get('/reportes/ventas/{id}/imprimir', [ReportesController::class, 'imprimirVenta'])->name('reportes.venta.imprimir'); 
+      // Estadísticas avanzadas por período
+      Route::get('/reportes/estadisticas-avanzadas', [ReportesController::class, 'getEstadisticasAvanzadas'])->name('reportes.estadisticas.avanzadas');
+      // Comparación entre períodos
+      Route::get('/reportes/comparacion-periodos', [ReportesController::class, 'getComparacionPeriodos'])->name('reportes.comparacion.periodos');
+      
 });
 
 

@@ -1,0 +1,1210 @@
+/**
+ * Gestor del Sistema de Reportes - Armería
+ * JavaScript puro - Laravel
+ */
+class ReportesManager {
+    constructor() {
+        this.currentTab = 'dashboard';
+        this.kpis = {};
+        this.filtros = {
+            fecha_inicio: null,
+            fecha_fin: null
+        };
+        this.graficos = {
+            ventasDias: null,
+            productosTop: null,
+            vendedores: null,
+            metodosPago: null
+        };
+        this.data = {
+            ventas: [],
+            productos: [],
+            comisiones: [],
+            pagos: []
+        };
+        
+        this.init();
+    }
+
+    /**
+     * Inicializar el gestor
+     */
+    init() {
+        console.log('🚀 ReportesManager inicializado');
+        this.setupEventListeners();
+        this.setupFechasIniciales();
+        this.loadInitialData();
+    }
+
+    /**
+     * Configurar event listeners
+     */
+    setupEventListeners() {
+        // Event listeners para filtros de fecha
+        const fechaInicio = document.getElementById('fecha_inicio');
+        const fechaFin = document.getElementById('fecha_fin');
+        
+        if (fechaInicio) {
+            fechaInicio.addEventListener('change', (e) => {
+                this.filtros.fecha_inicio = e.target.value;
+            });
+        }
+
+        if (fechaFin) {
+            fechaFin.addEventListener('change', (e) => {
+                this.filtros.fecha_fin = e.target.value;
+            });
+        }
+    }
+
+    /**
+     * Configurar fechas iniciales (mes actual)
+     */
+    setupFechasIniciales() {
+        const hoy = new Date();
+        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+
+        const fechaInicioEl = document.getElementById('fecha_inicio');
+        const fechaFinEl = document.getElementById('fecha_fin');
+
+        if (fechaInicioEl) {
+            fechaInicioEl.value = this.formatearFecha(inicioMes);
+            this.filtros.fecha_inicio = this.formatearFecha(inicioMes);
+        }
+
+        if (fechaFinEl) {
+            fechaFinEl.value = this.formatearFecha(finMes);
+            this.filtros.fecha_fin = this.formatearFecha(finMes);
+        }
+    }
+
+    /**
+     * Cargar datos iniciales
+     */
+    async loadInitialData() {
+        try {
+            await Promise.all([
+                this.loadDashboard(),
+                this.loadFiltros()
+            ]);
+        } catch (error) {
+            console.error('Error cargando datos iniciales:', error);
+            this.showAlert('error', 'Error', 'No se pudieron cargar los datos iniciales');
+        }
+    }
+
+    /**
+     * Cargar dashboard con KPIs y gráficos
+     */
+    async loadDashboard() {
+        try {
+            this.showLoading('dashboard');
+            
+            const response = await fetch('/reportes/dashboard?' + new URLSearchParams(this.filtros));
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    this.updateKPIs(result.data.kpis);
+                    this.updateGraficos(result.data.graficos);
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando dashboard:', error);
+        } finally {
+            this.hideLoading('dashboard');
+        }
+    }
+
+    /**
+     * Cargar filtros para los formularios
+     */
+    async loadFiltros() {
+        try {
+            const response = await fetch('/reportes/filtros');
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    this.populateFiltros(result.data);
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando filtros:', error);
+        }
+    }
+
+    /**
+     * Cambiar tab activo
+     */
+    cambiarTab(tab) {
+        // Actualizar botones
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+            btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+        });
+
+        // Encontrar el botón clickeado y activarlo
+        const activeButton = document.querySelector(`button[onclick*="'${tab}'"]`);
+        if (activeButton) {
+            activeButton.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+            activeButton.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+        }
+
+        // Mostrar/ocultar contenido
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+
+        const tabContent = document.getElementById(`tab-${tab}`);
+        if (tabContent) {
+            tabContent.classList.remove('hidden');
+        }
+        
+        this.currentTab = tab;
+
+        // Cargar datos específicos del tab
+        this.loadTabData(tab);
+    }
+
+    /**
+     * Cargar datos específicos del tab
+     */
+    async loadTabData(tab) {
+        switch (tab) {
+            case 'ventas':
+                await this.loadReporteVentas();
+                break;
+            case 'productos':
+                await this.loadReporteProductos();
+                break;
+            case 'comisiones':
+                await this.loadReporteComisiones();
+                break;
+            case 'pagos':
+                await this.loadReportePagos();
+                break;
+        }
+    }
+
+    /**
+     * Actualizar KPIs en el dashboard
+     */
+    updateKPIs(kpis) {
+        const elements = {
+            'kpi-total-ventas': this.formatNumber(kpis.total_ventas),
+            'kpi-monto-total': this.formatCurrency(kpis.monto_total),
+            'kpi-productos-vendidos': this.formatNumber(kpis.productos_vendidos),
+            'kpi-comisiones-pendientes': this.formatCurrency(kpis.comisiones_pendientes)
+        };
+
+        Object.entries(elements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        });
+        
+        // Actualizar promedios
+        if (kpis.total_ventas > 0) {
+            const promedioEl = document.getElementById('kpi-promedio-productos');
+            if (promedioEl) {
+                promedioEl.textContent = `${Math.round(kpis.productos_vendidos / kpis.total_ventas)} promedio por venta`;
+            }
+        }
+    }
+
+    /**
+     * Actualizar gráficos del dashboard
+     */
+    updateGraficos(graficos) {
+        // Solo crear gráficos si Chart.js está disponible
+        if (typeof Chart !== 'undefined') {
+            this.createGraficoVentasDias(graficos.ventas_por_dia);
+            this.createGraficoProductosTop(graficos.productos_mas_vendidos);
+            this.createGraficoVendedores(graficos.ventas_por_vendedor);
+            this.createGraficoMetodosPago(graficos.metodos_pago);
+        } else {
+            console.warn('Chart.js no está disponible');
+        }
+    }
+
+    /**
+     * Crear gráfico de ventas por día
+     */
+    createGraficoVentasDias(data) {
+        const ctx = document.getElementById('grafico-ventas-dias');
+        if (!ctx) return;
+        
+        if (this.graficos.ventasDias) {
+            this.graficos.ventasDias.destroy();
+        }
+
+        this.graficos.ventasDias = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(item => this.formatearFechaCorta(item.fecha)),
+                datasets: [{
+                    label: 'Ventas',
+                    data: data.map(item => item.total_ventas),
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Monto (Q)',
+                    data: data.map(item => item.monto_total),
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    yAxisID: 'y1',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Crear gráfico de productos más vendidos
+     */
+    createGraficoProductosTop(data) {
+        const ctx = document.getElementById('grafico-productos-top');
+        if (!ctx) return;
+        
+        if (this.graficos.productosTop) {
+            this.graficos.productosTop.destroy();
+        }
+
+        this.graficos.productosTop = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(item => this.truncateText(item.producto_nombre, 15)),
+                datasets: [{
+                    label: 'Cantidad Vendida',
+                    data: data.map(item => item.total_vendido),
+                    backgroundColor: 'rgba(234, 179, 8, 0.7)',
+                    borderColor: 'rgb(234, 179, 8)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Crear gráfico de ventas por vendedor
+     */
+    createGraficoVendedores(data) {
+        const ctx = document.getElementById('grafico-vendedores');
+        if (!ctx) return;
+        
+        if (this.graficos.vendedores) {
+            this.graficos.vendedores.destroy();
+        }
+
+        const colors = [
+            'rgb(239, 68, 68)', 'rgb(34, 197, 94)', 'rgb(59, 130, 246)',
+            'rgb(234, 179, 8)', 'rgb(168, 85, 247)', 'rgb(236, 72, 153)'
+        ];
+
+        this.graficos.vendedores = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.map(item => item.vendedor),
+                datasets: [{
+                    data: data.map(item => item.monto_total),
+                    backgroundColor: colors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Crear gráfico de métodos de pago
+     */
+    createGraficoMetodosPago(data) {
+        const ctx = document.getElementById('grafico-metodos-pago');
+        if (!ctx) return;
+        
+        if (this.graficos.metodosPago) {
+            this.graficos.metodosPago.destroy();
+        }
+
+        this.graficos.metodosPago = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: data.map(item => item.metodo),
+                datasets: [{
+                    data: data.map(item => item.monto_total),
+                    backgroundColor: [
+                        'rgb(99, 102, 241)', 'rgb(16, 185, 129)', 'rgb(245, 101, 101)',
+                        'rgb(251, 191, 36)', 'rgb(139, 92, 246)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+
+    /**
+     * Cargar reporte de ventas
+     */
+    async loadReporteVentas(filtros = {}) {
+        try {
+            this.showLoading('ventas');
+            
+            const params = { ...this.filtros, ...filtros };
+            const response = await fetch('/reportes/ventas?' + new URLSearchParams(params));
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data.data) {
+                    this.renderTablaVentas(result.data.data);
+                    this.renderPaginacionVentas(result.data);
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando reporte de ventas:', error);
+        } finally {
+            this.hideLoading('ventas');
+        }
+    }
+
+    /**
+     * Cargar reporte de productos
+     */
+    async loadReporteProductos(filtros = {}) {
+        try {
+            this.showLoading('productos');
+            
+            const params = { ...this.filtros, ...filtros };
+            const response = await fetch('/reportes/productos?' + new URLSearchParams(params));
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    this.renderTablaProductos(result.data);
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando reporte de productos:', error);
+        } finally {
+            this.hideLoading('productos');
+        }
+    }
+
+    /**
+     * Cargar reporte de comisiones
+     */
+    async loadReporteComisiones(filtros = {}) {
+        try {
+            this.showLoading('comisiones');
+            
+            const params = { ...this.filtros, ...filtros };
+            const response = await fetch('/reportes/comisiones?' + new URLSearchParams(params));
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    this.renderTablaComisiones(result.data.comisiones.data);
+                    this.updateResumenComisiones(result.data.resumen);
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando reporte de comisiones:', error);
+        } finally {
+            this.hideLoading('comisiones');
+        }
+    }
+
+    /**
+     * Cargar reporte de pagos
+     */
+    async loadReportePagos(filtros = {}) {
+        try {
+            this.showLoading('pagos');
+            
+            const params = { ...this.filtros, ...filtros };
+            const response = await fetch('/reportes/pagos?' + new URLSearchParams(params));
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data.data) {
+                    this.renderTablaPagos(result.data.data);
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando reporte de pagos:', error);
+        } finally {
+            this.hideLoading('pagos');
+        }
+    }
+
+    /**
+     * Renderizar tabla de ventas
+     */
+    renderTablaVentas(ventas) {
+        const tbody = document.getElementById('tbody-ventas');
+        if (!tbody) return;
+        
+        if (ventas.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                        No se encontraron ventas en el período seleccionado
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = ventas.map(venta => `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${this.formatearFecha(venta.ven_fecha)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${venta.cliente?.cliente_nombre1 || 'Cliente general'} ${venta.cliente?.cliente_apellido1 || ''}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${venta.vendedor?.user_primer_nombre || ''} ${venta.vendedor?.user_primer_apellido || ''}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${venta.detalle_ventas?.length || 0} productos
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                    ${this.formatCurrency(venta.ven_total_vendido)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    ${this.renderEstadoPago(venta.estado_pago || 'SIN_CONTROL')}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})" 
+                            class="text-blue-600 hover:text-blue-900 mr-3">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="reportesManager.imprimirVenta(${venta.ven_id})" 
+                            class="text-green-600 hover:text-green-900">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    /**
+     * Renderizar tabla de productos
+     */
+    renderTablaProductos(productos) {
+        const tbody = document.getElementById('tbody-productos');
+        if (!tbody) return;
+        
+        tbody.innerHTML = productos.map((producto, index) => `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 h-8 w-8">
+                            <div class="h-8 w-8 rounded-full ${this.getRankingColor(index)} flex items-center justify-center text-white text-sm font-bold">
+                                ${index + 1}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        ${producto.producto_nombre}
+                    </div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                        SKU: ${producto.pro_codigo_sku || 'N/A'}
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${producto.categoria_nombre || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${producto.marca_nombre || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
+                    ${this.formatNumber(producto.total_vendido)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${this.formatCurrency(producto.precio_promedio)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                    ${this.formatCurrency(producto.total_ingresos)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${this.formatNumber(producto.total_transacciones)}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    /**
+     * Renderizar tabla de comisiones
+     */
+    renderTablaComisiones(comisiones) {
+        const tbody = document.getElementById('tbody-comisiones');
+        if (!tbody) return;
+
+        tbody.innerHTML = comisiones.map(comision => `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${this.formatearFecha(comision.porc_vend_fecha_asignacion)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${comision.vendedor?.user_primer_nombre || ''} ${comision.vendedor?.user_primer_apellido || ''}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    #${comision.venta?.ven_id || 'N/A'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${this.formatCurrency(comision.porc_vend_monto_base)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${comision.porc_vend_porcentaje}%
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                    ${this.formatCurrency(comision.porc_vend_cantidad_ganancia)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    ${this.renderEstadoComision(comision.porc_vend_estado)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <button onclick="reportesManager.pagarComision(${comision.porc_vend_id})" 
+                            class="text-green-600 hover:text-green-900">
+                        <i class="fas fa-dollar-sign"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    /**
+     * Renderizar tabla de pagos
+     */
+    renderTablaPagos(pagos) {
+        const tbody = document.getElementById('tbody-pagos');
+        if (!tbody) return;
+
+        tbody.innerHTML = pagos.map(pago => `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${this.formatearFecha(pago.pago_fecha_inicio)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${pago.venta?.cliente?.cliente_nombre1 || ''} ${pago.venta?.cliente?.cliente_apellido1 || ''}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${pago.venta?.vendedor?.user_primer_nombre || ''} ${pago.venta?.vendedor?.user_primer_apellido || ''}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${this.formatCurrency(pago.pago_monto_total)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                    ${this.formatCurrency(pago.pago_monto_abonado)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600">
+                    ${this.formatCurrency(pago.pago_monto_total - pago.pago_monto_abonado)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    ${pago.pago_tipo_pago}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    ${this.renderEstadoPago(pago.pago_estado)}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    /**
+     * Aplicar filtro de fecha
+     */
+    aplicarFiltroFecha() {
+        if (!this.filtros.fecha_inicio || !this.filtros.fecha_fin) {
+            this.showAlert('warning', 'Fechas requeridas', 'Debe seleccionar fecha de inicio y fin');
+            return;
+        }
+
+        if (new Date(this.filtros.fecha_inicio) > new Date(this.filtros.fecha_fin)) {
+            this.showAlert('warning', 'Fechas inválidas', 'La fecha de inicio debe ser menor a la fecha de fin');
+            return;
+        }
+
+        // Recargar datos con las nuevas fechas
+        if (this.currentTab === 'dashboard') {
+            this.loadDashboard();
+        } else {
+            this.loadTabData(this.currentTab);
+        }
+    }
+
+    /**
+     * Aplicar filtros específicos de ventas
+     */
+    aplicarFiltrosVentas() {
+        const filtros = {};
+        
+        const vendedorEl = document.getElementById('filtro-vendedor-ventas');
+        const clienteEl = document.getElementById('filtro-cliente-ventas');
+        const estadoEl = document.getElementById('filtro-estado-ventas');
+        
+        if (vendedorEl?.value) filtros.vendedor_id = vendedorEl.value;
+        if (clienteEl?.value) filtros.cliente_id = clienteEl.value;
+        if (estadoEl?.value) filtros.estado = estadoEl.value;
+
+        this.loadReporteVentas(filtros);
+    }
+
+    /**
+     * Aplicar filtros específicos de productos
+     */
+    aplicarFiltrosProductos() {
+        const filtros = {};
+        
+        const categoriaEl = document.getElementById('filtro-categoria-productos');
+        const marcaEl = document.getElementById('filtro-marca-productos');
+        const limiteEl = document.getElementById('filtro-limite-productos');
+        
+        if (categoriaEl?.value) filtros.categoria_id = categoriaEl.value;
+        if (marcaEl?.value) filtros.marca_id = marcaEl.value;
+        if (limiteEl?.value) filtros.limit = limiteEl.value;
+
+        this.loadReporteProductos(filtros);
+    }
+
+    /**
+     * Aplicar filtros específicos de comisiones
+     */
+    aplicarFiltrosComisiones() {
+        const filtros = {};
+        
+        const vendedorEl = document.getElementById('filtro-vendedor-comisiones');
+        const estadoEl = document.getElementById('filtro-estado-comisiones');
+        
+        if (vendedorEl?.value) filtros.vendedor_id = vendedorEl.value;
+        if (estadoEl?.value) filtros.estado = estadoEl.value;
+
+        this.loadReporteComisiones(filtros);
+    }
+
+    /**
+     * Aplicar filtros específicos de pagos
+     */
+    aplicarFiltrosPagos() {
+        const filtros = {};
+        
+        const estadoEl = document.getElementById('filtro-estado-pagos');
+        const tipoEl = document.getElementById('filtro-tipo-pagos');
+        
+        if (estadoEl?.value) filtros.estado = estadoEl.value;
+        if (tipoEl?.value) filtros.tipo_pago = tipoEl.value;
+
+        this.loadReportePagos(filtros);
+    }
+
+    /**
+     * Exportar reporte
+     */
+    async exportarReporte(tipo, formato) {
+        try {
+            const params = new URLSearchParams({
+                ...this.filtros,
+                tipo_reporte: tipo,
+                formato: formato
+            });
+
+            const url = `/reportes/exportar-${formato}?${params}`;
+            window.open(url, '_blank');
+            
+            this.showAlert('success', 'Exportación', `Reporte de ${tipo} exportado a ${formato.toUpperCase()}`);
+        } catch (error) {
+            console.error('Error exportando reporte:', error);
+            this.showAlert('error', 'Error', 'Error al exportar el reporte');
+        }
+    }
+
+    /**
+     * Cambiar tipo de gráfico
+     */
+    cambiarTipoGrafico(grafico, tipo) {
+        // Actualizar botones activos
+        const container = event.currentTarget.closest('.bg-white, .bg-gray-800');
+        container.querySelectorAll('.grafico-tipo-btn').forEach(btn => {
+            btn.classList.remove('active', 'bg-blue-100', 'text-blue-600');
+            btn.classList.add('bg-gray-100', 'text-gray-600');
+        });
+
+        event.currentTarget.classList.add('active', 'bg-blue-100', 'text-blue-600');
+        event.currentTarget.classList.remove('bg-gray-100', 'text-gray-600');
+
+        // Cambiar tipo de gráfico y recrear
+        if (grafico === 'ventas' && this.graficos.ventasDias) {
+            this.graficos.ventasDias.config.type = tipo;
+            this.graficos.ventasDias.update();
+        } else if (grafico === 'vendedor' && this.graficos.vendedores) {
+            this.graficos.vendedores.config.type = tipo;
+            this.graficos.vendedores.update();
+        }
+    }
+
+    /**
+     * Ver detalle de productos
+     */
+    verDetalleProductos() {
+        this.cambiarTab('productos');
+    }
+
+    /**
+     * Ver detalle de venta
+     */
+    verDetalleVenta(ventaId) {
+        // Implementar modal o redirección para ver detalle
+        console.log('Ver detalle de venta:', ventaId);
+        this.showAlert('info', 'Información', 'Función de detalle de venta en desarrollo');
+    }
+
+    /**
+     * Imprimir venta
+     */
+    imprimirVenta(ventaId) {
+        window.open(`/reportes/ventas/${ventaId}/imprimir`, '_blank');
+    }
+
+    /**
+     * Pagar comisión
+     */
+    pagarComision(comisionId) {
+        // Implementar funcionalidad de pago de comisión
+        console.log('Pagar comisión:', comisionId);
+        this.showAlert('info', 'Información', 'Función de pago de comisión en desarrollo');
+    }
+
+    /**
+     * Renderizar paginación para ventas
+     */
+    renderPaginacionVentas(paginationData) {
+        const container = document.getElementById('paginacion-ventas');
+        if (!container) return;
+
+        const { current_page, last_page, per_page, total } = paginationData;
+        
+        if (last_page <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let paginationHtml = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                    Mostrando ${((current_page - 1) * per_page) + 1} a ${Math.min(current_page * per_page, total)} de ${total} resultados
+                </div>
+                <div class="flex items-center space-x-2">
+        `;
+
+        // Botón anterior
+        if (current_page > 1) {
+            paginationHtml += `
+                <button onclick="reportesManager.cambiarPagina(${current_page - 1})" 
+                        class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    Anterior
+                </button>
+            `;
+        }
+
+        // Números de página
+        const startPage = Math.max(1, current_page - 2);
+        const endPage = Math.min(last_page, current_page + 2);
+
+        for (let i = startPage; i <= endPage; i++) {
+            const isActive = i === current_page;
+            paginationHtml += `
+                <button onclick="reportesManager.cambiarPagina(${i})" 
+                        class="px-3 py-2 text-sm font-medium ${isActive ? 'text-white bg-blue-600' : 'text-gray-500 bg-white hover:bg-gray-50'} border border-gray-300 rounded-md">
+                    ${i}
+                </button>
+            `;
+        }
+
+        // Botón siguiente
+        if (current_page < last_page) {
+            paginationHtml += `
+                <button onclick="reportesManager.cambiarPagina(${current_page + 1})" 
+                        class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    Siguiente
+                </button>
+            `;
+        }
+
+        paginationHtml += '</div></div>';
+        container.innerHTML = paginationHtml;
+    }
+
+    /**
+     * Cambiar página
+     */
+    cambiarPagina(pagina) {
+        const filtros = { page: pagina };
+        
+        switch (this.currentTab) {
+            case 'ventas':
+                this.loadReporteVentas(filtros);
+                break;
+            case 'comisiones':
+                this.loadReporteComisiones(filtros);
+                break;
+            case 'pagos':
+                this.loadReportePagos(filtros);
+                break;
+        }
+    }
+
+    /**
+     * Actualizar resumen de comisiones
+     */
+    updateResumenComisiones(resumen) {
+        const elements = {
+            'resumen-total-comisiones': this.formatCurrency(resumen.total_comisiones),
+            'resumen-pendientes-comisiones': this.formatCurrency(resumen.pendientes),
+            'resumen-pagadas-comisiones': this.formatCurrency(resumen.pagadas),
+            'resumen-canceladas-comisiones': this.formatCurrency(resumen.canceladas)
+        };
+
+        Object.entries(elements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        });
+    }
+
+    // ================================
+    // MÉTODOS AUXILIARES
+    // ================================
+
+    /**
+     * Poblar filtros en los formularios
+     */
+    populateFiltros(data) {
+        // Vendedores
+        this.populateSelect('filtro-vendedor-ventas', data.vendedores, 'user_id', (item) => 
+            `${item.user_primer_nombre} ${item.user_primer_apellido}`);
+        this.populateSelect('filtro-vendedor-comisiones', data.vendedores, 'user_id', (item) => 
+            `${item.user_primer_nombre} ${item.user_primer_apellido}`);
+        
+        // Categorías y marcas
+        this.populateSelect('filtro-categoria-productos', data.categorias, 'categoria_id', 'categoria_nombre');
+        this.populateSelect('filtro-marca-productos', data.marcas, 'marca_id', 'marca_descripcion');
+    }
+
+    populateSelect(selectId, options, valueField, textField) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        
+        const currentValue = select.value;
+        const placeholder = select.children[0];
+        
+        select.innerHTML = '';
+        if (placeholder) {
+            select.appendChild(placeholder);
+        }
+        
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option[valueField];
+            
+            if (typeof textField === 'function') {
+                optionElement.textContent = textField(option);
+            } else {
+                optionElement.textContent = option[textField];
+            }
+            
+            select.appendChild(optionElement);
+        });
+        
+        select.value = currentValue;
+    }
+
+    /**
+     * Renderizar estado de pago
+     */
+    renderEstadoPago(estado) {
+        const estados = {
+            'PENDIENTE': { class: 'bg-yellow-100 text-yellow-800', text: 'Pendiente' },
+            'PARCIAL': { class: 'bg-blue-100 text-blue-800', text: 'Parcial' },
+            'COMPLETADO': { class: 'bg-green-100 text-green-800', text: 'Pagado' },
+            'VENCIDO': { class: 'bg-red-100 text-red-800', text: 'Vencido' },
+            'SIN_CONTROL': { class: 'bg-gray-100 text-gray-800', text: 'Sin control' }
+        };
+
+        const config = estados[estado] || estados['SIN_CONTROL'];
+        return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.class}">${config.text}</span>`;
+    }
+
+    /**
+     * Renderizar estado de comisión
+     */
+    renderEstadoComision(estado) {
+        const estados = {
+            'PENDIENTE': { class: 'bg-yellow-100 text-yellow-800', text: 'Pendiente' },
+            'PAGADO': { class: 'bg-green-100 text-green-800', text: 'Pagada' },
+            'CANCELADO': { class: 'bg-red-100 text-red-800', text: 'Cancelada' }
+        };
+
+        const config = estados[estado] || estados['PENDIENTE'];
+        return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.class}">${config.text}</span>`;
+    }
+
+    /**
+     * Obtener color según ranking
+     */
+    getRankingColor(index) {
+        const colors = ['bg-yellow-500', 'bg-gray-400', 'bg-yellow-600', 'bg-blue-500', 'bg-green-500'];
+        return colors[Math.min(index, colors.length - 1)];
+    }
+
+    /**
+     * Formatear fecha para input date
+     */
+    formatearFecha(fecha) {
+        if (!fecha) return '';
+        const date = new Date(fecha);
+        return date.toISOString().split('T')[0];
+    }
+
+    /**
+     * Formatear fecha para mostrar
+     */
+    formatearFechaDisplay(fecha) {
+        if (!fecha) return '';
+        return new Date(fecha).toLocaleDateString('es-GT');
+    }
+
+    formatearFechaCorta(fecha) {
+        if (!fecha) return '';
+        return new Date(fecha).toLocaleDateString('es-GT', { month: 'short', day: 'numeric' });
+    }
+
+    /**
+     * Truncar texto
+     */
+    truncateText(text, maxLength) {
+        if (!text) return '';
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    }
+
+    /**
+     * Formatear números
+     */
+    formatNumber(num) {
+        return new Intl.NumberFormat('es-GT').format(num || 0);
+    }
+
+    /**
+     * Formatear moneda
+     */
+    formatCurrency(amount) {
+        return new Intl.NumberFormat('es-GT', {
+            style: 'currency',
+            currency: 'GTQ'
+        }).format(amount || 0);
+    }
+
+    /**
+     * Mostrar/ocultar loading
+     */
+    showLoading(section) {
+        console.log(`Cargando ${section}...`);
+        // Implementar loading spinner si es necesario
+    }
+
+    hideLoading(section) {
+        console.log(`${section} cargado`);
+        // Ocultar loading spinner si es necesario
+    }
+
+    /**
+     * Mostrar alertas
+     */
+    showAlert(type, title, text) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: type,
+                confirmButtonColor: type === 'success' ? '#10b981' : '#dc2626'
+            });
+        } else {
+            // Fallback a alert nativo si SweetAlert2 no está disponible
+            alert(`${title}: ${text}`);
+        }
+    }
+}
+
+// Inicializar globalmente INMEDIATAMENTE
+window.reportesManager = null;
+
+// Función de inicialización
+function initReportesManager() {
+    console.log('🔄 Intentando inicializar ReportesManager...');
+    
+    // Verificar dependencias
+    const dependencies = [
+        { name: 'Chart.js', check: () => typeof Chart !== 'undefined' },
+        { name: 'SweetAlert2', check: () => typeof Swal !== 'undefined', optional: true }
+    ];
+
+    const missing = dependencies.filter(dep => !dep.optional && !dep.check());
+    
+    if (missing.length > 0) {
+        console.warn('⚠️ Dependencias faltantes:', missing.map(d => d.name).join(', '));
+        console.warn('Continuando sin algunas funcionalidades...');
+    }
+
+    // Verificar si ya existe una instancia
+    if (window.reportesManager) {
+        console.log('✅ ReportesManager ya está inicializado');
+        return window.reportesManager;
+    }
+
+    // Inicializar ReportesManager
+    try {
+        window.reportesManager = new ReportesManager();
+        console.log('✅ Sistema de reportes inicializado correctamente');
+        
+        // Disparar evento personalizado para notificar que está listo
+        if (typeof CustomEvent !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('reportesManagerReady', { 
+                detail: { reportesManager: window.reportesManager } 
+            }));
+        }
+        
+        return window.reportesManager;
+    } catch (error) {
+        console.error('❌ Error inicializando sistema de reportes:', error);
+        
+        // Crear un objeto fallback para evitar errores
+        window.reportesManager = {
+            cambiarTab: function(tab) { console.warn('ReportesManager no inicializado - cambiarTab:', tab); },
+            aplicarFiltroFecha: function() { console.warn('ReportesManager no inicializado - aplicarFiltroFecha'); },
+            exportarReporte: function(tipo, formato) { console.warn('ReportesManager no inicializado - exportarReporte:', tipo, formato); },
+            cambiarTipoGrafico: function(grafico, tipo) { console.warn('ReportesManager no inicializado - cambiarTipoGrafico:', grafico, tipo); },
+            verDetalleProductos: function() { console.warn('ReportesManager no inicializado - verDetalleProductos'); },
+            aplicarFiltrosVentas: function() { console.warn('ReportesManager no inicializado - aplicarFiltrosVentas'); },
+            aplicarFiltrosProductos: function() { console.warn('ReportesManager no inicializado - aplicarFiltrosProductos'); },
+            aplicarFiltrosComisiones: function() { console.warn('ReportesManager no inicializado - aplicarFiltrosComisiones'); },
+            aplicarFiltrosPagos: function() { console.warn('ReportesManager no inicializado - aplicarFiltrosPagos'); },
+            verDetalleVenta: function(id) { console.warn('ReportesManager no inicializado - verDetalleVenta:', id); },
+            imprimirVenta: function(id) { console.warn('ReportesManager no inicializado - imprimirVenta:', id); },
+            pagarComision: function(id) { console.warn('ReportesManager no inicializado - pagarComision:', id); },
+            cambiarPagina: function(pagina) { console.warn('ReportesManager no inicializado - cambiarPagina:', pagina); }
+        };
+        
+        return window.reportesManager;
+    }
+}
+
+// Múltiples estrategias de inicialización
+console.log('📄 Script de reportes cargado, estado del DOM:', document.readyState);
+
+// 1. Si el DOM ya está listo, inicializar inmediatamente
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('🚀 DOM listo, inicializando inmediatamente...');
+    initReportesManager();
+} else {
+    // 2. Si el DOM aún se está cargando, esperar al evento
+    console.log('⏳ Esperando a que el DOM esté listo...');
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('📋 DOM cargado, inicializando...');
+        initReportesManager();
+    });
+}
+
+// 3. Backup: intentar nuevamente después de un breve delay
+setTimeout(function() {
+    if (!window.reportesManager || typeof window.reportesManager.cambiarTab !== 'function') {
+        console.log('🔄 Reintentando inicialización después del timeout...');
+        initReportesManager();
+    }
+}, 1000);
+
+// 4. Interceptor global para funciones llamadas antes de la inicialización
+window.reportesManagerProxy = new Proxy({}, {
+    get: function(target, prop) {
+        if (window.reportesManager && typeof window.reportesManager[prop] === 'function') {
+            return window.reportesManager[prop].bind(window.reportesManager);
+        } else {
+            return function(...args) {
+                console.warn(`⚠️ Función ${prop} llamada antes de la inicialización completa. Args:`, args);
+                
+                // Intentar inicializar si no está listo
+                if (!window.reportesManager) {
+                    initReportesManager();
+                }
+                
+                // Si ahora está disponible, ejecutar
+                if (window.reportesManager && typeof window.reportesManager[prop] === 'function') {
+                    return window.reportesManager[prop](...args);
+                } else {
+                    // Mostrar mensaje amigable al usuario
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: 'Sistema Inicializando',
+                            text: 'Por favor espere unos segundos mientras el sistema termina de cargar.',
+                            icon: 'info',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        alert('El sistema se está inicializando. Por favor, intente nuevamente en unos segundos.');
+                    }
+                }
+            };
+        }
+    }
+});
+
+// 5. Hacer que reportesManager sea accesible incluso antes de la inicialización
+if (!window.reportesManager) {
+    window.reportesManager = window.reportesManagerProxy;
+}
+
+console.log('🔧 Sistema de inicialización de reportes configurado');

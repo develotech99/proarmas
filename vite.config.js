@@ -20,6 +20,7 @@ export default defineConfig({
             'resources/js/unidades-medida/index.js',
             'resources/js/calibres/index.js',
             'resources/js/comisiones/index.js',
+            'resources/js/reportes/index.js',
         ],
             refresh: true,
         }),
