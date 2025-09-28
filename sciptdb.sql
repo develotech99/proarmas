@@ -508,7 +508,9 @@ CREATE TABLE pro_pagos_subidos (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_ps_venta FOREIGN KEY (ps_venta_id) REFERENCES pro_ventas(ven_id) ON DELETE CASCADE,
     CONSTRAINT fk_ps_cliente FOREIGN KEY (ps_cliente_user_id) REFERENCES users(user_id) ON DELETE
-    SET NULL, CONSTRAINT fk_ps_revisor FOREIGN KEY (ps_revisado_por) REFERENCES users(user_id) ON DELETE
+    SET
+        NULL,
+        CONSTRAINT fk_ps_revisor FOREIGN KEY (ps_revisado_por) REFERENCES users(user_id) ON DELETE
     SET
         NULL,
         UNIQUE KEY uq_ps_dedupe_key (ps_dedupe_key),
@@ -517,3 +519,31 @@ CREATE TABLE pro_pagos_subidos (
         KEY idx_ps_ref_banco (ps_referencia, ps_banco_id),
         KEY idx_ps_cliente (ps_cliente_user_id)
 );
+
+-- Tabla de saldos actuales de caja (simple y clara)
+CREATE TABLE caja_saldos (
+    caja_saldo_id           INT AUTO_INCREMENT PRIMARY KEY,
+    caja_saldo_metodo_pago  BIGINT UNSIGNED NOT NULL,         -- FK a pro_metodos_pago (EFECTIVO, TARJETA, TRANSFERENCIA, etc.)
+    caja_saldo_moneda       VARCHAR(3) NOT NULL DEFAULT 'GTQ', -- Si solo usas GTQ, queda así
+    caja_saldo_monto_actual DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+    caja_saldo_actualizado  DATETIME NOT NULL
+        DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uk_caja_saldo (caja_saldo_metodo_pago, caja_saldo_moneda),
+    CONSTRAINT fk_caja_saldos_metodo
+        FOREIGN KEY (caja_saldo_metodo_pago) REFERENCES pro_metodos_pago(metpago_id)
+) COMMENT='Saldos actuales de caja por método de pago y moneda';
+
+
+CREATE TABLE pro_estados_cuenta (
+    ec_id INT AUTO_INCREMENT PRIMARY KEY,
+    ec_banco_id BIGINT UNSIGNED NULL COMMENT 'FK al banco de origen (si aplica)',
+    ec_archivo VARCHAR(255) NOT NULL COMMENT 'Ruta del archivo subido en storage',
+    ec_headers JSON NULL COMMENT 'Lista de encabezados detectados en el archivo',
+    ec_rows LONGTEXT NULL COMMENT 'Contenido de filas normalizado (JSON)',
+    ec_fecha_ini DATE NULL COMMENT 'Fecha inicio del período (opcional)',
+    ec_fecha_fin DATE NULL COMMENT 'Fecha fin del período (opcional)',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) COMMENT='Registros de estados de cuenta cargados por el admin para conciliación';

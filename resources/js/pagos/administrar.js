@@ -1,527 +1,574 @@
-// Gestión de Movimientos Bancarios - Admin Panel
-const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
-const BANKS = { '1': 'Banrural', '2': 'Banco Industrial' };
+// resources/js/pagos/administrar.js
+// DataTables v2 + Tailwind, SIN jQuery
+import DataTable from 'datatables.net-dt';
+import 'datatables.net-dt/css/dataTables.dataTables.css';
+import Swal from 'sweetalert2';
 
-// DOM Elements
-const uploadZone = document.getElementById('uploadZone');
-const archivoInput = document.getElementById('archivoMovimientos');
-const uploadContent = document.getElementById('uploadContent');
-const fileInfo = document.getElementById('fileInfo');
-const fileName = document.getElementById('fileName');
-const fileSize = document.getElementById('fileSize');
-const bancoSelect = document.getElementById('bancoOrigen');
-const fechaInicio = document.getElementById('fechaInicio');
-const fechaFin = document.getElementById('fechaFin');
-const btnProcesar = document.getElementById('btnProcesar');
-const btnVistaPrevia = document.getElementById('btnVistaPrevia');
-const btnLimpiar = document.getElementById('btnLimpiar');
-const vistaPrevia = document.getElementById('vistaPrevia');
-const tablaPrevia = document.getElementById('cuerpoTablaPrevia');
-const procesamientoEstado = document.getElementById('procesamientoEstado');
+// =========================
+// Config & helpers
+// =========================
+const API_BASE = '/admin/pagos';
+const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
+const $ = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+const show = (id) => document.getElementById(id)?.classList.remove('hidden');
+const hide = (id) => document.getElementById(id)?.classList.add('hidden');
+
+const fmtQ = (n) => 'Q ' + Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const toast = (title, icon = 'info') => Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2200, icon, title });
+
+const fetchJSON = async (url, { method = 'GET', body = null, isForm = false } = {}) => {
+    const headers = {};
+    if (CSRF) headers['X-CSRF-TOKEN'] = CSRF;
+    if (!isForm) headers['Content-Type'] = 'application/json';
+
+    const res = await fetch(url, {
+        method,
+        headers,
+        body: isForm ? body : (body ? JSON.stringify(body) : null),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+};
+
+const debounce = (fn, ms = 400) => {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+};
+
+// =========================
 // Estado global
-let archivoActual = null;
-let datosMovimientos = [];
-let estadisticas = {
-    validacionesExitosas: 0,
-    pendientesValidacion: 0,
-    totalMovimientos: 0,
-    ultimaCarga: null
+// =========================
+const state = {
+    saldos: [],         // [{metodo_id, metodo, caja_saldo_moneda, caja_saldo_monto_actual}]
+    uploadTmp: null,    // {path, headers, rows}
 };
 
-/* ========== UTILIDADES ========== */
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-GT', {
-        style: 'currency',
-        currency: 'GTQ',
-        minimumFractionDigits: 2
-    }).format(amount);
+// =========================
+// DataTables locales (ES)
+// =========================
+const DT_ES = {
+    aria: { sortAscending: ': Activar para ordenar asc', sortDescending: ': Activar para ordenar desc' },
+    processing: 'Procesando...',
+    search: 'Buscar:',
+    lengthMenu: 'Mostrar _MENU_',
+    info: 'Mostrando _START_ a _END_ de _TOTAL_',
+    infoEmpty: 'Mostrando 0 a 0 de 0',
+    infoFiltered: '(filtrado de _MAX_ totales)',
+    loadingRecords: 'Cargando...',
+    zeroRecords: 'No se encontraron resultados',
+    emptyTable: 'No hay datos disponibles',
+    paginate: { first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último' },
 };
 
-const formatDate = (dateString) => {
+// =========================
+// Stats / dashboard
+// =========================
+async function loadStats() {
     try {
-        // Manejar diferentes formatos de fecha
-        let date;
-        if (dateString.includes('/')) {
-            const parts = dateString.split('/');
-            // Asumiendo DD/MM/YYYY
-            date = new Date(parts[2], parts[1] - 1, parts[0]);
-        } else {
-            date = new Date(dateString);
-        }
+        const r = await fetchJSON(`${API_BASE}/dashboard-stats`);
+        const { saldo_total_gtq = 0, saldos = [], pendientes = 0, ultima_carga = null } = r || {};
 
-        return date.toLocaleDateString('es-GT', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
+        state.saldos = saldos;
+        setText('saldoCajaTotalGTQ', fmtQ(saldo_total_gtq));
+
+        const efectivo = saldos.find(s => (s.metodo || '').toLowerCase().includes('efectivo'));
+        setText('saldoEfectivoGTQ', fmtQ(efectivo?.caja_saldo_monto_actual || 0));
+        setText('contadorPendientes', String(pendientes));
+        setText('ultimaCargaEstado', ultima_carga ? new Date(ultima_carga).toLocaleString() : '—');
+
+        fillMetodoSelects();
     } catch (e) {
-        return dateString;
+        toast(`No se pudieron cargar las estadísticas: ${e.message}`, 'error');
     }
-};
+}
 
-const showSuccess = (title, text) => {
-    Swal.fire({
-        icon: 'success',
-        title: title,
-        text: text,
-        confirmButtonColor: '#10B981'
-    });
-};
-
-const showError = (title, text) => {
-    Swal.fire({
-        icon: 'error',
-        title: title,
-        text: text,
-        confirmButtonColor: '#EF4444'
-    });
-};
-
-const showLoading = (title) => {
-    Swal.fire({
-        title: title,
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
-};
-
-/* ========== MANEJO DE ARCHIVOS ========== */
-const updateFileInfo = (file) => {
-    if (!file) return;
-
-    archivoActual = file;
-    fileName.textContent = file.name;
-    fileSize.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-
-    uploadContent.classList.add('hidden');
-    fileInfo.classList.remove('hidden');
-
-    // Habilitar botones
-    btnVistaPrevia.removeAttribute('disabled');
-    updateProcessButton();
-};
-
-const updateProcessButton = () => {
-    const hasFile = archivoActual !== null;
-    const hasBanco = bancoSelect.value !== '';
-    const hasFechas = fechaInicio.value !== '' && fechaFin.value !== '';
-
-    if (hasFile && hasBanco && hasFechas) {
-        btnProcesar.removeAttribute('disabled');
-    } else {
-        btnProcesar.setAttribute('disabled', 'disabled');
+function fillMetodoSelects() {
+    const filtroMetodo = $('#filtroMetodo');
+    const egMetodo = $('#egMetodo');
+    if (filtroMetodo) {
+        filtroMetodo.innerHTML = `<option value="">Todos los métodos</option>` +
+            state.saldos.map(m => `<option value="${m.metodo_id}">${m.metodo}</option>`).join('');
     }
-};
+    if (egMetodo) {
+        egMetodo.innerHTML = state.saldos.map(m => `<option value="${m.metodo_id}">${m.metodo}</option>`).join('');
+    }
+}
 
-const limpiarFormulario = () => {
-    archivoActual = null;
-    datosMovimientos = [];
-    archivoInput.value = '';
-    bancoSelect.value = '';
-    fechaInicio.value = '';
-    fechaFin.value = '';
+// =========================
+/** BANDEJA: DataTable sin jQuery */
+// =========================
+let dtPendientes;
 
-    uploadContent.classList.remove('hidden');
-    fileInfo.classList.add('hidden');
-    vistaPrevia.classList.add('hidden');
+function initDtPendientes() {
+    const el = document.getElementById('tablaPendientes');
+    if (!el) return;
 
-    btnVistaPrevia.setAttribute('disabled', 'disabled');
-    btnProcesar.setAttribute('disabled', 'disabled');
-
-    updateEstadoProcesamiento('Esperando archivo...');
-};
-
-/* ========== PROCESAMIENTO DE CSV ========== */
-const parseCSV = (file) => {
-    return new Promise((resolve, reject) => {
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            encoding: 'UTF-8',
-            complete: (results) => {
-                if (results.errors.length > 0) {
-                    console.warn('Errores en CSV:', results.errors);
+    dtPendientes = new DataTable(el, {
+        language: DT_ES,
+        responsive: true,
+        autoWidth: false,
+        searching: false,
+        processing: true,
+        columns: [
+            { title: 'Fecha', data: 'fecha', render: v => (v ? new Date(v).toLocaleDateString() : '—') },
+            { title: 'Venta', data: 'venta_id', render: v => (v ? `#${v}` : '—') },
+            { title: 'Cliente', data: 'cliente', defaultContent: '—' },
+            { title: 'Concepto', data: 'concepto', className: 'text-xs text-gray-600', defaultContent: '—' },
+            { title: 'Debía', data: 'debia', className: 'text-right', render: v => fmtQ(v) },
+            { title: 'Depositado', data: 'depositado', className: 'text-right', render: v => fmtQ(v) },
+            {
+                title: 'Diferencia',
+                data: 'diferencia',
+                className: 'text-right',
+                render: v => {
+                    const n = Number(v || 0);
+                    const cls = n === 0 ? 'text-emerald-600' : n > 0 ? 'text-amber-600' : 'text-rose-600';
+                    return `<span class="${cls}">${fmtQ(n)}</span>`;
                 }
-                resolve(results.data);
             },
-            error: reject
+            {
+                title: 'Comprobante',
+                data: null,
+                className: 'text-center',
+                render: row => {
+                    if (!row?.imagen) return '—';
+                    const img = encodeURIComponent(row.imagen);
+                    const ref = row.referencia || '';
+                    const fecha = row.fecha || '';
+                    const monto = row.depositado || 0;
+                    return `<button class="text-blue-600 hover:underline btn-ver-comp"
+                    data-img="${img}" data-ref="${ref}" data-fecha="${fecha}" data-monto="${monto}">
+                    Ver
+                  </button>`;
+                }
+            },
+            {
+                title: 'Acciones',
+                data: null,
+                className: 'text-center',
+                render: row => {
+                    return `<button class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg btn-validar"
+                    data-ps="${row.ps_id}" data-venta="${row.venta_id}"
+                    data-debia="${row.debia}" data-hizo="${row.depositado}">
+                    Validar
+                  </button>`;
+                }
+            },
+        ],
+        data: [], // se carga via loadPendientes()
+    });
+
+    // Delegación de eventos del tbody
+    el.tBodies[0].addEventListener('click', (ev) => {
+        const btn = ev.target.closest('button');
+        if (!btn) return;
+        if (btn.classList.contains('btn-ver-comp')) {
+            const img = decodeURIComponent(btn.getAttribute('data-img') || '');
+            const ref = btn.getAttribute('data-ref') || '';
+            const fecha = btn.getAttribute('data-fecha') || '';
+            const monto = btn.getAttribute('data-monto') || 0;
+            openModalComprobante({ img, ref, fecha, monto });
+        } else if (btn.classList.contains('btn-validar')) {
+            openModalValidar({
+                ps: Number(btn.getAttribute('data-ps')),
+                venta: Number(btn.getAttribute('data-venta')),
+                debia: Number(btn.getAttribute('data-debia') || 0),
+                hizo: Number(btn.getAttribute('data-hizo') || 0),
+            });
+        }
+    });
+
+    // Filtros externos
+    const buscar = $('#buscarFactura');
+    const filtroEstado = $('#filtroEstado');
+    if (buscar) buscar.addEventListener('input', debounce(loadPendientes, 400));
+    if (filtroEstado) filtroEstado.addEventListener('change', loadPendientes);
+}
+
+async function loadPendientes() {
+    try {
+        const q = $('#buscarFactura')?.value?.trim() || '';
+        const estado = $('#filtroEstado')?.value || '';
+
+        const url = new URL(`${API_BASE}/pendientes`, window.location.origin);
+        if (q) url.searchParams.set('q', q);
+        if (estado) url.searchParams.set('estado', estado);
+
+        const res = await fetchJSON(url.toString());
+        const rows = res?.data || [];
+        if (!rows.length) show('emptyPendientes'); else hide('emptyPendientes');
+
+        dtPendientes?.clear();
+        dtPendientes?.rows?.add(rows);
+        dtPendientes?.draw();
+    } catch (e) {
+        toast(`Error cargando pendientes: ${e.message}`, 'error');
+        dtPendientes?.clear().draw();
+        show('emptyPendientes');
+    }
+}
+
+// =========================
+/** MOVIMIENTOS: DataTable sin jQuery */
+// =========================
+let dtMovs;
+
+function computeMonthRange() {
+    const val = $('#filtroMes')?.value || '';
+    const pad = (n) => String(n).padStart(2, '0');
+    if (val) {
+        const [y, m] = val.split('-').map(Number);
+        const first = new Date(y, m - 1, 1);
+        const last = new Date(y, m, 0);
+        return {
+            from: `${first.getFullYear()}-${pad(first.getMonth() + 1)}-${pad(first.getDate())}`,
+            to: `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`,
+        };
+    }
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+        from: `${first.getFullYear()}-${pad(first.getMonth() + 1)}-${pad(first.getDate())}`,
+        to: `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`,
+    };
+}
+
+function initDtMovs() {
+    const el = document.getElementById('tablaMovimientos');
+    if (!el) return;
+
+    dtMovs = new DataTable(el, {
+        language: DT_ES,
+        responsive: true,
+        autoWidth: false,
+        searching: false,
+        processing: true,
+        order: [[0, 'desc']],
+        columns: [
+            { title: 'Fecha', data: 'cja_fecha', render: v => (v ? new Date(v).toLocaleString() : '—') },
+            { title: 'Tipo', data: 'cja_tipo' },
+            { title: 'Referencia', data: 'cja_no_referencia', defaultContent: '—' },
+            { title: 'Método', data: 'metodo', defaultContent: '—' },
+            {
+                title: 'Monto',
+                data: 'cja_monto',
+                className: 'text-right',
+                render: (v, _t, row) => {
+                    const esIn = ['VENTA', 'DEPOSITO', 'AJUSTE_POS'].includes(row?.cja_tipo || '');
+                    return `<span class="${esIn ? 'text-emerald-600' : 'text-rose-600'}">${fmtQ(v)}</span>`;
+                }
+            },
+            { title: 'Estado', data: 'cja_situacion' },
+        ],
+        data: [], // via loadMovimientos()
+    });
+
+    $('#btnFiltrarMovs')?.addEventListener('click', loadMovimientos);
+}
+
+async function loadMovimientos() {
+    try {
+        const metodoId = $('#filtroMetodo')?.value || '';
+        const { from, to } = computeMonthRange();
+        const url = new URL(`${API_BASE}/movimientos`, window.location.origin);
+        url.searchParams.set('from', from);
+        url.searchParams.set('to', to);
+        if (metodoId) url.searchParams.set('metodo_id', metodoId);
+
+        const r = await fetchJSON(url.toString());
+        const rows = r?.data || [];
+        const total = Number(r?.total || 0);
+
+        dtMovs?.clear();
+        dtMovs?.rows?.add(rows);
+        dtMovs?.draw();
+
+        setText('totalMovimientosMes', fmtQ(total));
+    } catch (e) {
+        toast(`No se pudieron cargar movimientos: ${e.message}`, 'error');
+        dtMovs?.clear().draw();
+        setText('totalMovimientosMes', fmtQ(0));
+    }
+}
+
+// =========================
+/** PREVIEW CSV/XLSX: DataTable sin jQuery */
+// =========================
+let dtPreview;
+
+function initDtPreview() {
+    const el = document.getElementById('tablaPrevia');
+    if (!el) return;
+
+    dtPreview = new DataTable(el, {
+        language: DT_ES,
+        responsive: true,
+        autoWidth: false,
+        searching: false,
+        order: [[0, 'asc']],
+        columns: [
+            { title: 'Fecha', data: 'fecha' },
+            { title: 'Descripción', data: 'descripcion' },
+            { title: 'Referencia', data: 'referencia' },
+            { title: 'Monto', data: 'monto', className: 'text-right', render: v => fmtQ(v) },
+            { title: 'Detectado', data: 'detectado', defaultContent: '—' },
+        ],
+        data: [],
+    });
+}
+
+function renderPreview(rows) {
+    const safe = (rows || []).map(r => ({
+        fecha: r.fecha || '—',
+        descripcion: r.descripcion || '—',
+        referencia: r.referencia || '—',
+        monto: r.monto ?? 0,
+        detectado: r.detectado ?? '—',
+    }));
+    dtPreview?.clear();
+    dtPreview?.rows?.add(safe);
+    dtPreview?.draw();
+    show('vistaPrevia');
+    setText('totalMovimientos', String(safe.length));
+}
+
+// =========================
+// Modales (sin jQuery)
+// =========================
+function openModal(sel) { document.querySelector(sel)?.classList.remove('hidden'); }
+function closeModal(sel) { document.querySelector(sel)?.classList.add('hidden'); }
+
+function bindModalClose() {
+    $$('[data-close-modal]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-close-modal');
+            if (target) closeModal(target);
         });
     });
-};
+}
 
-const procesarMovimientos = (rawData) => {
-    const movimientos = [];
+function openModalComprobante({ img, ref, fecha, monto }) {
+    const base = img?.startsWith('http') ? img : (`/storage/${img}`);
+    const imgEl = $('#imgComprobante'); if (imgEl) imgEl.src = base || '';
+    const link = $('#btnDescargarComprobante'); if (link) link.href = base || '#';
+    setText('refComprobante', ref || '—');
+    setText('fechaComprobante', fecha ? new Date(fecha).toLocaleString() : '—');
+    setText('montoComprobante', fmtQ(monto || 0));
+    openModal('#modalComprobante');
+}
 
-    rawData.forEach((row, index) => {
+function openModalValidar({ ps, venta, debia, hizo }) {
+    setText('mvVenta', `#${venta}`);
+    setText('mvDebia', fmtQ(debia));
+    setText('mvHizo', fmtQ(hizo));
+    setText('mvDif', fmtQ(hizo - debia));
+    setText('mvMetodo', '—');
+
+    const btnA = $('#btnAprobar');
+    const btnR = $('#btnRechazar');
+    if (btnA) { btnA.setAttribute('data-ps-id', String(ps)); btnA.setAttribute('data-venta-id', String(venta)); }
+    if (btnR) { btnR.setAttribute('data-ps-id', String(ps)); btnR.setAttribute('data-venta-id', String(venta)); }
+    openModal('#modalValidar');
+}
+
+async function aprobarPago() {
+    const psId = $('#btnAprobar')?.getAttribute('data-ps-id');
+    const obs = $('#mvObs')?.value || '';
+    if (!psId) return;
+    try {
+        const r = await fetchJSON(`${API_BASE}/aprobar`, { method: 'POST', body: { ps_id: Number(psId), observaciones: obs } });
+        if (!r?.ok) throw new Error(r?.msg || 'Error desconocido');
+        toast('Pago aprobado', 'success');
+        closeModal('#modalValidar');
+        await Promise.all([loadStats(), loadPendientes(), loadMovimientos()]);
+    } catch (e) { toast(`No se pudo aprobar: ${e.message}`, 'error'); }
+}
+
+async function rechazarPago() {
+    const psId = $('#btnRechazar')?.getAttribute('data-ps-id');
+    const motivo = $('#mvObs')?.value || '';
+    if (!psId) return;
+    if (!motivo || motivo.length < 5) return toast('Indica el motivo (mín 5 caracteres).', 'error');
+    try {
+        const r = await fetchJSON(`${API_BASE}/rechazar`, { method: 'POST', body: { ps_id: Number(psId), motivo } });
+        if (!r?.ok) throw new Error(r?.msg || 'Error desconocido');
+        toast('Pago rechazado', 'success');
+        closeModal('#modalValidar');
+        await Promise.all([loadStats(), loadPendientes()]);
+    } catch (e) { toast(`No se pudo rechazar: ${e.message}`, 'error'); }
+}
+
+// =========================
+// Egresos
+// =========================
+function openModalEgreso() { openModal('#modalEgreso'); }
+
+async function guardarEgreso() {
+    const egFecha = $('#egFecha')?.value || '';
+    const egMetodo = $('#egMetodo')?.value || '';
+    const egMonto = $('#egMonto')?.value || '';
+    const egMotivo = $('#egMotivo')?.value || '';
+    const egReferencia = $('#egReferencia')?.value || '';
+    const egArchivo = $('#egArchivo')?.files?.[0] || null;
+
+    if (!egMetodo || !egMonto || !egMotivo) return toast('Completa método, monto y motivo.', 'error');
+
+    const fd = new FormData();
+    if (egFecha) fd.append('fecha', egFecha);
+    fd.append('metodo_id', egMetodo);
+    fd.append('monto', egMonto);
+    fd.append('motivo', egMotivo);
+    if (egReferencia) fd.append('referencia', egReferencia);
+    if (egArchivo) fd.append('archivo', egArchivo);
+
+    try {
+        const r = await fetchJSON(`${API_BASE}/egresos`, { method: 'POST', body: fd, isForm: true });
+        if (!r?.ok) throw new Error(r?.msg || 'Error desconocido');
+        toast('Egreso registrado', 'success');
+        closeModal('#modalEgreso');
+        await Promise.all([loadStats(), loadMovimientos()]);
+    } catch (e) {
+        toast(`No se pudo registrar egreso: ${e.message}`, 'error');
+    }
+}
+
+// =========================
+// Upload Estado de Cuenta
+// =========================
+function bindUpload() {
+    const zone = $('#uploadZone');
+    const input = $('#archivoMovimientos');
+    const btnPreview = $('#btnVistaPrevia');
+    const btnProcesar = $('#btnProcesar');
+    const btnLimpiar = $('#btnLimpiar');
+    const fileInfo = $('#fileInfo');
+    const uploadContent = $('#uploadContent');
+    const fileName = $('#fileName');
+    const fileSize = $('#fileSize');
+    const bancoOrigen = $('#bancoOrigen');
+
+    const enableActions = (enabled) => {
+        if (btnPreview) btnPreview.disabled = !enabled;
+        if (btnProcesar) btnProcesar.disabled = !enabled || !state.uploadTmp;
+    };
+
+    const resetUpload = () => {
+        if (input) input.value = '';
+        state.uploadTmp = null;
+        fileInfo?.classList.add('hidden');
+        uploadContent?.classList.remove('hidden');
+        enableActions(false);
+        hide('vistaPrevia');
+        setText('totalMovimientos', '0');
+    };
+
+    const onFileSelected = () => {
+        const f = input?.files?.[0];
+        if (!f) return;
+        if (fileName) fileName.textContent = f.name;
+        if (fileSize) fileSize.textContent = `${(f.size / (1024 * 1024)).toFixed(2)} MB`;
+        fileInfo?.classList.remove('hidden');
+        uploadContent?.classList.add('hidden');
+        enableActions(true);
+    };
+
+    if (zone && input) {
+        zone.addEventListener('click', () => input.click());
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault(); zone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                onFileSelected();
+            }
+        });
+        input.addEventListener('change', onFileSelected);
+    }
+
+    btnPreview?.addEventListener('click', async () => {
+        const f = input?.files?.[0];
+        if (!f) return toast('Selecciona un archivo primero.', 'error');
+
+        const fd = new FormData();
+        fd.append('archivo', f);
+        if (bancoOrigen?.value) fd.append('banco_id', bancoOrigen.value);
+
         try {
-            // Mapear columnas del CSV guatemalteco
-            const fecha = row['Fecha'] || row['fecha'] || '';
-            const descripcion = row['Descripción'] || row['Descripcion'] || row['descripcion'] || '';
-            const referencia = row['Referencia'] || row['referencia'] || row['Secuencial'] || '';
-            const debito = row['Débito (-)'] || row['Debito (-)'] || row['debito'] || '0';
-            const credito = row['Crédito (+)'] || row['Credito (+)'] || row['credito'] || '0';
-
-            // Limpiar y convertir montos
-            const montoDebito = parseFloat(debito.toString().replace(/[^0-9.-]/g, '')) || 0;
-            const montoCredito = parseFloat(credito.toString().replace(/[^0-9.-]/g, '')) || 0;
-
-            // Solo procesar movimientos con crédito (depósitos)
-            if (montoCredito > 0) {
-                movimientos.push({
-                    id: index,
-                    fecha: fecha.trim(),
-                    descripcion: descripcion.trim(),
-                    referencia: referencia.toString().trim(),
-                    monto: montoCredito,
-                    tipo: 'CREDITO',
-                    estado: 'PENDIENTE',
-                    coincidencias: []
-                });
-            }
-        } catch (error) {
-            console.warn(`Error procesando fila ${index}:`, error);
+            const r = await fetchJSON(`${API_BASE}/movs/upload`, { method: 'POST', body: fd, isForm: true });
+            if (!r?.path) throw new Error('Respuesta inválida del servidor');
+            state.uploadTmp = r;
+            renderPreview(r.rows || []);
+            show('vistaPrevia');
+            enableActions(true);
+            setText('totalMovimientos', String((r.rows || []).length));
+        } catch (e) {
+            toast(`No se pudo previsualizar: ${e.message}`, 'error');
         }
     });
 
-    return movimientos;
-};
+    btnProcesar?.addEventListener('click', async () => {
+        if (!state.uploadTmp?.path) return toast('Primero genera la vista previa.', 'error');
+        const fi = $('#fechaInicio')?.value || '';
+        const ff = $('#fechaFin')?.value || '';
 
-/* ========== VALIDACIÓN AUTOMÁTICA ========== */
-const validarPagosAutomaticamente = async (movimientos) => {
-    showLoading('Validando pagos automáticamente...');
+        const body = {
+            archivo_path: state.uploadTmp.path,
+            banco_id: bancoOrigen?.value ? Number(bancoOrigen.value) : undefined,
+            fecha_inicio: fi || undefined,
+            fecha_fin: ff || undefined,
+        };
 
-    try {
-        const response = await fetch('/admin/movimientos/validar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF
-            },
-            body: JSON.stringify({
-                movimientos: movimientos,
-                banco_id: bancoSelect.value,
-                fecha_inicio: fechaInicio.value,
-                fecha_fin: fechaFin.value
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.codigo === 1) {
-            Swal.close();
-
-            // Mostrar resultados de la validación
-            await Swal.fire({
-                icon: 'success',
-                title: '¡Validación Completada!',
-                html: `
-                    <div class="text-left">
-                        <div class="bg-green-50 p-4 rounded-lg mb-4">
-                            <h4 class="font-semibold text-green-800 mb-2">Resultados:</h4>
-                            <div class="space-y-2">
-                                <div class="flex justify-between">
-                                    <span>✅ Pagos Validados:</span>
-                                    <span class="font-bold text-green-600">${result.data.validados}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>⏳ Pendientes:</span>
-                                    <span class="font-bold text-yellow-600">${result.data.pendientes}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>📊 Total Procesados:</span>
-                                    <span class="font-bold text-blue-600">${result.data.procesados}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <p class="text-sm text-gray-600">Los pagos han sido actualizados automáticamente.</p>
-                    </div>
-                `,
-                confirmButtonColor: '#10B981'
-            });
-
-            // Actualizar estadísticas
-            actualizarEstadisticas();
-            cargarHistorial();
-
-        } else {
-            Swal.close();
-            showError('Error de Validación', result.mensaje || 'No se pudieron validar los movimientos');
+        try {
+            const r = await fetchJSON(`${API_BASE}/movs/procesar`, { method: 'POST', body });
+            if (!r?.ok && !r?.ec_id) throw new Error(r?.msg || 'Respuesta inválida');
+            toast('Estado de cuenta registrado para conciliación.', 'success');
+            await loadStats();
+        } catch (e) {
+            toast(`Error al procesar: ${e.message}`, 'error');
         }
-
-    } catch (error) {
-        console.error('Error validando pagos:', error);
-        Swal.close();
-        showError('Error de Conexión', 'No se pudo conectar con el servidor');
-    }
-};
-
-/* ========== UI UPDATES ========== */
-const updateEstadoProcesamiento = (mensaje, tipo = 'info') => {
-    if (!procesamientoEstado) return;
-
-    let icon, colorClass;
-    switch (tipo) {
-        case 'success':
-            icon = `<svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>`;
-            colorClass = 'text-green-600';
-            break;
-        case 'error':
-            icon = `<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                    </svg>`;
-            colorClass = 'text-red-600';
-            break;
-        case 'processing':
-            icon = `<svg class="w-5 h-5 text-blue-500 processing-animation" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>`;
-            colorClass = 'text-blue-600';
-            break;
-        default:
-            icon = `<svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>`;
-            colorClass = 'text-gray-500';
-    }
-
-    procesamientoEstado.innerHTML = `
-        <div class="flex items-center ${colorClass}">
-            ${icon}
-            <span class="text-sm ml-3">${mensaje}</span>
-        </div>
-    `;
-};
-
-const renderVistaPrevia = (movimientos) => {
-    if (!tablaPrevia) return;
-
-    tablaPrevia.innerHTML = '';
-
-    movimientos.slice(0, 50).forEach((mov, index) => {
-        const row = document.createElement('tr');
-        row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-
-        row.innerHTML = `
-            <td class="px-4 py-3 text-sm text-gray-900">${formatDate(mov.fecha)}</td>
-            <td class="px-4 py-3 text-sm text-gray-900">${mov.descripcion}</td>
-            <td class="px-4 py-3 text-sm font-mono text-blue-600">${mov.referencia}</td>
-            <td class="px-4 py-3 text-sm font-semibold text-green-600">${formatCurrency(mov.monto)}</td>
-            <td class="px-4 py-3">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Pendiente
-                </span>
-            </td>
-        `;
-
-        tablaPrevia.appendChild(row);
     });
 
-    if (movimientos.length > 50) {
-        const moreRow = document.createElement('tr');
-        moreRow.innerHTML = `
-            <td colspan="5" class="px-4 py-3 text-center text-sm text-gray-500">
-                ... y ${movimientos.length - 50} movimientos más
-            </td>
-        `;
-        tablaPrevia.appendChild(moreRow);
-    }
+    btnLimpiar?.addEventListener('click', resetUpload);
+}
 
-    vistaPrevia.classList.remove('hidden');
-};
-
-const actualizarEstadisticas = async () => {
-    try {
-        const response = await fetch('/admin/movimientos/estadisticas');
-        const result = await response.json();
-
-        if (result.codigo === 1) {
-            const stats = result.data;
-
-            document.getElementById('validacionesExitosas').textContent = stats.validados || 0;
-            document.getElementById('pendientesValidacion').textContent = stats.pendientes || 0;
-            document.getElementById('totalMovimientos').textContent = stats.total || 0;
-            document.getElementById('ultimaCarga').textContent = stats.ultimaCarga || '—';
-        }
-    } catch (error) {
-        console.warn('Error cargando estadísticas:', error);
-    }
-};
-
-const cargarHistorial = async () => {
-    try {
-        const response = await fetch('/admin/movimientos/historial');
-        const result = await response.json();
-
-        if (result.codigo === 1) {
-            const historial = document.getElementById('historialCargas');
-            if (!historial) return;
-
-            historial.innerHTML = '';
-
-            if (result.data.length === 0) {
-                historial.innerHTML = `
-                    <div class="text-center text-gray-500 py-8">
-                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V6a2 2 0 012-2h5.5L16 8.5V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <p class="text-sm">No hay cargas recientes</p>
-                    </div>
-                `;
-                return;
-            }
-
-            result.data.forEach(carga => {
-                const div = document.createElement('div');
-                div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
-                div.innerHTML = `
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">${BANKS[carga.banco_id] || 'Banco'}</p>
-                        <p class="text-xs text-gray-500">${formatDate(carga.fecha)}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-semibold text-blue-600">${carga.registros} movimientos</p>
-                        <p class="text-xs text-green-600">${carga.validados} validados</p>
-                    </div>
-                `;
-                historial.appendChild(div);
-            });
-        }
-    } catch (error) {
-        console.warn('Error cargando historial:', error);
-    }
-};
-
-/* ========== EVENT LISTENERS ========== */
-// Upload Zone Events
-uploadZone?.addEventListener('click', () => {
-    archivoInput?.click();
-});
-
-uploadZone?.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadZone.classList.add('dragover');
-});
-
-uploadZone?.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    uploadZone.classList.remove('dragover');
-});
-
-uploadZone?.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadZone.classList.remove('dragover');
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        updateFileInfo(files[0]);
-    }
-});
-
-// File Input Change
-archivoInput?.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        updateFileInfo(e.target.files[0]);
-    }
-});
-
-// Form Controls
-bancoSelect?.addEventListener('change', updateProcessButton);
-fechaInicio?.addEventListener('change', updateProcessButton);
-fechaFin?.addEventListener('change', updateProcessButton);
-
-// Vista Previa Button
-btnVistaPrevia?.addEventListener('click', async () => {
-    if (!archivoActual) {
-        showError('Error', 'No hay archivo seleccionado');
-        return;
-    }
-
-    updateEstadoProcesamiento('Procesando vista previa...', 'processing');
-
-    try {
-        const data = await parseCSV(archivoActual);
-        datosMovimientos = procesarMovimientos(data);
-
-        if (datosMovimientos.length === 0) {
-            updateEstadoProcesamiento('No se encontraron movimientos válidos', 'error');
-            showError('Sin Datos', 'No se encontraron movimientos de crédito en el archivo');
-            return;
-        }
-
-        renderVistaPrevia(datosMovimientos);
-        updateEstadoProcesamiento(`${datosMovimientos.length} movimientos listos para procesar`, 'success');
-
-    } catch (error) {
-        console.error('Error procesando archivo:', error);
-        updateEstadoProcesamiento('Error procesando archivo', 'error');
-        showError('Error de Archivo', 'No se pudo procesar el archivo. Verifique el formato.');
-    }
-});
-
-// Procesar Button
-btnProcesar?.addEventListener('click', async () => {
-    if (datosMovimientos.length === 0) {
-        showError('Sin Datos', 'Primero debe generar la vista previa del archivo');
-        return;
-    }
-
-    const confirmed = await Swal.fire({
-        title: '¿Procesar movimientos?',
-        html: `
-            <div class="text-left">
-                <p class="mb-4">Se procesarán <strong>${datosMovimientos.length} movimientos</strong> del banco <strong>${BANKS[bancoSelect.value]}</strong></p>
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <p class="text-sm"><strong>Período:</strong> ${fechaInicio.value} a ${fechaFin.value}</p>
-                    <p class="text-sm"><strong>Total a validar:</strong> ${formatCurrency(datosMovimientos.reduce((sum, m) => sum + m.monto, 0))}</p>
-                </div>
-                <p class="mt-4 text-sm text-gray-600">Esta acción buscará coincidencias automáticamente y validará los pagos correspondientes.</p>
-            </div>
-        `,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, procesar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#10B981'
+// =========================
+// Bind botones globales
+// =========================
+function bindGlobalButtons() {
+    $('#btnAbrirEgreso')?.addEventListener('click', openModalEgreso);
+    $('#btnGuardarEgreso')?.addEventListener('click', guardarEgreso);
+    $('#btnAprobar')?.addEventListener('click', aprobarPago);
+    $('#btnRechazar')?.addEventListener('click', rechazarPago);
+    $('#btnRefrescar')?.addEventListener('click', async () => {
+        await Promise.all([loadStats(), loadPendientes(), loadMovimientos()]);
+        toast('Refrescado', 'success');
     });
+    bindModalClose();
+}
 
-    if (confirmed.isConfirmed) {
-        updateEstadoProcesamiento('Validando pagos...', 'processing');
-        await validarPagosAutomaticamente(datosMovimientos);
-    }
+// =========================
+// Init
+// =========================
+document.addEventListener('DOMContentLoaded', async () => {
+    // DataTables inits
+    initDtPendientes();
+    initDtMovs();
+    initDtPreview();
+
+    // Upload + botones
+    bindGlobalButtons();
+    bindUpload();
+
+    // Primeras cargas
+    await loadStats();
+    await loadPendientes();
+    await loadMovimientos();
 });
-
-// Limpiar Button
-btnLimpiar?.addEventListener('click', async () => {
-    const confirmed = await Swal.fire({
-        title: '¿Limpiar formulario?',
-        text: 'Se perderán todos los datos cargados',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, limpiar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#6B7280'
-    });
-
-    if (confirmed.isConfirmed) {
-        limpiarFormulario();
-    }
-});
-
-/* ========== INICIALIZACIÓN ========== */
-document.addEventListener('DOMContentLoaded', () => {
-    actualizarEstadisticas();
-    cargarHistorial();
-
-    // Establecer fechas por defecto (último mes)
-    const hoy = new Date();
-    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-
-    if (fechaInicio) fechaInicio.value = inicioMes.toISOString().split('T')[0];
-    if (fechaFin) fechaFin.value = hoy.toISOString().split('T')[0];
-});
-
-console.log('Sistema de gestión de movimientos bancarios cargado ✅');

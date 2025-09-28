@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminPagosController;
+use App\Http\Controllers\Admin\PagosAdminController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\MetodoPagoController;
@@ -253,7 +255,7 @@ Route::middleware('auth')->group(function () {
 
       Route::get('/inventario/productos/{id}/series-disponibles', [InventarioController::class, 'getSeriesDisponibles'])
             ->name('inventario.producto.series-disponibles');
-      
+
       Route::get('/inventario/productos-excel', [InventarioController::class, 'getProductosExcel'])->name('inventario.productos-excel');
 
       // En la sección de inventario
@@ -456,7 +458,19 @@ Route::middleware('auth')->group(function () {
             Route::get('subir', [PagosController::class, 'index2'])->name('subir.pago');
             Route::get('admin', [PagosController::class, 'index3'])->name('admin.pagos');
             Route::get('obtener/mispagos', [PagosController::class, 'MisFacturasPendientes'])->name('misfacturas.pendientes');
-            Route::post('cuotas/pagar',[PagosController::class, 'pagarCuotas']);
+            Route::post('cuotas/pagar', [PagosController::class, 'pagarCuotas']);
+      });
+
+
+      Route::prefix('admin/pagos')->group(function () {
+            Route::get('/dashboard-stats', [AdminPagosController::class, 'stats']);
+            Route::post('/movs/upload',   [AdminPagosController::class, 'estadoCuentaPreview']);
+            Route::post('/movs/procesar', [AdminPagosController::class, 'estadoCuentaProcesar']);
+            Route::get('/pendientes',     [AdminPagosController::class, 'pendientes']);
+            Route::post('/aprobar',       [AdminPagosController::class, 'aprobar']);
+            Route::post('/rechazar',      [AdminPagosController::class, 'rechazar']);
+            Route::get('/movimientos',    [AdminPagosController::class, 'movimientos']);
+            Route::post('/egresos',       [AdminPagosController::class, 'registrarEgreso']);
       });
 });
 

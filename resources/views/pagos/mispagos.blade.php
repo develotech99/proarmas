@@ -6,19 +6,102 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <style>
+        /* REEMPLAZA SOLO TU SECCIÓN <style> CON ESTO */
+
+        /* Animaciones suaves */
+        @keyframes slideInUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        @keyframes pulse-gentle {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        /* Mejores fondos y efectos de vidrio */
         .modal-backdrop {
-            backdrop-filter: blur(8px);
-            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            background: rgba(0, 0, 0, 0.7);
         }
 
         .glass-card {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
         }
 
+        /* Efectos hover mejorados */
+        .hover-scale {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .hover-scale:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Botones más atractivos */
+        .btn-enhanced {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .btn-enhanced:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Cuotas más amigables */
+        .cuota-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+        }
+
+        .cuota-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+            border-color: #e5e7eb;
+        }
+
+        .cuota-card.selected {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.05));
+            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2), 0 8px 25px rgba(59, 130, 246, 0.15);
+        }
+
+        /* Indicadores de pasos más elegantes */
         .step-indicator {
             position: relative;
+            transition: all 0.3s ease;
         }
 
         .step-indicator::after {
@@ -28,60 +111,97 @@
             right: -20px;
             width: 40px;
             height: 2px;
-            background: #e5e7eb;
+            background: linear-gradient(90deg, #e5e7eb, #d1d5db);
             transform: translateY(-50%);
+            transition: all 0.5s ease;
         }
 
         .step-indicator.active::after {
-            background: #3b82f6;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
         }
 
         .step-indicator:last-child::after {
             display: none;
         }
 
-        .cuota-card {
-            transition: all 0.3s ease;
-        }
-
-        .cuota-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
-        }
-
-        .cuota-card.selected {
-            border-color: #3b82f6;
-            background: rgba(59, 130, 246, 0.05);
-        }
-
+        /* Zona de upload más atractiva */
         .upload-zone {
-            border: 2px dashed #d1d5db;
-            transition: all 0.3s ease;
+            border: 3px dashed #d1d5db;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.9));
         }
 
         .upload-zone:hover {
             border-color: #3b82f6;
-            background: rgba(59, 130, 246, 0.05);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(99, 102, 241, 0.03));
+            transform: scale(1.02);
         }
 
         .upload-zone.dragover {
             border-color: #1d4ed8;
-            background: rgba(29, 78, 216, 0.1);
+            background: linear-gradient(135deg, rgba(29, 78, 216, 0.1), rgba(67, 56, 202, 0.05));
+            transform: scale(1.05);
         }
 
+        /* Resultados OCR más presentables */
         .ocr-result {
-            animation: slideIn 0.3s ease-out;
+            animation: slideInUp 0.5s ease-out;
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
+        /* Microinteracciones */
+        .microinteraction {
+            transition: all 0.2s ease;
+        }
+
+        .microinteraction:hover {
+            transform: scale(1.05);
+        }
+
+        .microinteraction:active {
+            transform: scale(0.95);
+        }
+
+        /* Mejores gradientes para botones */
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .bg-gradient-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .bg-gradient-warning {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        }
+
+        .bg-gradient-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        /* Animaciones de entrada */
+        .animate-slideInUp {
+            animation: slideInUp 0.6s ease-out;
+        }
+
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .animate-pulse-gentle {
+            animation: pulse-gentle 2s ease-in-out infinite;
+        }
+
+        /* Responsive mejorado */
+        @media (max-width: 768px) {
+            .hover-scale:hover {
+                transform: none;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            .modal-backdrop .bg-white {
+                margin: 10px;
+                max-height: 95vh;
             }
         }
     </style>

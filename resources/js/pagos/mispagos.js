@@ -14,12 +14,14 @@ const fmtQ = n =>
     'Q ' + Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const badge = (estado) => {
+    const s = String(estado || '').toUpperCase();
     const cls = {
         PENDIENTE: 'bg-yellow-100 text-yellow-800',
         VENCIDA: 'bg-red-100 text-red-800',
         COMPLETADO: 'bg-green-100 text-green-800',
-        PARCIAL: 'bg-blue-100 text-blue-800'
-    }[String(estado || '').toUpperCase()] || 'bg-gray-100 text-gray-800';
+        PARCIAL: 'bg-blue-100 text-blue-800',
+        EN_REVISION: 'bg-amber-100 text-amber-800'
+    }[s] || 'bg-gray-100 text-gray-800';
     return `<span class="px-2 py-1 text-xs font-semibold rounded ${cls}">${estado ?? 'N/D'}</span>`;
 };
 
@@ -72,12 +74,21 @@ const datatable = new DataTable('#tablaFacturas', {
             title: 'Acciones', data: null, orderable: false, searchable: false,
             render: (_d, _t, row) => {
                 if (Number(row.pendiente) > 0) {
-                    const canPay = Array.isArray(row.cuotas_pendientes) && row.cuotas_pendientes.length > 0;
+                    const totalPend = Array.isArray(row.cuotas_pendientes) ? row.cuotas_pendientes.length : 0;
+                    const bloquearSolo = (Array.isArray(row.cuotas_en_revision) ? row.cuotas_en_revision.length : 0);
+                    const disponibles = Number(row.cuotas_disponibles ?? (totalPend - bloquearSolo));
+                    const canPay = disponibles > 0;
+
                     const dis = canPay ? '' : 'disabled opacity-50 cursor-not-allowed';
-                    const title = canPay ? `Pagar (${row.cuotas_pendientes.length} cuotas)` : 'Sin cuotas disponibles';
+                    const btnClass = canPay ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-300 text-gray-600';
+                    const title = canPay
+                        ? `Pagar (${disponibles}/${totalPend} disponibles)`
+                        : 'No hay cuotas disponibles (algunas en revisión)';
+
                     return `
-            <div class="flex gap-2">
-              <button class="btn-pagar bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded ${dis}" data-venta="${row.venta_id}" title="${title}">Pagar</button>
+            <div class="flex gap-2 items-center">
+              ${bloquearSolo ? '<span class="px-2 py-1 text-xs font-semibold rounded bg-amber-100 text-amber-800">Cuotas en revisión</span>' : ''}
+              <button class="btn-pagar ${btnClass} px-3 py-1 rounded ${dis}" data-venta="${row.venta_id}" title="${title}">Pagar</button>
               <button class="btn-detalle bg-gray-200 hover:bg-gray-300 text-gray-900 px-3 py-1 rounded" data-venta="${row.venta_id}">Detalle</button>
             </div>`;
                 }
@@ -88,9 +99,9 @@ const datatable = new DataTable('#tablaFacturas', {
           </div>`;
             }
         }
+
     ]
 });
-
 
 const GetFacturas = async () => {
     try {
@@ -99,11 +110,19 @@ const GetFacturas = async () => {
         const json = await res.json();
         if (json.codigo !== 1) { Swal.close(); showWarning('Advertencia', json.mensaje || 'No se pudieron cargar las facturas'); return; }
 
-        const pendientes = (json.data?.pendientes ?? []).map(f => ({ ...f, estado: f.estado_pago || 'PENDIENTE' }));
-        const pagadas4m = (json.data?.pagadas_ult4m ?? []).map(f => ({ ...f, pendiente: 0, estado: 'COMPLETADO' }));
+        const pendientes = (json.data?.pendientes ?? []).map(f => ({
+            ...f,
+            estado: f.estado_pago || 'PENDIENTE'
+        }));
+
+        const pagadas4m = (json.data?.pagadas_ult4m ?? []).map(f => ({
+            ...f, pendiente: 0, estado: 'COMPLETADO'
+        }));
+
         const rows = [...pendientes, ...pagadas4m];
 
-        ventaIndex.clear(); rows.forEach(r => ventaIndex.set(r.venta_id, r));
+        ventaIndex.clear();
+        rows.forEach(r => ventaIndex.set(r.venta_id, r));
 
         const $ = (id) => document.getElementById(id);
         $('totalFacturas') && ($('totalFacturas').textContent = rows.length);
@@ -115,7 +134,6 @@ const GetFacturas = async () => {
     } catch (e) { console.warn(e); Swal.close(); showError('Error', 'Ocurrió un error al cargar las facturas'); }
 };
 GetFacturas();
-
 
 const bancoSelectTop = document.getElementById('bancoSelectTop');
 const modal = document.getElementById('modalPago');
@@ -659,43 +677,65 @@ const calcTotalSeleccionado = () => {
 const renderCuotas = (venta) => {
     if (!listDiv) return;
     listDiv.innerHTML = '';
+
     const cuotas = Array.isArray(venta.cuotas_pendientes) ? venta.cuotas_pendientes : [];
     if (!cuotas.length) {
         listDiv.innerHTML = `<div class="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg text-center">No hay cuotas pendientes para esta factura.</div>`;
+        btnContinuarPaso2 && btnContinuarPaso2.setAttribute('disabled', 'disabled');
         return;
     }
+
+    const disponibles = cuotas.filter(c => !c.en_revision);
+    if (disponibles.length === 0) {
+        listDiv.innerHTML = `
+        <div class="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-center">
+            Todas las cuotas pendientes de esta venta tienen comprobante en revisión.
+        </div>`;
+        btnContinuarPaso2 && btnContinuarPaso2.setAttribute('disabled', 'disabled');
+        return;
+    }
+
     cuotas.forEach(c => {
+        const enRev = !!c.en_revision;
+
         const row = document.createElement('div');
-        row.className = 'cuota-card border-2 border-gray-200 rounded-xl p-4 bg-white shadow-sm cursor-pointer';
+        row.className = 'cuota-card border-2 border-gray-200 rounded-xl p-4 bg-white shadow-sm';
         row.innerHTML = `
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4">
-          <input type="checkbox" class="cuota-check w-5 h-5 accent-blue-600" data-id="${c.cuota_id}" data-numero="${c.numero}" data-monto="${c.monto}" data-vence="${c.vence}">
+          <input type="checkbox" class="cuota-check w-5 h-5 accent-blue-600" ${enRev ? 'disabled' : ''} data-id="${c.cuota_id}" data-numero="${c.numero}" data-monto="${c.monto}" data-vence="${c.vence}">
           <div>
-            <div class="text-lg font-semibold text-gray-800">Cuota #${c.numero}</div>
+            <div class="text-lg font-semibold text-gray-800">Cuota #${c.numero} ${enRev ? '<span class="ml-2 px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-800 align-middle">EN REVISIÓN</span>' : ''}</div>
             <div class="text-sm text-gray-600">Vence: ${c.vence} • Estado: ${c.estado}</div>
           </div>
         </div>
         <div class="text-right">
           <div class="text-xl font-bold text-blue-600">${fmtQ(c.monto)}</div>
-          <button class="btn-pagar-una bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium mt-2" data-id="${c.cuota_id}" data-monto="${c.monto}">Pagar Solo Esta</button>
+          <button class="btn-pagar-una ${enRev ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'} px-4 py-2 rounded-lg text-sm font-medium mt-2" data-id="${c.cuota_id}" data-monto="${c.monto}" ${enRev ? 'disabled title="Comprobante en revisión"' : ''}>Pagar Solo Esta</button>
         </div>
       </div>`;
+
         listDiv.appendChild(row);
-        const checkbox = row.querySelector('input.cuota-check');
-        checkbox.addEventListener('change', () => {
-            checkbox.checked ? row.classList.add('selected') : row.classList.remove('selected');
-            calcTotalSeleccionado();
-        });
-        row.addEventListener('click', (e) => {
-            if (!e.target.matches('button, input')) {
-                checkbox.checked = !checkbox.checked;
-                checkbox.dispatchEvent(new Event('change'));
-            }
-        });
+
+        if (!enRev) {
+            const checkbox = row.querySelector('input.cuota-check');
+            checkbox.addEventListener('change', () => {
+                checkbox.checked ? row.classList.add('selected') : row.classList.remove('selected');
+                calcTotalSeleccionado();
+            });
+            row.addEventListener('click', (e) => {
+                if (!e.target.matches('button, input')) {
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+            });
+        }
     });
+
     calcTotalSeleccionado();
 };
+
+
 
 /* ==== Upload y OCR ==== */
 const handleFileUpload = (file) => {
@@ -901,16 +941,21 @@ btnContinuarPaso3?.addEventListener('click', () => {
 
 btnVolverPaso2?.addEventListener('click', () => showStep(2));
 
-
 document.getElementById('tablaFacturas')?.addEventListener('click', (ev) => {
     const btn = ev.target.closest('button');
     if (!btn) return;
 
     if (btn.classList.contains('btn-pagar')) {
-        if (btn.classList.contains('opacity-50')) return;
         const ventaId = btn.dataset.venta;
         const venta = ventaIndex.get(Number(ventaId));
         if (!venta) return;
+
+        const disponibles = (venta.cuotas_pendientes || []).filter(c => !c.en_revision);
+        if (disponibles.length === 0) {
+            showWarning('Sin cuotas disponibles', 'Todas las cuotas de esta venta tienen comprobante en revisión.');
+            return;
+        }
+
         renderCuotas(venta);
         btnSubir && (btnSubir.dataset.venta = ventaId);
         openModal();
@@ -920,6 +965,8 @@ document.getElementById('tablaFacturas')?.addEventListener('click', (ev) => {
         console.log('Detalle factura', btn.dataset.venta);
     }
 });
+
+
 
 listDiv?.addEventListener('click', (ev) => {
     const b = ev.target.closest('button.btn-pagar-una');
@@ -1125,6 +1172,24 @@ const addTooltips = () => {
     });
 };
 
-document.addEventListener('DOMContentLoaded', addTooltips);
+const animateStatsOnLoad = () => {
+    const cards = document.querySelectorAll('.glass-card');
+    cards.forEach((card, index) => {
+        card.style.animationDelay = `${0.1 * index}s`;
+        card.classList.add('animate-slideInUp');
+    });
+};
 
-console.log('Sistema de pagos con OCR mejorado listo ✅');
+
+const originalGetFacturas = GetFacturas;
+window.GetFacturas = async () => {
+    try {
+        await originalGetFacturas();
+        setTimeout(animateStatsOnLoad, 100);
+    } catch (error) {
+        console.error('Error loading facturas:', error);
+        throw error;
+    }
+};
+
+document.addEventListener('DOMContentLoaded', addTooltips);
