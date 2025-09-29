@@ -74,7 +74,6 @@ const initTablaPendientes = () => {
     dtPendientes = new DataTable("#tablaPendientes", {
         searchable: false,
         sortable: true,
-        fixedHeight: true,
         perPage: 10,
         perPageSelect: [5, 10, 20, 50],
         labels: labelsES,
@@ -125,6 +124,9 @@ const initTablaPreview = () => {
             data: [],
         },
     });
+
+    document.querySelectorAll("#tablaPrevia thead th:nth-child(4)")
+        .forEach(th => th.classList.add("text-right"));
 };
 
 /* =========================
@@ -187,17 +189,30 @@ const CargarStats = async () => {
  *  Pendientes
  *  Espera: { codigo, mensaje, data:[...] }
  * ========================= */
-
 const renderPendientes = (rows = []) => {
+    const tabla = document.getElementById("tablaPendientes");
+    const empty = document.getElementById("emptyPendientes");
+
+    // Si no hay filas: destruir DT, ocultar la tabla y mostrar vacío
+    if (!rows.length) {
+        if (dtPendientes) { try { dtPendientes.destroy(); } catch (_) { } dtPendientes = null; }
+        // Limpiar cuerpo por si quedó algo
+        document.querySelector("#tablaPendientes tbody")?.replaceChildren();
+        tabla?.classList.add("hidden");
+        empty?.classList.remove("hidden");
+        return;
+    }
+
+    // Sí hay filas: asegurarnos de mostrar la tabla y ocultar el vacío
+    tabla?.classList.remove("hidden");
+    empty?.classList.add("hidden");
 
     const isSmall = window.matchMedia('(max-width: 768px)').matches;
-
 
     const data = rows.map((r) => {
         const fecha = r.fecha ? new Date(r.fecha).toLocaleDateString() : "—";
         const venta = r.venta_id ? `#${r.venta_id}` : "—";
         const cliente = r.cliente || "—";
-
 
         const ventaTotal = Number(r.venta_total || 0);
         const pendienteVenta = Number(r.pendiente_venta || 0);
@@ -209,9 +224,7 @@ const renderPendientes = (rows = []) => {
         const debia = fmtQ(r.debia);
         const deposito = fmtQ(r.depositado);
         const difNum = Number(r.diferencia || 0);
-        const difCls = difNum === 0 ? "text-emerald-600"
-            : difNum > 0 ? "text-amber-600"
-                : "text-rose-600";
+        const difCls = difNum === 0 ? "text-emerald-600" : difNum > 0 ? "text-amber-600" : "text-rose-600";
         const dif = `<span class="${difCls}">${fmtQ(difNum)}</span>`;
 
         const cuotasInfo = (cuotasSel || cuotasTotal)
@@ -265,60 +278,28 @@ const renderPendientes = (rows = []) => {
           <span>Comprobante: ${comp}</span>
         </div>
       `;
-            return [
-                cabecera + detalleHtml + totales,
-                acciones
-            ];
+            return [cabecera + detalleHtml + totales, acciones];
         }
 
-        return [
-            fecha,
-            venta,
-            cliente,
-            detalleHtml,
-            debia,
-            deposito,
-            dif,
-            comp,
-            acciones
-        ];
+        return [fecha, venta, cliente, detalleHtml, debia, deposito, dif, comp, acciones];
     });
 
-    if (dtPendientes) dtPendientes.destroy();
+    if (dtPendientes) { try { dtPendientes.destroy(); } catch (_) { } dtPendientes = null; }
 
-    const headingsDesktop = [
-        "Fecha",
-        "Venta",
-        "Cliente",
-        "Detalle",
-        "Debía",
-        "Depositado",
-        "Diferencia",
-        "Comprobante",
-        "Acciones",
-    ];
-
-    const headingsMobile = [
-        "Factura / Cliente / Detalle",
-        "Acciones",
-    ];
+    const headingsDesktop = ["Fecha", "Venta", "Cliente", "Detalle", "Debía", "Depositado", "Diferencia", "Comprobante", "Acciones"];
+    const headingsMobile = ["Factura / Cliente / Detalle", "Acciones"];
 
     dtPendientes = new DataTable("#tablaPendientes", {
         searchable: false,
         sortable: true,
-        fixedHeight: true,
+        fixedHeight: false,             // <<< evita scroll forzado con pocas/ninguna fila
         perPage: 10,
         perPageSelect: [5, 10, 20, 50],
         labels: labelsES,
-        data: {
-            headings: isSmall ? headingsMobile : headingsDesktop,
-            data,
-        },
+        data: { headings: isSmall ? headingsMobile : headingsDesktop, data },
     });
-
-    const empty = document.getElementById("emptyPendientes");
-    if (empty) empty.classList.toggle("hidden", rows.length > 0);
 };
+
 
 const BuscarPendientes = async () => {
     try {
@@ -582,6 +563,7 @@ document.getElementById("btnGuardarEgreso")?.addEventListener("click", async (e)
         swalLoadingOpen("Guardando egreso...");
         const form = document.getElementById("formEgreso");
         const fd = new FormData(form);
+        fd.append("_token", csrfToken);
         const resp = await fetch(`${API}/egresos`, { method: "POST", body: fd });
         const { codigo, mensaje } = await resp.json();
         swalLoadingClose();
@@ -628,7 +610,15 @@ const resetUpload = () => {
     fileInfo?.classList.add("hidden");
     uploadContent?.classList.remove("hidden");
     enableUploadActions(false);
-    document.getElementById("vistaPrevia")?.classList.add("hidden");
+
+    const vista = document.getElementById("vistaPrevia");
+    if (vista) vista.classList.add("hidden");
+
+    if (dtPreview) {
+        try { dtPreview.destroy(); } catch (_) { }
+        dtPreview = null;
+    }
+
     setTxt("totalMovimientos", "0");
 };
 
@@ -667,48 +657,77 @@ btnPreview?.addEventListener("click", async () => {
         const fd = new FormData();
         fd.append("archivo", f);
         if (bancoOrigen?.value) fd.append("banco_id", bancoOrigen.value);
-
         fd.append("_token", csrfToken);
+
         const resp = await fetch(`${API}/movs/upload`, { method: "POST", body: fd });
         const { codigo, mensaje, data } = await resp.json();
         swalLoadingClose();
 
-        if (codigo === 1 && data?.path) {
-            uploadTmp = data;
-            // Render preview
-            const rows = (data.rows || []).map((r) => [
-                r.fecha || "—",
-                r.descripcion || "—",
-                r.referencia || "—",
-                fmtQ(r.monto ?? 0),
-                r.detectado ?? "—",
-            ]);
-
-            if (dtPreview) dtPreview.destroy();
-            dtPreview = new DataTable("#tablaPrevia", {
-                searchable: false,
-                sortable: true,
-                fixedHeight: true,
-                perPage: 25,
-                perPageSelect: [10, 25, 50, 100],
-                labels: labelsES,
-                data: {
-                    headings: ["Fecha", "Descripción", "Referencia", "Monto", "Detectado"],
-                    data: rows,
-                },
-            });
-
-            document.getElementById("vistaPrevia")?.classList.remove("hidden");
-            setTxt("totalMovimientos", String(rows.length));
-            enableUploadActions(true);
-        } else {
-            await Swal.fire("Error", mensaje || "No se pudo previsualizar", "error");
+        if (codigo !== 1 || !data?.path) {
+            return Swal.fire("Error", mensaje || "No se pudo previsualizar", "error");
         }
+
+        uploadTmp = data;
+
+        const vista = document.getElementById("vistaPrevia");
+        if (vista) {
+            vista.classList.remove("hidden");
+            void vista.offsetHeight;
+            // o: await new Promise(requestAnimationFrame);
+        }
+
+        const rows = (data.rows || []).map((r) => [
+            r.fecha || "—",
+            r.descripcion || "—",
+            r.referencia || "—",
+            r.monto ?? 0,
+            r.detectado ?? "—",
+        ]);
+
+        if (dtPreview) {
+            try { dtPreview.destroy(); } catch (_) { }
+            dtPreview = null;
+        }
+
+        dtPreview = new DataTable("#tablaPrevia", {
+            searchable: false,
+            sortable: true,
+            perPage: 25,
+            perPageSelect: [10, 25, 50, 100],
+            labels: labelsES,
+            data: {
+                headings: ["Fecha", "Descripción", "Referencia", "Monto", "Detectado"],
+                data: rows,
+            },
+            columns: [
+                { select: 0, type: "string" },
+                { select: 1, type: "string" },
+                { select: 2, type: "string" },
+                {
+                    select: 3,
+                    type: "number",
+                    render: (val) =>
+                        `<div class="text-right tabular-nums font-medium">${fmtQ(Number(val || 0))}</div>`,
+                },
+                { select: 4, type: "string" },
+            ],
+        });
+
+        setTimeout(() => {
+            dtPreview?.page(1);
+            dtPreview?.refresh(); // asegura recalculo de anchos
+            document.querySelectorAll("#tablaPrevia thead th:nth-child(4)")
+                .forEach((th) => th.classList.add("text-right"));
+        }, 0);
+
+        setTxt("totalMovimientos", String(rows.length));
+        enableUploadActions(true);
     } catch (e) {
         swalLoadingClose();
         console.error("Preview error:", e);
     }
 });
+
 
 btnProcesar?.addEventListener("click", async () => {
     if (!uploadTmp?.path) {
@@ -722,7 +741,7 @@ btnProcesar?.addEventListener("click", async () => {
             archivo_path: uploadTmp.path,
             banco_id: bancoOrigen?.value ? Number(bancoOrigen.value) : undefined,
             fecha_inicio: fi || undefined,
-            fecha_fin: ff || undefined,
+            fecha_fin: ff || undefined
         });
 
         const resp = await fetch(`${API}/movs/procesar`, {
@@ -733,23 +752,27 @@ btnProcesar?.addEventListener("click", async () => {
         const { codigo, mensaje, data } = await resp.json();
         swalLoadingClose();
 
-        if (codigo === 1) {
-            await Swal.fire("¡Éxito!", mensaje || "Estado de cuenta registrado", "success");
-
-            const ecId = data?.ec_id;
-            if (ecId) {
-                await ConciliarAutomatico(ecId);
-            }
-
-            await CargarStats();
-        } else {
-            await Swal.fire("Error", mensaje || "No se pudo procesar", "error");
+        if (codigo !== 1) {
+            return Swal.fire("Error", mensaje || "No se pudo procesar", "error");
         }
+
+        const ecId = data?.ec_id;
+        if (!ecId) {
+            return Swal.fire("Error", "No se obtuvo el control (ec_id)", "error");
+        }
+
+        await ConciliarAutomatico(ecId, { auto_aprobar: true, tolerancia: 1.00 });
+
+        await CargarStats();
+        await CargarMovimientos();
+        await BuscarPendientes();
+
     } catch (e) {
         swalLoadingClose();
         console.error("Procesar error:", e);
     }
 });
+
 
 const ConciliarAutomatico = async (ecId) => {
     try {
@@ -757,75 +780,156 @@ const ConciliarAutomatico = async (ecId) => {
         const resp = await fetch(`${API}/conciliar`, {
             method: "POST",
             headers: getHeaders(),
-            body: JSON.stringify({ ec_id: ecId })
+            body: JSON.stringify({ ec_id: ecId }) // sin auto_aprobar: primero revisamos
         });
-        const { codigo, mensaje, data } = await resp.json();
+        const { codigo, data, mensaje } = await resp.json();
         swalLoadingClose();
 
-        if (codigo === 1) {
-            const { matches = [], no_match = [] } = data;
-
-            // Mostrar sección de conciliación
-            const seccion = document.getElementById('seccionConciliacion');
-            const matchesDiv = document.getElementById('matchesList');
-            const noMatchDiv = document.getElementById('noMatchList');
-
-            if (seccion) seccion.classList.remove('hidden');
-
-            // Renderizar coincidencias
-            if (matches.length > 0) {
-                matchesDiv.innerHTML = `
-                    <h4 class="font-semibold text-emerald-700 mb-2">✓ Coincidencias (${matches.length})</h4>
-                    ${matches.map(m => `
-                        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <p class="font-semibold text-sm">Venta #${m.venta_id}</p>
-                                    <p class="text-xs text-gray-600">Ref: ${m.banco_ref}</p>
-                                    <p class="text-xs text-gray-600">Fecha banco: ${m.banco_fecha || '—'}</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="font-bold text-emerald-700">${fmtQ(m.banco_monto)}</p>
-                                    <span class="text-xs px-2 py-1 bg-emerald-600 text-white rounded">${m.confianza}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                `;
-            } else {
-                matchesDiv.innerHTML = '<p class="text-sm text-gray-500">No se encontraron coincidencias automáticas.</p>';
-            }
-
-            // Renderizar sin coincidencia
-            if (no_match.length > 0) {
-                noMatchDiv.innerHTML = `
-                    <h4 class="font-semibold text-amber-700 mb-2 mt-4">⚠ Sin coincidencia (${no_match.length})</h4>
-                    ${no_match.map(n => `
-                        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <p class="font-semibold text-sm">Venta #${n.venta_id}</p>
-                                    <p class="text-xs text-gray-600">Ref cliente: ${n.ps_referencia || 'Sin ref'}</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="font-bold text-amber-700">${fmtQ(n.ps_monto)}</p>
-                                    <span class="text-xs px-2 py-1 bg-amber-600 text-white rounded">MANUAL</span>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                `;
-            }
-
-            await BuscarPendientes();
-
-            seccion.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (codigo !== 1) {
+            return Swal.fire("Error", mensaje || "Falló la conciliación", "error");
         }
+
+        const { coincidencias = [], revision = [], sin_match = [] } = data;
+
+        // Si no hay coincidencias, actualiza panel y avisa
+        if (!coincidencias.length) {
+            const seccion = document.getElementById("seccionConciliacion");
+            const matchesDiv = document.getElementById("matchesList");
+            const noMatchDiv = document.getElementById("noMatchList");
+            if (seccion) seccion.classList.remove("hidden");
+            matchesDiv.innerHTML = '<p class="text-sm text-gray-500">No hubo coincidencias.</p>';
+            noMatchDiv.innerHTML = sin_match.length
+                ? `<h4 class="font-semibold text-gray-700 mb-2">Sin coincidencia (${sin_match.length})</h4>`
+                + sin_match.map(n => `
+              <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <div class="flex justify-between">
+                  <div>
+                    <p class="font-semibold text-sm">Venta #${n.venta_id}</p>
+                    <p class="text-xs text-gray-600">Ref cliente: ${n.ps_referencia || "—"}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="font-bold text-gray-700">${fmtQ(n.ps_monto || 0)}</p>
+                    <span class="text-xs px-2 py-1 bg-gray-600 text-white rounded">SIN MATCH</span>
+                  </div>
+                </div>
+              </div>`).join("")
+                : "";
+            return Swal.fire("Sin coincidencias", "No se detectaron pagos para validar.", "info");
+        }
+
+        // Mostrar detalle antes de validar
+        const filas = coincidencias.map((c) => {
+            const ps = c._ps_row || {};
+            const debiaEnvio = Number(ps.ps_monto_total_cuotas_front ?? 0);
+            const pendienteVenta = Number(ps.pago_monto_pendiente ?? 0);
+            const debia = debiaEnvio > 0 ? debiaEnvio : pendienteVenta;
+            const depositado = Number(ps.ps_monto_comprobante ?? c.banco_monto ?? 0);
+            const dif = depositado - debia;
+            const difCls = dif === 0 ? "text-emerald-700" : dif > 0 ? "text-amber-700" : "text-rose-700";
+            return `
+        <tr class="border-b">
+          <td class="py-2 pr-3 text-sm">#${c.venta_id}</td>
+          <td class="py-2 pr-3 text-sm">${ps.ps_referencia || c.banco_ref || "—"}</td>
+          <td class="py-2 pr-3 text-sm">${c.banco_fecha || "—"}</td>
+          <td class="py-2 pr-3 text-sm text-right">${fmtQ(debia)}</td>
+          <td class="py-2 pr-3 text-sm text-right">${fmtQ(depositado)}</td>
+          <td class="py-2 pr-3 text-sm text-right ${difCls} font-semibold">${fmtQ(dif)}</td>
+        </tr>`;
+        }).join("");
+
+        const html = `
+      <div class="text-left">
+        <p class="mb-3">Se detectaron <b>${coincidencias.length}</b> coincidencia(s). Revisa el detalle:</p>
+        <div class="overflow-x-auto border rounded-lg">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="py-2 px-3 text-left">Venta</th>
+                <th class="py-2 px-3 text-left">Ref.</th>
+                <th class="py-2 px-3 text-left">Fecha banco</th>
+                <th class="py-2 px-3 text-right">Debía</th>
+                <th class="py-2 px-3 text-right">Depositado</th>
+                <th class="py-2 px-3 text-right">Diferencia</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </div>
+        <p class="mt-3">¿Deseas <b>validarlas</b> y registrar los pagos automáticamente?</p>
+      </div>`;
+
+        const { isConfirmed } = await Swal.fire({
+            title: "Coincidencias encontradas",
+            html,
+            icon: "question",
+            width: 800,
+            showCancelButton: true,
+            confirmButtonText: "Sí, validar ahora",
+            cancelButtonText: "No, revisar después"
+        });
+
+        if (!isConfirmed) {
+            return; // el admin decidió no validar aún
+        }
+
+        // Aprobar una por una y verificar resultado
+        swalLoadingOpen("Validando coincidencias...");
+        const resultados = [];
+        for (const c of coincidencias) {
+            try {
+                const r = await fetch(`${API}/aprobar`, {
+                    method: "POST",
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        ps_id: c.ps_id,
+                        observaciones: `Validado por conciliación (Ref: ${c.banco_ref || ""})`
+                    })
+                });
+                const js = await r.json().catch(() => ({}));
+                resultados.push({
+                    venta_id: c.venta_id,
+                    ps_id: c.ps_id,
+                    ok: js?.codigo === 1,
+                    msg: js?.mensaje || js?.detalle || "Sin detalle"
+                });
+            } catch (err) {
+                resultados.push({
+                    venta_id: c.venta_id,
+                    ps_id: c.ps_id,
+                    ok: false,
+                    msg: "Error de red o servidor"
+                });
+            }
+        }
+        swalLoadingClose();
+
+        const okCount = resultados.filter(x => x.ok).length;
+        const fail = resultados.filter(x => !x.ok);
+
+        if (fail.length) {
+            const lista = fail.map(f => `Venta #${f.venta_id} (ps ${f.ps_id}): ${f.msg}`).join("<br>");
+            await Swal.fire({
+                icon: "warning",
+                title: "Validación parcial",
+                html: `Aprobados: <b>${okCount}</b> · Fallidos: <b>${fail.length}</b><br><br>${lista}`,
+                confirmButtonText: "Entendido"
+            });
+        } else {
+            await Swal.fire("¡Listo!", `Se validaron ${okCount} coincidencia(s).`, "success");
+        }
+
+        // refrescar
+        await CargarStats();
+        await CargarMovimientos();
+        await BuscarPendientes();
+
     } catch (e) {
         swalLoadingClose();
         console.error("Conciliar error:", e);
+        Swal.fire("Error", "Ocurrió un error inesperado durante la conciliación.", "error");
     }
 };
+
 
 btnLimpiar?.addEventListener("click", resetUpload);
 

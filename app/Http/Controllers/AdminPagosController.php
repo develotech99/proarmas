@@ -255,55 +255,53 @@ class AdminPagosController extends Controller
     {
         try {
             $data = $request->validate([
-                'ps_id'        => ['required', 'integer', 'min:1'],
+                'ps_id'         => ['required', 'integer', 'min:1'],
                 'observaciones' => ['nullable', 'string', 'max:255'],
-                'metodo_id'    => ['nullable', 'integer', 'min:1'],
+                'metodo_id'     => ['nullable', 'integer', 'min:1'],
             ]);
 
             $metodoEfectivoId = (int) ($data['metodo_id'] ?? 1);
 
             $ps = DB::table('pro_pagos_subidos')->where('ps_id', $data['ps_id'])->first();
-            if (!$ps) {
-                return response()->json([
-                    'codigo' => 0,
-                    'mensaje' => 'Registro no encontrado'
-                ], 404);
-            }
+            if (!$ps) return response()->json(['codigo' => 0, 'mensaje' => 'Registro no encontrado'], 404);
 
+            // Aceptamos PENDIENTE o PENDIENTE_VALIDACION
             if (!in_array($ps->ps_estado, ['PENDIENTE', 'PENDIENTE_VALIDACION'])) {
-                return response()->json([
-                    'codigo' => 0,
-                    'mensaje' => 'El registro no está pendiente'
-                ], 422);
+                return response()->json(['codigo' => 0, 'mensaje' => 'El registro no está pendiente'], 422);
             }
 
             $venta = DB::table('pro_ventas as v')
                 ->join('pro_pagos as pg', 'pg.pago_venta_id', '=', 'v.ven_id')
                 ->select(
                     'v.ven_id',
-                    'v.ven_cliente',
                     'pg.pago_id',
-                    'pg.pago_estado',
                     'pg.pago_monto_total',
-                    'pg.pago_monto_pagado',
-                    'pg.pago_monto_pendiente'
+                    'pg.pago_monto_pagado'
                 )
                 ->where('v.ven_id', $ps->ps_venta_id)
                 ->first();
 
-            if (!$venta) {
-                return response()->json([
-                    'codigo' => 0,
-                    'mensaje' => 'Venta asociada no encontrada'
-                ], 404);
+            if (!$venta) return response()->json(['codigo' => 0, 'mensaje' => 'Venta asociada no encontrada'], 404);
+
+            // 1) IDs de cuotas desde el JSON del PS (sanitizar + validar que pertenezcan al pago)
+            $cuotasIds = json_decode($ps->ps_cuotas_json ?? '[]', true) ?: [];
+            $cuotasIds = array_values(array_unique(array_map('intval', $cuotasIds)));
+
+            $validCuotas = [];
+            if ($cuotasIds) {
+                $validCuotas = DB::table('pro_cuotas')
+                    ->where('cuota_control_id', $venta->pago_id)
+                    ->whereIn('cuota_id', $cuotasIds)
+                    ->pluck('cuota_id')
+                    ->all();
             }
 
-            $monto = (float) $ps->ps_monto_comprobante;
+            $monto = (float) ($ps->ps_monto_comprobante ?? 0);
             $fecha = $ps->ps_fecha_comprobante ?: now();
 
             DB::beginTransaction();
 
-            // 1) Detalle de pago
+            // 2) Detalle de pago (1 registro por comprobante)
             $detId = DB::table('pro_detalle_pagos')->insertGetId([
                 'det_pago_pago_id'             => $venta->pago_id,
                 'det_pago_cuota_id'            => null,
@@ -321,24 +319,22 @@ class AdminPagosController extends Controller
                 'updated_at'                   => now(),
             ]);
 
-            // 2) Master de pagos
-            $nuevoPagado    = (float) $venta->pago_monto_pagado + $monto;
-            $nuevoPendiente = max((float) $venta->pago_monto_total - $nuevoPagado, 0);
+            // 3) Master de pagos
+            $nuevoPagado    = (float)$venta->pago_monto_pagado + $monto;
+            $nuevoPendiente = max((float)$venta->pago_monto_total - $nuevoPagado, 0);
             $nuevoEstado    = $nuevoPendiente <= 0 ? 'COMPLETADO' : 'PARCIAL';
 
-            DB::table('pro_pagos')
-                ->where('pago_id', $venta->pago_id)
-                ->update([
-                    'pago_monto_pagado'     => $nuevoPagado,
-                    'pago_monto_pendiente'  => $nuevoPendiente,
-                    'pago_estado'           => $nuevoEstado,
-                    'pago_fecha_completado' => $nuevoPendiente <= 0 ? now() : null,
-                    'updated_at'            => now(),
-                ]);
+            DB::table('pro_pagos')->where('pago_id', $venta->pago_id)->update([
+                'pago_monto_pagado'     => $nuevoPagado,
+                'pago_monto_pendiente'  => $nuevoPendiente,
+                'pago_estado'           => $nuevoEstado,
+                'pago_fecha_completado' => $nuevoPendiente <= 0 ? now() : null,
+                'updated_at'            => now(),
+            ]);
 
-            // 3) Caja (historial)
+            // 4) Caja
             DB::table('cja_historial')->insert([
-                'cja_tipo' => 'VENTA',
+                'cja_tipo'          => 'VENTA',
                 'cja_id_venta'      => $venta->ven_id,
                 'cja_usuario'       => auth()->id(),
                 'cja_monto'         => $monto,
@@ -350,41 +346,39 @@ class AdminPagosController extends Controller
                 'created_at'        => now(),
             ]);
 
-            // 4) Saldos
+            // 5) Saldos
             CajaSaldo::ensureRow($metodoEfectivoId, 'GTQ')->addAmount($monto);
 
-            // 5) Cambiar estado del PS
-            DB::table('pro_pagos_subidos')
-                ->where('ps_id', $ps->ps_id)
-                ->update([
-                    'ps_estado'    => 'APROBADO',
-                    'ps_notas_revision' => $data['observaciones'] ?? null,
-                    'ps_revisado_por' => auth()->id(),
-                    'ps_revisado_en' => now(),
-                    'updated_at'   => now(),
-                ]);
-
-
-            if (!empty($ps->ps_cuotas_aprobadas_json)) {
-                $cuotasIds = json_decode($ps->ps_cuotas_aprobadas_json, true);
-                if (is_array($cuotasIds) && count($cuotasIds) > 0) {
-                    DB::table('pro_cuotas')
-                        ->whereIn('cuota_id', $cuotasIds)
-                        ->update([
-                            'cuota_estado' => 'PAGADA',
-                            'cuota_fecha_pago' => now(),
-                            'updated_at' => now()
-                        ]);
-                }
+            // 6) Marcar cuotas (si corresponde)
+            if (!empty($validCuotas)) {
+                DB::table('pro_cuotas')
+                    ->whereIn('cuota_id', $validCuotas)
+                    ->update([
+                        'cuota_estado'     => 'PAGADA',
+                        'cuota_fecha_pago' => now(),
+                        'updated_at'       => now(),
+                    ]);
             }
+
+            // 7) PS -> APROBADO (usando tus columnas reales)
+            DB::table('pro_pagos_subidos')->where('ps_id', $ps->ps_id)->update([
+                'ps_estado'         => 'APROBADO',
+                'ps_notas_revision' => $data['observaciones'] ?? null,
+                'ps_revisado_por'   => auth()->id(),
+                'ps_revisado_en'    => now(),
+                'updated_at'        => now(),
+            ]);
 
             DB::commit();
 
+            $this->safeDeletePublicPath($ps->ps_imagen_path ?? null);
+
             return response()->json([
-                'codigo' => 1,
+                'codigo'  => 1,
                 'mensaje' => 'Pago aprobado exitosamente',
-                'data' => [
-                    'det_pago_id' => $detId
+                'data'    => [
+                    'det_pago_id'         => $detId,
+                    'cuotas_pagadas_ids'  => $validCuotas,
                 ]
             ], 200);
         } catch (ValidationException $ve) {
@@ -393,7 +387,7 @@ class AdminPagosController extends Controller
                 'mensaje' => 'Datos de validación inválidos',
                 'detalle' => $ve->getMessage()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             return response()->json([
                 'codigo' => 0,
@@ -402,6 +396,7 @@ class AdminPagosController extends Controller
             ], 500);
         }
     }
+
 
     /* ===========================
      * Rechazar pago
@@ -519,6 +514,7 @@ class AdminPagosController extends Controller
      * =========================== */
     public function registrarEgreso(Request $request)
     {
+
         try {
             $data = $request->validate([
                 'fecha'      => ['nullable', 'date'],
@@ -568,12 +564,12 @@ class AdminPagosController extends Controller
                 'mensaje' => 'Datos de validación inválidos',
                 'detalle' => $ve->getMessage()
             ], 422);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             if ($path) {
                 try {
                     Storage::disk('public')->delete($path);
-                } catch (\Exception $__) {
+                } catch (Exception $__) {
                 }
             }
             return response()->json([
@@ -600,6 +596,9 @@ class AdminPagosController extends Controller
             $path = $file->store('estados_cuenta/tmp', 'public');
 
             [$headers, $rows] = $this->parseSheet(storage_path('app/public/' . $path));
+
+            \Log::info('Headers detectados:', $headers);
+            \Log::info('Primera fila procesada:', $rows[0] ?? []);
 
             return response()->json([
                 'codigo' => 1,
@@ -696,112 +695,790 @@ class AdminPagosController extends Controller
         setlocale(LC_ALL, 'es_ES.UTF-8', 'es_GT.UTF-8', 'Spanish_Guatemala.1252');
         $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
 
-        // CSV/TXT
+        $normalizeKey = function ($s) {
+            $s = mb_strtolower(trim((string)$s), 'UTF-8');
+            $s = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+            $s = preg_replace('/[^a-z0-9]+/', ' ', $s);
+            $s = preg_replace('/\s+/', ' ', $s);
+            return trim($s);
+        };
+        $rmSpaces = fn($s) => str_replace(' ', '', $s);
+
+        // ==== CSV/TXT ====
         if (in_array($ext, ['csv', 'txt'])) {
-            $fh = fopen($fullPath, 'r');
-            if ($fh === false) {
-                throw new \RuntimeException('No se pudo abrir el archivo CSV/TXT.');
+            $raw = file_get_contents($fullPath);
+            if ($raw === false) throw new \RuntimeException('No se pudo leer el archivo CSV/TXT.');
+
+            // BOM/encoding
+            $bom = substr($raw, 0, 3);
+            $encoding = null;
+            if ($bom === "\xEF\xBB\xBF") {
+                $encoding = 'UTF-8';
+                $raw = substr($raw, 3);
+            } elseif (substr($raw, 0, 2) === "\xFF\xFE") {
+                $encoding = 'UTF-16LE';
+            } elseif (substr($raw, 0, 2) === "\xFE\xFF") {
+                $encoding = 'UTF-16BE';
+            }
+            if (!$encoding) {
+                $enc = mb_detect_encoding($raw, ['UTF-8', 'Windows-1252', 'ISO-8859-1', 'ASCII'], true);
+                $encoding = $enc ?: 'UTF-8';
+            }
+            if ($encoding !== 'UTF-8') $raw = mb_convert_encoding($raw, 'UTF-8', $encoding);
+
+            // Limpiar caracteres corruptos
+            $raw = str_replace(['ï¿½', '�'], 'ñ', $raw);
+
+            // delimitador
+            $firstLine = strtok($raw, "\n");
+            $delims = [',' => substr_count($firstLine, ','), ';' => substr_count($firstLine, ';'), "\t" => substr_count($firstLine, "\t")];
+            arsort($delims);
+            $delimiter = array_key_first($delims) ?? ',';
+
+            // stream memoria
+            $fh = fopen('php://temp', 'r+');
+            fwrite($fh, $raw);
+            rewind($fh);
+
+            // BUSCAR HEADERS - enfoque específico para este formato bancario
+            $headers = [];
+            $dataStartLine = 0;
+            $lineNumber = 0;
+
+            // Patrones bancarios comunes para detección
+            $commonBankPatterns = [
+                // Formatos con headers en español
+                ['fecha', 'descripción', 'monto', 'referencia'],
+                ['fecha', 'concepto', 'importe', 'numero'],
+                ['fecha operación', 'descripción', 'débito', 'crédito'],
+                ['fecha', 'detalle', 'cargo', 'abono'],
+
+                // Formatos con headers en inglés  
+                ['date', 'description', 'amount', 'reference'],
+                ['date', 'details', 'debit', 'credit'],
+                ['transaction date', 'description', 'withdrawal', 'deposit'],
+            ];
+
+            while (($line = fgets($fh)) !== false) {
+                $lineNumber++;
+                $cleanLine = str_replace(['ï¿½', '�'], 'ñ', $line);
+                $row = str_getcsv($cleanLine, $delimiter);
+                $cleanRow = array_map(fn($v) => trim((string)$v), $row);
+
+                // Saltar líneas vacías
+                if (!array_filter($cleanRow)) continue;
+
+                // DEBUG: Log cada línea para ver qué está procesando
+                \Log::info("Línea $lineNumber:", $cleanRow);
+
+                // ESTRATEGIA 1: Buscar específicamente el header bancario con "Fecha" en primera columna
+                $firstCell = $cleanRow[0] ?? '';
+
+                // Si esta línea tiene "Fecha" en la primera columna, es el header
+                if (strtolower($firstCell) === 'fecha') {
+                    $headers = $cleanRow;
+                    $dataStartLine = $lineNumber + 1; // Los datos empiezan en la siguiente línea
+                    \Log::info("HEADERS ENCONTRADOS en línea $lineNumber", $headers);
+                    break;
+                }
+
+                // ESTRATEGIA 2: Buscar por combinación de columnas típicas
+                $hasFecha = stripos(implode(' ', $cleanRow), 'fecha') !== false;
+                $hasDebito = stripos(implode(' ', $cleanRow), 'débito') !== false || stripos(implode(' ', $cleanRow), 'debito') !== false || stripos(implode(' ', $cleanRow), 'dñbito') !== false;
+                $hasCredito = stripos(implode(' ', $cleanRow), 'crédito') !== false || stripos(implode(' ', $cleanRow), 'credito') !== false || stripos(implode(' ', $cleanRow), 'crñdito') !== false;
+                $hasReferencia = stripos(implode(' ', $cleanRow), 'referencia') !== false;
+
+                if ($hasFecha && ($hasDebito || $hasCredito)) {
+                    $headers = $cleanRow;
+                    $dataStartLine = $lineNumber + 1;
+                    \Log::info("HEADERS ENCONTRADOS por patrones en línea $lineNumber", $headers);
+                    break;
+                }
+
+                // ESTRATEGIA 3: Verificar si coincide con patrones bancarios comunes
+                $cleanRowLower = array_map(fn($v) => mb_strtolower(trim((string)$v), 'UTF-8'), $row);
+                foreach ($commonBankPatterns as $pattern) {
+                    $matchScore = 0;
+                    foreach ($pattern as $expectedHeader) {
+                        foreach ($cleanRowLower as $cell) {
+                            if (str_contains($cell, $expectedHeader)) {
+                                $matchScore++;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Si coincide con al menos el 75% de los patrones
+                    if ($matchScore >= count($pattern) * 0.75) {
+                        $headers = $cleanRow; // Usar la versión original (no en minúsculas)
+                        $dataStartLine = $lineNumber + 1;
+                        \Log::info("Headers detectados por patrón bancario:", $headers);
+                        break 2;
+                    }
+                }
+
+                // ESTRATEGIA 4: Si encontramos una línea que parece datos (fecha en formato DD/MM/YYYY), retroceder para buscar headers
+                if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $firstCell)) {
+                    \Log::info("DATOS ENCONTRADOS en línea $lineNumber, buscando headers...");
+
+                    // Buscar headers en las 5 líneas anteriores
+                    $possibleHeaders = [];
+                    $tempPos = ftell($fh); // Guardar posición actual
+
+                    fseek($fh, 0); // Ir al inicio
+                    for ($i = 1; $i < $lineNumber; $i++) {
+                        $prevLine = fgets($fh);
+                        $prevClean = str_replace(['ï¿½', '�'], 'ñ', $prevLine);
+                        $prevRow = str_getcsv($prevClean, $delimiter);
+                        $prevCleanRow = array_map(fn($v) => trim((string)$v), $prevRow);
+
+                        if (!array_filter($prevCleanRow)) continue;
+
+                        // Verificar si esta línea anterior tiene headers
+                        $prevFirst = $prevCleanRow[0] ?? '';
+                        if (
+                            strtolower($prevFirst) === 'fecha' ||
+                            stripos(implode(' ', $prevCleanRow), 'fecha') !== false
+                        ) {
+                            $possibleHeaders = $prevCleanRow;
+                            break;
+                        }
+                    }
+
+                    if (!empty($possibleHeaders)) {
+                        $headers = $possibleHeaders;
+                        $dataStartLine = $lineNumber;
+                        fseek($fh, $tempPos); // Restaurar posición
+                        \Log::info("HEADERS ENCONTRADOS retrocediendo", $headers);
+                        break;
+                    }
+
+                    fseek($fh, $tempPos); // Restaurar posición si no encontró headers
+                }
             }
 
-            stream_filter_append($fh, 'convert.iconv.ISO-8859-1/UTF-8');
-            $headers = fgetcsv($fh) ?: [];
+            // ESTRATEGIA 5: Si no encontró headers específicos, usar la primera línea que tenga "Fecha"
+            if (empty($headers)) {
+                fseek($fh, 0);
+                $lineNumber = 0;
+
+                while (($line = fgets($fh)) !== false) {
+                    $lineNumber++;
+                    $cleanLine = str_replace(['ï¿½', '�'], 'ñ', $line);
+                    $row = str_getcsv($cleanLine, $delimiter);
+                    $cleanRow = array_map(fn($v) => trim((string)$v), $row);
+
+                    if (!array_filter($cleanRow)) continue;
+
+                    // Buscar cualquier línea que contenga "Fecha"
+                    foreach ($cleanRow as $cell) {
+                        if (stripos($cell, 'fecha') !== false) {
+                            $headers = $cleanRow;
+                            $dataStartLine = $lineNumber + 1;
+                            \Log::info("HEADERS ENCONTRADOS por 'fecha' en línea $lineNumber", $headers);
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            // ESTRATEGIA 6: Si todavía no hay headers, usar la primera línea no vacía
+            if (empty($headers)) {
+                fseek($fh, 0);
+                while (($line = fgets($fh)) !== false) {
+                    $row = str_getcsv($line, $delimiter);
+                    $cleanRow = array_map(fn($v) => trim((string)$v), $row);
+                    if (array_filter($cleanRow)) {
+                        $headers = $cleanRow;
+                        $dataStartLine = 2; // Asumir que la siguiente línea son datos
+                        \Log::info("HEADERS USANDO primera línea no vacía", $headers);
+                        break;
+                    }
+                }
+            }
+
+            // Posicionarse en el inicio de los datos
+            fseek($fh, 0);
+            for ($i = 1; $i < $dataStartLine; $i++) {
+                fgets($fh);
+            }
+
+            \Log::info("Headers finales:", $headers);
+            \Log::info("Inicio de datos en línea: $dataStartLine");
+
+            // normalizaciones
+            $headersNorm  = array_map($normalizeKey, $headers);
+            $headersNoSp  = array_map($rmSpaces, $headersNorm);
+            $headersCount = count($headersNorm);
+
+            // index de Descripción (para recompactar)
+            $ALIAS_DESC = ['descripcion', 'descripci on', 'descripci n', 'detalle', 'concepto', 'narrativa', 'glosa', 'motivo'];
+            $descIdx = null;
+            foreach ($ALIAS_DESC as $alias) {
+                if (($i = array_search($alias, $headersNorm, true)) !== false) {
+                    $descIdx = $i;
+                    break;
+                }
+                $aliasNo = $rmSpaces($alias);
+                foreach ($headersNorm as $i => $h) if (str_contains($h, $alias)) {
+                    $descIdx = $i;
+                    break 2;
+                }
+                if ($descIdx === null) foreach ($headersNoSp as $i => $h) if (str_contains($h, $aliasNo)) {
+                    $descIdx = $i;
+                    break 2;
+                }
+            }
+            if ($descIdx === null && $headersCount >= 3) $descIdx = 2;
+
+            $fixWidth = function (array $vals) use ($headersCount, $delimiter, $descIdx) {
+                $n = count($vals);
+                if ($n === $headersCount) return $vals;
+                if ($n <  $headersCount)  return array_pad($vals, $headersCount, null);
+                if ($descIdx === null)    return array_slice($vals, 0, $headersCount);
+                $left  = array_slice($vals, 0, $descIdx + 1);
+                $extra = $n - $headersCount;
+                $mid   = array_slice($vals, $descIdx + 1, $extra);
+                $right = array_slice($vals, $descIdx + 1 + $extra);
+                $left[$descIdx] = trim((string)$left[$descIdx] . ($mid ? ($delimiter . implode($delimiter, $mid)) : ''));
+                return array_merge($left, $right);
+            };
+
             $rows = [];
-            while (($r = fgetcsv($fh)) !== false) {
-                $rows[] = $this->normalizeRow($headers, $r);
+            while (($line = fgets($fh)) !== false) {
+                $cleanLine = str_replace(['ï¿½', '�'], 'ñ', $line);
+                $r = str_getcsv($cleanLine, $delimiter);
+                if (!array_filter($r, fn($v) => trim((string)$v) !== '')) continue;
+
+                // Saltar línea "Confidencial" al final
+                $firstCell = $r[0] ?? '';
+                if (stripos($firstCell, 'confidencial') !== false) continue;
+
+                $vals = $fixWidth(array_values($r));
+
+                $normalized = $this->normalizeRowFlexible($headers, $headersNorm, $headersNoSp, $vals, $normalizeKey);
+
+                if ($normalized['fecha'] || $normalized['monto'] != 0.0 || !empty($normalized['referencia'])) {
+                    $rows[] = $normalized;
+                }
             }
             fclose($fh);
+
+            \Log::info("Total de filas procesadas:", ['count' => count($rows)]);
             return [$headers, $rows];
         }
 
-        // Excel
+        // ==== XLS/XLSX ====
         $reader = IOFactory::createReaderForFile($fullPath);
         $spread = $reader->load($fullPath);
         $sheet  = $spread->getSheet(0);
         $rowsRaw = $sheet->toArray(null, true, true, true);
 
-        $first   = array_shift($rowsRaw) ?: [];
-        $headers = array_values(array_map(fn($v) => is_null($v) ? '' : trim((string) $v), $first));
+        $headers = [];
+        $dataStartIdx = 0;
+        foreach ($rowsRaw as $idx => $row) {
+            $first = array_values($row)[0] ?? '';
+            if (stripos((string)$first, 'fecha') !== false) {
+                $headers = array_values($row);
+                $dataStartIdx = $idx + 1;
+                break;
+            }
+        }
+        if (empty($headers)) {
+            $headers = array_values(array_shift($rowsRaw) ?: []);
+            $dataStartIdx = 0;
+        }
+
+        $headers = array_map(fn($v) => is_null($v) ? '' : trim((string)$v), $headers);
+        $headersNorm = array_map($normalizeKey, $headers);
+        $headersNoSp = array_map($rmSpaces, $headersNorm);
+        $headersCount = count($headersNorm);
 
         $rows = [];
-        foreach ($rowsRaw as $row) {
-            $vals = array_values($row);
-            $rows[] = $this->normalizeRow($headers, $vals);
+        for ($i = $dataStartIdx; $i < count($rowsRaw); $i++) {
+            $vals = array_values($rowsRaw[$i]);
+            if (!array_filter($vals)) continue;
+            if (count($vals) < $headersCount) $vals = array_pad($vals, $headersCount, null);
+            elseif (count($vals) > $headersCount) $vals = array_slice($vals, 0, $headersCount);
+
+            $normalized = $this->normalizeRowFlexible($headers, $headersNorm, $headersNoSp, $vals, $normalizeKey);
+
+            if ($normalized['fecha'] || $normalized['monto'] != 0.0 || !empty($normalized['referencia'])) {
+                $rows[] = $normalized;
+            }
         }
+
         return [$headers, $rows];
     }
 
-    public function conciliarAutomatico(Request $request)
+    /**
+     * Normaliza una fila usando headers normalizados con múltiples estrategias
+     */
+    private function normalizeRowFlexible(array $headersRaw, array $headersNorm, array $headersNoSp, array $values, callable $normalizeKey): array
     {
-        try {
-            $ecId = $request->validate(['ec_id' => 'required|integer'])['ec_id'];
+        $rmSpaces = fn($s) => str_replace(' ', '', $s);
 
-            $ec = DB::table('pro_estados_cuenta')->where('ec_id', $ecId)->first();
-            if (!$ec) {
-                return response()->json(['codigo' => 0, 'mensaje' => 'Estado de cuenta no encontrado'], 404);
+        // === 1) BUSCAR ÍNDICES DIRECTAMENTE EN HEADERS ORIGINALES ===
+        $idxFecha = $idxDescripcion = $idxReferencia = $idxDebito = $idxCredito = null;
+
+        foreach ($headersRaw as $i => $header) {
+            $headerLower = mb_strtolower(trim($header), 'UTF-8');
+
+            if (str_contains($headerLower, 'fecha')) $idxFecha = $i;
+            if (str_contains($headerLower, 'descrip')) $idxDescripcion = $i;
+            if (str_contains($headerLower, 'referencia')) $idxReferencia = $i;
+            if (str_contains($headerLower, 'débito') || str_contains($headerLower, 'debito') || str_contains($headerLower, 'dñbito')) $idxDebito = $i;
+            if (str_contains($headerLower, 'crédito') || str_contains($headerLower, 'credito') || str_contains($headerLower, 'crñdito')) $idxCredito = $i;
+        }
+
+        // DEBUG: Log de índices encontrados
+        \Log::info("Índices encontrados:", [
+            'fecha' => $idxFecha,
+            'descripcion' => $idxDescripcion,
+            'referencia' => $idxReferencia,
+            'debito' => $idxDebito,
+            'credito' => $idxCredito
+        ]);
+
+        // === 2) EXTRACCIÓN DIRECTA POR ÍNDICE ===
+        $getByIndex = fn($idx) => ($idx !== null && isset($values[$idx])) ? trim((string)$values[$idx]) : '';
+
+        // FECHA
+        $rawFecha = $getByIndex($idxFecha);
+        $fecha = null;
+        if ($rawFecha) {
+            try {
+                // Probar formato DD/MM/YYYY primero
+                if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $rawFecha, $matches)) {
+                    $fecha = sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
+                } else {
+                    $fecha = \Carbon\Carbon::parse($rawFecha)->format('Y-m-d');
+                }
+            } catch (\Throwable $e) {
+                $fecha = null;
+            }
+        }
+
+        // DESCRIPCIÓN Y REFERENCIA
+        $desc = $getByIndex($idxDescripcion);
+        $ref = $getByIndex($idxReferencia);
+
+        // === 3) EXTRACCIÓN DE MONTOS - MÁS ROBUSTA ===
+        $toFloat = function ($val) {
+            if (empty($val) || $val === '0' || $val === '0.0') return 0.0;
+
+            $val = trim((string)$val);
+            $val = str_ireplace(['Q', 'GTQ', '$', ' '], '', $val);
+
+            // Manejar formato europeo 1.234,56
+            if (strpos($val, ',') !== false && strpos($val, '.') === false) {
+                $val = str_replace('.', '', $val);
+                $val = str_replace(',', '.', $val);
+            } else {
+                $val = str_replace(',', '', $val);
             }
 
-            $rows = json_decode($ec->ec_rows, true);
+            // Manejar paréntesis para negativos
+            if (preg_match('/^\((.*)\)$/', $val, $m)) {
+                $val = '-' . $m[1];
+            }
 
-            $pendientes = DB::table('pro_pagos_subidos')
-                ->whereIn('ps_estado', ['PENDIENTE', 'PENDIENTE_VALIDACION'])
-                ->get();
+            return (float) $val;
+        };
 
-            $matches = [];
-            $noMatch = [];
+        // Extraer montos de débito y crédito
+        $rawDebito = $getByIndex($idxDebito);
+        $rawCredito = $getByIndex($idxCredito);
 
-            foreach ($pendientes as $ps) {
-                foreach ($pendientes as $ps) {
-                    $encontrado = false;
-                    foreach ($rows as $row) {
-                        \Log::info('Comparando', [
-                            'ps_referencia' => $ps->ps_referencia,
-                            'banco_ref' => $row['referencia'],
-                            'ps_monto' => $ps->ps_monto_comprobante,
-                            'banco_monto' => $row['monto'],
-                        ]);
+        $debito = $toFloat($rawDebito);
+        $credito = $toFloat($rawCredito);
 
-                        $refMatch = !empty($ps->ps_referencia)
-                            && !empty($row['referencia'])
-                            && stripos($row['referencia'], $ps->ps_referencia) !== false;
+        // DEBUG: Log de valores extraídos
+        \Log::info("Valores extraídos para fila:", [
+            'rawDebito' => $rawDebito,
+            'rawCredito' => $rawCredito,
+            'debito' => $debito,
+            'credito' => $credito,
+            'values' => $values
+        ]);
 
-                        $montoMatch = abs($row['monto'] - $ps->ps_monto_comprobante) <= 1.00;
+        // Determinar monto final
+        $monto = 0.0;
+        if ($credito > 0) {
+            $monto = $credito;
+        } elseif ($debito > 0) {
+            $monto = -$debito;
+        }
 
-                        if ($refMatch && $montoMatch) {
-                            \Log::info('MATCH ENCONTRADO!');
-                            $matches[] = [
-                                'ps_id' => $ps->ps_id,
-                                'venta_id' => $ps->ps_venta_id,
-                                'banco_monto' => $row['monto'],
-                                'banco_fecha' => $row['fecha'],
-                                'banco_ref' => $row['referencia'],
-                                'confianza' => 'ALTA'
-                            ];
-                            $encontrado = true;
-                            break;
-                        }
-                    }
+        // === 4) FALLBACK: Si no encontró por índices, buscar por posición conocida ===
+        if ($monto == 0.0) {
+            // En tu CSV, Débito está en posición 6 y Crédito en posición 7 (índice 6 y 7)
+            if (isset($values[6]) && isset($values[7])) {
+                $debitoFallback = $toFloat($values[6]);
+                $creditoFallback = $toFloat($values[7]);
+
+                if ($creditoFallback > 0) {
+                    $monto = $creditoFallback;
+                } elseif ($debitoFallback > 0) {
+                    $monto = -$debitoFallback;
                 }
 
-                if (!$encontrado) {
-                    $noMatch[] = [
-                        'ps_id' => $ps->ps_id,
-                        'venta_id' => $ps->ps_venta_id,
-                        'ps_referencia' => $ps->ps_referencia,
-                        'ps_monto' => $ps->ps_monto_comprobante
+                \Log::info("Fallback por posición:", [
+                    'debito_pos6' => $values[6],
+                    'credito_pos7' => $values[7],
+                    'monto_final' => $monto
+                ]);
+            }
+        }
+
+        // === 5) DETECCIÓN PARA OTROS FORMATOS BANCARIOS COMUNES ===
+        if ($monto == 0.0) {
+            // Estrategia: buscar columnas que contengan patrones bancarios comunes
+            $possibleAmountColumns = [];
+
+            foreach ($headersRaw as $i => $header) {
+                $headerLower = mb_strtolower(trim($header), 'UTF-8');
+
+                // Patrones comunes en diferentes bancos
+                $amountPatterns = [
+                    'monto',
+                    'importe',
+                    'valor',
+                    'amount',
+                    'cargo',
+                    'abono',
+                    'retiro',
+                    'deposito',
+                    'egreso',
+                    'ingreso',
+                    'haber',
+                    'debe',
+                    'valor movimiento',
+                    'monto transaccion'
+                ];
+
+                foreach ($amountPatterns as $pattern) {
+                    if (str_contains($headerLower, $pattern)) {
+                        $possibleAmountColumns[] = $i;
+                        break;
+                    }
+                }
+            }
+
+            // Probar estas columnas
+            foreach ($possibleAmountColumns as $colIndex) {
+                if (isset($values[$colIndex])) {
+                    $testAmount = $toFloat($values[$colIndex]);
+                    if ($testAmount != 0.0) {
+                        $monto = $testAmount;
+
+                        // Intentar determinar si es débito o crédito por el nombre
+                        $headerName = mb_strtolower($headersRaw[$colIndex] ?? '');
+                        if (
+                            str_contains($headerName, 'debito') || str_contains($headerName, 'debe') ||
+                            str_contains($headerName, 'egreso') || str_contains($headerName, 'cargo') ||
+                            str_contains($headerName, 'retiro')
+                        ) {
+                            $monto = -abs($monto);
+                        }
+
+                        \Log::info("Monto detectado por patrón bancario:", [
+                            'columna' => $headersRaw[$colIndex],
+                            'valor' => $values[$colIndex],
+                            'monto' => $monto
+                        ]);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // === 6) DETECCIÓN POR ANÁLISIS DE VALORES EN LA FILA ===
+        if ($monto == 0.0) {
+            // Buscar el valor numérico más significativo en la fila
+            $numericValues = [];
+
+            foreach ($values as $i => $value) {
+                $floatVal = $toFloat($value);
+                if ($floatVal != 0.0 && abs($floatVal) > 0.01) {
+                    $numericValues[] = [
+                        'index' => $i,
+                        'value' => $floatVal,
+                        'header' => $headersRaw[$i] ?? ''
                     ];
                 }
             }
 
+            // Si hay exactamente un valor numérico significativo, usarlo
+            if (count($numericValues) === 1) {
+                $monto = $numericValues[0]['value'];
+                \Log::info("Monto único detectado:", $numericValues[0]);
+            }
+            // Si hay dos valores, asumir débito/crédito
+            elseif (count($numericValues) === 2) {
+                $val1 = $numericValues[0]['value'];
+                $val2 = $numericValues[1]['value'];
+
+                // Asumir que el positivo es crédito y negativo débito
+                if ($val1 > 0 && $val2 == 0) $monto = $val1;
+                elseif ($val2 > 0 && $val1 == 0) $monto = $val2;
+                elseif ($val1 < 0 && $val2 == 0) $monto = $val1;
+                elseif ($val2 < 0 && $val1 == 0) $monto = $val2;
+
+                \Log::info("Dos valores numéricos detectados:", $numericValues);
+            }
+        }
+
+        \Log::info("Resultado final:", [
+            'fecha' => $fecha,
+            'descripcion' => $desc,
+            'referencia' => $ref,
+            'monto' => $monto
+        ]);
+
+        return [
+            'fecha'       => $fecha,
+            'descripcion' => $desc,
+            'referencia'  => $ref,
+            'monto'       => round($monto, 2),
+        ];
+    }
+
+
+    public function conciliarAutomatico(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'ec_id'         => ['required', 'integer'],
+                'auto_aprobar'  => ['sometimes', 'boolean'],
+                'tolerancia'    => ['sometimes', 'numeric'],
+            ]);
+
+            $autoAprobar = (bool)($data['auto_aprobar'] ?? false);
+            $tol         = (float)($data['tolerancia'] ?? 1.00);
+
+            $ec = DB::table('pro_estados_cuenta')->where('ec_id', $data['ec_id'])->first();
+            if (!$ec) return response()->json(['codigo' => 0, 'mensaje' => 'Estado de cuenta no encontrado'], 404);
+
+            $rowsBanco = json_decode($ec->ec_rows, true) ?: [];
+
+            $pendientes = DB::table('pro_pagos_subidos as ps')
+                ->join('pro_ventas as v', 'v.ven_id', '=', 'ps.ps_venta_id')
+                ->join('pro_pagos as pg', 'pg.pago_venta_id', '=', 'v.ven_id')
+                ->select(
+                    'ps.*',
+                    'v.ven_id',
+                    'pg.pago_id',
+                    'pg.pago_monto_total',
+                    'pg.pago_monto_pagado',
+                    'pg.pago_monto_pendiente'
+                )
+                ->whereIn('ps.ps_estado', ['PENDIENTE', 'PENDIENTE_VALIDACION'])
+                ->get();
+
+            $matchesAlta = [];
+            $paraRevision = [];
+            $sinMatch = [];
+
+            $normRef = function ($s) {
+                $s = (string)$s;
+                $soloDig = preg_replace('/\D+/', '', $s);
+                return strlen($soloDig) >= 6 ? $soloDig : trim($s);
+            };
+
+            foreach ($pendientes as $ps) {
+                $psRef = $normRef($ps->ps_referencia);
+                $psMonto = (float)$ps->ps_monto_comprobante;
+
+                $mejor = null;
+
+                foreach ($rowsBanco as $row) {
+                    $bRef   = $normRef($row['referencia'] ?? '');
+                    $bMonto = (float)($row['monto'] ?? 0);
+
+                    $refOK = $psRef && $bRef && (stripos($bRef, $psRef) !== false || stripos($psRef, $bRef) !== false);
+                    $montoOK = abs($bMonto - $psMonto) <= $tol;
+
+                    if ($refOK && $montoOK) {
+                        $mejor = [
+                            'ps_id'       => $ps->ps_id,
+                            'venta_id'    => $ps->ps_venta_id,
+                            'banco_monto' => $bMonto,
+                            'banco_fecha' => $row['fecha'] ?? null,
+                            'banco_ref'   => $row['referencia'] ?? null,
+                            'confianza'   => 'ALTA',
+                            '_pago_id'    => $ps->pago_id ?? null,
+                            '_ps_row'     => $ps,
+                        ];
+                        break;
+                    }
+                    if (!$mejor && ($refOK || $montoOK)) {
+                        $mejor = [
+                            'ps_id'       => $ps->ps_id,
+                            'venta_id'    => $ps->ps_venta_id,
+                            'banco_monto' => $bMonto,
+                            'banco_fecha' => $row['fecha'] ?? null,
+                            'banco_ref'   => $row['referencia'] ?? null,
+                            'confianza'   => 'MEDIA',
+                            '_pago_id'    => $ps->pago_id ?? null,
+                            '_ps_row'     => $ps,
+                        ];
+                    }
+                }
+
+                if ($mejor) {
+                    if ($mejor['confianza'] === 'ALTA') {
+                        $matchesAlta[] = $mejor;
+                    } else {
+                        $paraRevision[] = $mejor;
+                    }
+                } else {
+                    $sinMatch[] = [
+                        'ps_id'         => $ps->ps_id,
+                        'venta_id'      => $ps->ps_venta_id,
+                        'ps_referencia' => $ps->ps_referencia,
+                        'ps_monto'      => (float)$ps->ps_monto_comprobante,
+                    ];
+                }
+            }
+
+            $autoAprobados = [];
+            if ($autoAprobar && count($matchesAlta)) {
+                foreach ($matchesAlta as $m) {
+                    $ps = DB::table('pro_pagos_subidos')
+                        ->where('ps_id', $m['ps_id'])
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$ps || !in_array($ps->ps_estado, ['PENDIENTE', 'PENDIENTE_VALIDACION'])) continue;
+
+                    $venta = DB::table('pro_ventas as v')
+                        ->join('pro_pagos as pg', 'pg.pago_venta_id', '=', 'v.ven_id')
+                        ->select('v.ven_id', 'pg.pago_id', 'pg.pago_monto_total', 'pg.pago_monto_pagado')
+                        ->where('v.ven_id', $ps->ps_venta_id)
+                        ->first();
+                    if (!$venta) continue;
+
+                    // IDs de cuotas desde JSON + validación por pago
+                    $cuotasIds = json_decode($ps->ps_cuotas_json ?? '[]', true) ?: [];
+                    $cuotasIds = array_values(array_unique(array_map('intval', $cuotasIds)));
+
+                    $validCuotas = [];
+                    if ($cuotasIds) {
+                        $validCuotas = DB::table('pro_cuotas')
+                            ->where('cuota_control_id', $venta->pago_id)
+                            ->whereIn('cuota_id', $cuotasIds)
+                            ->pluck('cuota_id')
+                            ->all();
+                    }
+
+                    DB::beginTransaction();
+                    try {
+                        $monto = (float)$ps->ps_monto_comprobante;
+                        $metodoEfectivoId = 1; // o derivarlo
+                        $fecha = $ps->ps_fecha_comprobante ?: now();
+
+                        // Detalle
+                        $detId = DB::table('pro_detalle_pagos')->insertGetId([
+                            'det_pago_pago_id'             => $venta->pago_id,
+                            'det_pago_cuota_id'            => null,
+                            'det_pago_fecha'               => $fecha,
+                            'det_pago_monto'               => $monto,
+                            'det_pago_metodo_pago'         => $metodoEfectivoId,
+                            'det_pago_banco_id'            => $ps->ps_banco_id ?? null,
+                            'det_pago_numero_autorizacion' => $ps->ps_referencia ?? null,
+                            'det_pago_imagen_boucher'      => $ps->ps_imagen_path ?? null,
+                            'det_pago_tipo_pago'           => 'PAGO_UNICO',
+                            'det_pago_estado'              => 'VALIDO',
+                            'det_pago_observaciones'       => 'Auto-aprobado por conciliación',
+                            'det_pago_usuario_registro'    => auth()->id(),
+                            'created_at'                   => now(),
+                            'updated_at'                   => now(),
+                        ]);
+
+                        // Master
+                        $nuevoPagado    = (float)$venta->pago_monto_pagado + $monto;
+                        $nuevoPendiente = max((float)$venta->pago_monto_total - $nuevoPagado, 0);
+                        $nuevoEstado    = $nuevoPendiente <= 0 ? 'COMPLETADO' : 'PARCIAL';
+
+                        DB::table('pro_pagos')->where('pago_id', $venta->pago_id)->update([
+                            'pago_monto_pagado'     => $nuevoPagado,
+                            'pago_monto_pendiente'  => $nuevoPendiente,
+                            'pago_estado'           => $nuevoEstado,
+                            'pago_fecha_completado' => $nuevoPendiente <= 0 ? now() : null,
+                            'updated_at'            => now(),
+                        ]);
+
+                        // Caja
+                        DB::table('cja_historial')->insert([
+                            'cja_tipo'          => 'VENTA',
+                            'cja_id_venta'      => $venta->ven_id,
+                            'cja_usuario'       => auth()->id(),
+                            'cja_monto'         => $monto,
+                            'cja_fecha'         => now(),
+                            'cja_metodo_pago'   => $metodoEfectivoId,
+                            'cja_no_referencia' => $ps->ps_referencia ?? null,
+                            'cja_situacion'     => 'ACTIVO',
+                            'cja_observaciones' => 'Auto-aprobación ps#' . $ps->ps_id,
+                            'created_at'        => now(),
+                        ]);
+
+                        // Saldos
+                        CajaSaldo::ensureRow($metodoEfectivoId, 'GTQ')->addAmount($monto);
+
+                        // Cuotas (si hay)
+                        if (!empty($validCuotas)) {
+                            DB::table('pro_cuotas')
+                                ->whereIn('cuota_id', $validCuotas)
+                                ->update([
+                                    'cuota_estado'     => 'PAGADA',
+                                    'cuota_fecha_pago' => now(),
+                                    'updated_at'       => now(),
+                                ]);
+                        }
+
+                        // PS -> APROBADO
+                        DB::table('pro_pagos_subidos')->where('ps_id', $ps->ps_id)->update([
+                            'ps_estado'         => 'APROBADO',
+                            'ps_notas_revision' => 'Auto-aprobado (conciliación alta)',
+                            'ps_revisado_por'   => auth()->id(),
+                            'ps_revisado_en'    => now(),
+                            'updated_at'        => now(),
+                        ]);
+
+                        DB::commit();
+
+                        $this->safeDeletePublicPath($ps->ps_imagen_path ?? null);
+
+                        $autoAprobados[] = [
+                            'ps_id'               => $ps->ps_id,
+                            'venta_id'            => $ps->ps_venta_id,
+                            'banco_ref'           => $m['banco_ref'],
+                            'banco_monto'         => $m['banco_monto'],
+                            'banco_fecha'         => $m['banco_fecha'],
+                            'det_pago_id'         => $detId,
+                            'cuotas_pagadas_ids'  => $validCuotas,
+                        ];
+                    } catch (\Throwable $e) {
+                        DB::rollBack();
+                        \Log::error('Auto-aprobación fallida', ['ps_id' => $ps->ps_id, 'e' => $e->getMessage()]);
+                    }
+                }
+            }
+
+
             return response()->json([
-                'codigo' => 1,
-                'mensaje' => 'Conciliación completada',
-                'data' => [
-                    'matches' => $matches,
-                    'no_match' => $noMatch,
-                    'total_procesados' => count($pendientes)
+                'codigo'  => 1,
+                'mensaje' => 'Conciliación realizada',
+                'data'    => [
+                    'auto_aprobados' => $autoAprobados,        // aprobados de una vez
+                    'coincidencias'  => $matchesAlta,          // alta confianza (si no auto-aprobaste)
+                    'revision'       => $paraRevision,         // media confianza -> revisar
+                    'sin_match'      => $sinMatch,
+                    'total_ps'       => count($pendientes),
                 ]
             ]);
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'codigo' => 0,
                 'mensaje' => 'Error en conciliación',
@@ -810,69 +1487,19 @@ class AdminPagosController extends Controller
         }
     }
 
-    private function normalizeRow(array $headers, array $values): array
+    /* ===========================
+ * Helper privado: borra archivo de /public de forma segura
+ * =========================== */
+    private function safeDeletePublicPath(?string $path): void
     {
-        $map = [];
-        foreach ($headers as $i => $h) {
-            $key = strtolower(trim((string) $h));
-            // Eliminar caracteres especiales para mejor matching
-            $key = preg_replace('/[^a-z0-9]/', '', $key);
-            $map[$key] = $i;
-        }
+        if (!$path) return;
+        try {
 
-        $get = function (array $names, $default = null) use ($map, $values) {
-            foreach ($names as $name) {
-                // Limpiar el nombre también
-                $cleanName = preg_replace('/[^a-z0-9]/', '', strtolower($name));
-                if (isset($map[$cleanName])) {
-                    return $values[$map[$cleanName]] ?? $default;
-                }
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
             }
-
-            // Fallback: buscar si contiene
-            foreach ($map as $k => $idx) {
-                foreach ($names as $name) {
-                    $cleanName = preg_replace('/[^a-z0-9]/', '', strtolower($name));
-                    if (str_contains($k, $cleanName)) {
-                        return $values[$idx] ?? $default;
-                    }
-                }
-            }
-            return $default;
-        };
-
-        $rawFecha = $get(['fecha', 'date'], null);
-        $fecha = null;
-        if ($rawFecha) {
-            try {
-                $fecha = Carbon::parse($rawFecha)->format('Y-m-d');
-            } catch (\Throwable $e) {
-                $fecha = null;
-            }
+        } catch (\Throwable $e) {
+            \Log::warning('No se pudo eliminar comprobante', ['path' => $path, 'e' => $e->getMessage()]);
         }
-
-        $desc = (string) ($get(['descripcion', 'description', 'detalle', 'concepto'], '') ?? '');
-        $ref = (string) ($get(['referencia', 'ref', 'autorizacion', 'aut', 'secuencial'], '') ?? '');
-
-        $montoRaw = $get(['credito', 'credit', 'abono'], 0);
-        if (!$montoRaw || $montoRaw == 0) {
-            $montoRaw = $get(['debito', 'debit', 'cargo', 'monto', 'importe', 'valor', 'amount'], 0);
-        }
-
-        $val = trim((string) $montoRaw);
-        $val = str_ireplace(['Q', ' '], '', $val);
-        if (strpos($val, ',') !== false && strpos($val, '.') === false) {
-            $val = str_replace(',', '.', $val);
-        } else {
-            $val = str_replace(',', '', $val);
-        }
-        $monto = (float) $val;
-
-        return [
-            'fecha'       => $fecha,
-            'descripcion' => trim($desc),
-            'referencia'  => trim($ref),
-            'monto'       => round($monto, 2),
-        ];
     }
 }

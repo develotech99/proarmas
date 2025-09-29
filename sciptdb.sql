@@ -484,28 +484,25 @@ ORDER BY
 --////////////////***************************************/////////////////////////////--
 --/////// TABLAS DE CARLOS VÁSQUEZ PRO_PAGOS_SUBIDOS /////////////////////////////////--
 --//**********************************************************************************--
-
 -- Tabla de pagos (corregida)
 CREATE TABLE pro_pagos (
     pago_id INT AUTO_INCREMENT PRIMARY KEY,
     pago_venta_id INT NOT NULL COMMENT 'FK a la venta',
-    pago_monto_total DECIMAL(10,2) NOT NULL COMMENT 'Monto total a pagar',
-    pago_monto_pagado DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Monto ya pagado',
-    pago_monto_pendiente DECIMAL(10,2) NOT NULL COMMENT 'Monto pendiente',
+    pago_monto_total DECIMAL(10, 2) NOT NULL COMMENT 'Monto total a pagar',
+    pago_monto_pagado DECIMAL(10, 2) DEFAULT 0.00 COMMENT 'Monto ya pagado',
+    pago_monto_pendiente DECIMAL(10, 2) NOT NULL COMMENT 'Monto pendiente',
     pago_tipo_pago ENUM('UNICO', 'CUOTAS') NOT NULL COMMENT 'Tipo de esquema de pago',
     pago_cantidad_cuotas INT NULL COMMENT 'Número total de cuotas (solo para tipo CUOTAS)',
-    pago_abono_inicial DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Monto del abono inicial',
+    pago_abono_inicial DECIMAL(10, 2) DEFAULT 0.00 COMMENT 'Monto del abono inicial',
     pago_estado ENUM('PENDIENTE', 'PARCIAL', 'COMPLETADO', 'VENCIDO') DEFAULT 'PENDIENTE',
     pago_fecha_inicio DATE NOT NULL COMMENT 'Fecha del primer pago',
     pago_fecha_completado DATE NULL COMMENT 'Fecha de finalización',
     pago_observaciones TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
     FOREIGN KEY (pago_venta_id) REFERENCES pro_ventas(ven_id) ON DELETE CASCADE,
     UNIQUE KEY unique_pago_venta (pago_venta_id)
-) COMMENT='Control maestro de pagos por venta';
-
+) COMMENT = 'Control maestro de pagos por venta';
 
 -- Tabla de detalle de ventas
 CREATE TABLE pro_detalle_ventas (
@@ -513,15 +510,13 @@ CREATE TABLE pro_detalle_ventas (
     det_ven_id INT NOT NULL COMMENT 'A qué venta pertenece',
     det_producto_id BIGINT UNSIGNED NOT NULL COMMENT 'Qué producto se vendió',
     det_cantidad INT NOT NULL COMMENT 'Cuántos se vendieron',
-    det_precio DECIMAL(10,2) NOT NULL COMMENT 'Precio unitario de venta',
-    det_descuento DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Descuento específico del producto',
+    det_precio DECIMAL(10, 2) NOT NULL COMMENT 'Precio unitario de venta',
+    det_descuento DECIMAL(10, 2) DEFAULT 0.00 COMMENT 'Descuento específico del producto',
     det_situacion ENUM('ACTIVO', 'ANULADO') DEFAULT 'ACTIVO' COMMENT 'Estado del producto en la venta',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
     FOREIGN KEY (det_ven_id) REFERENCES pro_ventas(ven_id) ON DELETE CASCADE,
     FOREIGN KEY (det_producto_id) REFERENCES pro_productos(producto_id)
-) COMMENT='Detalle de productos vendidos en cada transacción';
-
+) COMMENT = 'Detalle de productos vendidos en cada transacción';
 
 -- Tabla de historial de caja (corregida)
 CREATE TABLE cja_historial (
@@ -530,7 +525,7 @@ CREATE TABLE cja_historial (
     cja_id_venta INT NULL COMMENT 'ID de venta si es tipo VENTA',
     cja_id_import INT NULL COMMENT 'ID de importación si es tipo IMPORTACION',
     cja_usuario BIGINT UNSIGNED NOT NULL COMMENT 'Usuario que realizó el movimiento',
-    cja_monto DECIMAL(10,2) NOT NULL COMMENT 'Monto del movimiento',
+    cja_monto DECIMAL(10, 2) NOT NULL COMMENT 'Monto del movimiento',
     cja_fecha DATE NOT NULL COMMENT 'Fecha del movimiento',
     cja_metodo_pago BIGINT UNSIGNED NOT NULL COMMENT 'Método de pago',
     cja_tipo_banco BIGINT UNSIGNED NULL COMMENT 'Tipo de banco si aplica',
@@ -538,11 +533,12 @@ CREATE TABLE cja_historial (
     cja_situacion ENUM('ACTIVO', 'ANULADO') DEFAULT 'ACTIVO' COMMENT 'Estado del movimiento',
     cja_observaciones VARCHAR(200) NULL COMMENT 'Observaciones del movimiento',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
     FOREIGN KEY (cja_usuario) REFERENCES users(user_id),
-    FOREIGN KEY (cja_id_venta) REFERENCES pro_ventas(ven_id) ON DELETE SET NULL,
-    FOREIGN KEY (cja_metodo_pago) REFERENCES pro_metodos_pago(metpago_id)
-) COMMENT='Historial de movimientos de caja - VENTA/IMPORTACION';
+    FOREIGN KEY (cja_id_venta) REFERENCES pro_ventas(ven_id) ON DELETE
+    SET
+        NULL,
+        FOREIGN KEY (cja_metodo_pago) REFERENCES pro_metodos_pago(metpago_id)
+) COMMENT = 'Historial de movimientos de caja - VENTA/IMPORTACION';
 
 -- Tabla de detalle de pagos
 CREATE TABLE pro_detalle_pagos (
@@ -550,34 +546,38 @@ CREATE TABLE pro_detalle_pagos (
     det_pago_pago_id INT NOT NULL COMMENT 'FK al control de pagos',
     det_pago_cuota_id INT NULL COMMENT 'FK a cuota específica (NULL si es abono inicial o pago único)',
     det_pago_fecha DATE NOT NULL COMMENT 'Fecha del pago',
-    det_pago_monto DECIMAL(10,2) NOT NULL COMMENT 'Monto de este pago',
+    det_pago_monto DECIMAL(10, 2) NOT NULL COMMENT 'Monto de este pago',
     det_pago_metodo_pago BIGINT UNSIGNED NOT NULL COMMENT 'FK al método de pago',
     det_pago_banco_id BIGINT UNSIGNED NULL COMMENT 'FK al banco (si aplica)',
     det_pago_numero_autorizacion VARCHAR(100) NULL COMMENT 'Número de autorización/referencia',
     det_pago_imagen_boucher VARCHAR(255) NULL COMMENT 'Ruta de imagen del boucher',
-    det_pago_tipo_pago ENUM('ABONO_INICIAL', 'CUOTA', 'PAGO_UNICO', 'PAGO_ADELANTADO') NOT NULL,
+    det_pago_tipo_pago ENUM(
+        'ABONO_INICIAL',
+        'CUOTA',
+        'PAGO_UNICO',
+        'PAGO_ADELANTADO'
+    ) NOT NULL,
     det_pago_estado ENUM('VALIDO', 'ANULADO', 'PENDIENTE_VALIDACION') DEFAULT 'VALIDO',
     det_pago_observaciones TEXT NULL,
     det_pago_usuario_registro BIGINT UNSIGNED NOT NULL COMMENT 'Usuario que registra el pago',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
     FOREIGN KEY (det_pago_pago_id) REFERENCES pro_pagos(pago_id) ON DELETE CASCADE,
-    FOREIGN KEY (det_pago_cuota_id) REFERENCES pro_cuotas(cuota_id) ON DELETE SET NULL,
-    FOREIGN KEY (det_pago_metodo_pago) REFERENCES pro_metodos_pago(metpago_id),
-    FOREIGN KEY (det_pago_usuario_registro) REFERENCES users(user_id)
-) COMMENT='Registro de cada pago individual realizado';
-
+    FOREIGN KEY (det_pago_cuota_id) REFERENCES pro_cuotas(cuota_id) ON DELETE
+    SET
+        NULL,
+        FOREIGN KEY (det_pago_metodo_pago) REFERENCES pro_metodos_pago(metpago_id),
+        FOREIGN KEY (det_pago_usuario_registro) REFERENCES users(user_id)
+) COMMENT = 'Registro de cada pago individual realizado';
 
 -- Tabla de porcentajes de vendedor
-
 CREATE TABLE pro_porcentaje_vendedor (
     porc_vend_id INT AUTO_INCREMENT PRIMARY KEY,
     porc_vend_user_id BIGINT UNSIGNED NOT NULL COMMENT 'FK al vendedor que hizo la venta',
     porc_vend_ven_id INT NOT NULL COMMENT 'FK a la venta específica',
-    porc_vend_porcentaje DECIMAL(5,2) NOT NULL COMMENT 'Porcentaje de ganancia',
-    porc_vend_cantidad_ganancia DECIMAL(10,2) NOT NULL COMMENT 'Cantidad de ganancia',
-    porc_vend_monto_base DECIMAL(10,2) NOT NULL COMMENT 'Monto base para calcular el porcentaje',
+    porc_vend_porcentaje DECIMAL(5, 2) NOT NULL COMMENT 'Porcentaje de ganancia',
+    porc_vend_cantidad_ganancia DECIMAL(10, 2) NOT NULL COMMENT 'Cantidad de ganancia',
+    porc_vend_monto_base DECIMAL(10, 2) NOT NULL COMMENT 'Monto base para calcular el porcentaje',
     porc_vend_fecha_asignacion DATE NOT NULL COMMENT 'Fecha de asignación del porcentaje',
     porc_vend_estado ENUM('PENDIENTE', 'PAGADO', 'CANCELADO') DEFAULT 'PENDIENTE' COMMENT 'Estado del pago del porcentaje',
     porc_vend_fecha_pago DATE NULL COMMENT 'Fecha de pago',
@@ -585,19 +585,18 @@ CREATE TABLE pro_porcentaje_vendedor (
     porc_vend_observaciones VARCHAR(200) NULL COMMENT 'Observaciones sobre la comisión',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
     FOREIGN KEY (porc_vend_user_id) REFERENCES users(user_id),
     FOREIGN KEY (porc_vend_ven_id) REFERENCES pro_ventas(ven_id) ON DELETE CASCADE,
-
     -- Validaciones
-    CONSTRAINT chk_porc_vend_porcentaje_valido CHECK (porc_vend_porcentaje >= 0 AND porc_vend_porcentaje <= 100),
+    CONSTRAINT chk_porc_vend_porcentaje_valido CHECK (
+        porc_vend_porcentaje >= 0
+        AND porc_vend_porcentaje <= 100
+    ),
     CONSTRAINT chk_porc_vend_monto_base_positivo CHECK (porc_vend_monto_base > 0),
     CONSTRAINT chk_porc_vend_cantidad_ganancia_positiva CHECK (porc_vend_cantidad_ganancia >= 0),
-
     -- Un registro único por vendedor por venta
     UNIQUE KEY unique_vendedor_venta (porc_vend_user_id, porc_vend_ven_id)
-) COMMENT='Porcentajes y ganancias de vendedores por venta';
-
+) COMMENT = 'Porcentajes y ganancias de vendedores por venta';
 
 -- ========================================
 -- TABLA DE CUOTAS (SOLO PARA PAGOS A PLAZOS)
@@ -606,7 +605,7 @@ CREATE TABLE pro_cuotas (
     cuota_id INT AUTO_INCREMENT PRIMARY KEY,
     cuota_control_id INT NOT NULL COMMENT 'FK al control de pagos',
     cuota_numero INT NOT NULL COMMENT 'Número de cuota (1, 2, 3...)',
-    cuota_monto DECIMAL(10,2) NOT NULL COMMENT 'Monto de esta cuota',
+    cuota_monto DECIMAL(10, 2) NOT NULL COMMENT 'Monto de esta cuota',
     cuota_fecha_vencimiento DATE NOT NULL COMMENT 'Fecha límite para pago',
     cuota_estado ENUM('PENDIENTE', 'PAGADA', 'VENCIDA') DEFAULT 'PENDIENTE',
     cuota_fecha_pago DATE NULL COMMENT 'Fecha en que se pagó',
@@ -614,11 +613,10 @@ CREATE TABLE pro_cuotas (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (cuota_control_id) REFERENCES pro_pagos(pago_id) ON DELETE CASCADE
-) COMMENT='Definición de cuotas para pagos a plazos';
+) COMMENT = 'Definición de cuotas para pagos a plazos';
 
-
-CREATE TABLE pro_pagos_subidos (
-    ps_id INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS pro_pagos_subidos (
+    ps_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     ps_venta_id INT NOT NULL,
     ps_cliente_user_id BIGINT UNSIGNED NULL,
     ps_fecha_comprobante DATETIME NULL,
@@ -630,44 +628,47 @@ CREATE TABLE pro_pagos_subidos (
     ps_concepto VARCHAR(255) NULL,
     ps_cuotas_json JSON NULL,
     ps_imagen_path VARCHAR(255) NULL,
-    ps_estado ENUM('PENDIENTE', 'APROBADO', 'RECHAZADO') DEFAULT 'PENDIENTE',
+    ps_estado ENUM(
+        'PENDIENTE',
+        'PENDIENTE_VALIDACION',
+        'APROBADO',
+        'RECHAZADO'
+    ) NOT NULL DEFAULT 'PENDIENTE',
     ps_monto_aprobado DECIMAL(10, 2) NULL,
     ps_cuotas_aprobadas_json JSON NULL,
     ps_revisado_por BIGINT UNSIGNED NULL,
     ps_revisado_en DATETIME NULL,
     ps_notas_revision VARCHAR(300) NULL,
     ps_dedupe_key VARCHAR(64) NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
     CONSTRAINT fk_ps_venta FOREIGN KEY (ps_venta_id) REFERENCES pro_ventas(ven_id) ON DELETE CASCADE,
     CONSTRAINT fk_ps_cliente FOREIGN KEY (ps_cliente_user_id) REFERENCES users(user_id) ON DELETE
     SET
-        NULL,
+        NULL ON UPDATE CASCADE,
         CONSTRAINT fk_ps_revisor FOREIGN KEY (ps_revisado_por) REFERENCES users(user_id) ON DELETE
     SET
-        NULL,
+        NULL ON UPDATE CASCADE,
         UNIQUE KEY uq_ps_dedupe_key (ps_dedupe_key),
         KEY idx_ps_estado_created (ps_estado, created_at),
         KEY idx_ps_venta_estado (ps_venta_id, ps_estado),
         KEY idx_ps_ref_banco (ps_referencia, ps_banco_id),
         KEY idx_ps_cliente (ps_cliente_user_id)
-);
+)
 
 -- Tabla de saldos actuales de caja (simple y clara)
 CREATE TABLE caja_saldos (
-    caja_saldo_id           INT AUTO_INCREMENT PRIMARY KEY,
-    caja_saldo_metodo_pago  BIGINT UNSIGNED NOT NULL,         -- FK a pro_metodos_pago (EFECTIVO, TARJETA, TRANSFERENCIA, etc.)
-    caja_saldo_moneda       VARCHAR(3) NOT NULL DEFAULT 'GTQ', -- Si solo usas GTQ, queda así
-    caja_saldo_monto_actual DECIMAL(14,2) NOT NULL DEFAULT 0.00,
-    caja_saldo_actualizado  DATETIME NOT NULL
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
+    caja_saldo_id INT AUTO_INCREMENT PRIMARY KEY,
+    caja_saldo_metodo_pago BIGINT UNSIGNED NOT NULL,
+    -- FK a pro_metodos_pago (EFECTIVO, TARJETA, TRANSFERENCIA, etc.)
+    caja_saldo_moneda VARCHAR(3) NOT NULL DEFAULT 'GTQ',
+    -- Si solo usas GTQ, queda así
+    caja_saldo_monto_actual DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
+    caja_saldo_actualizado DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_caja_saldo (caja_saldo_metodo_pago, caja_saldo_moneda),
-    CONSTRAINT fk_caja_saldos_metodo
-        FOREIGN KEY (caja_saldo_metodo_pago) REFERENCES pro_metodos_pago(metpago_id)
-) COMMENT='Saldos actuales de caja por método de pago y moneda';
-
+    CONSTRAINT fk_caja_saldos_metodo FOREIGN KEY (caja_saldo_metodo_pago) REFERENCES pro_metodos_pago(metpago_id)
+) COMMENT = 'Saldos actuales de caja por método de pago y moneda';
 
 CREATE TABLE pro_estados_cuenta (
     ec_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -679,32 +680,22 @@ CREATE TABLE pro_estados_cuenta (
     ec_fecha_fin DATE NULL COMMENT 'Fecha fin del período (opcional)',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) COMMENT='Registros de estados de cuenta cargados por el admin para conciliación';
+) COMMENT = 'Registros de estados de cuenta cargados por el admin para conciliación';
 
 CREATE TABLE pro_ventas (
     ven_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     ven_user BIGINT UNSIGNED NOT NULL,
     ven_fecha DATE NOT NULL,
     ven_cliente INT NOT NULL,
-    ven_total_vendido DECIMAL(10,2) NOT NULL DEFAULT '0.00',
-    ven_descuento DECIMAL(10,2) NOT NULL DEFAULT '0.00',
-    ven_situacion ENUM('ACTIVA','ANULADA') NOT NULL DEFAULT 'ACTIVA',
+    ven_total_vendido DECIMAL(10, 2) NOT NULL DEFAULT '0.00',
+    ven_descuento DECIMAL(10, 2) NOT NULL DEFAULT '0.00',
+    ven_situacion ENUM('ACTIVA', 'ANULADA') NOT NULL DEFAULT 'ACTIVA',
     ven_observaciones VARCHAR(200) NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    CONSTRAINT fk_ven_user FOREIGN KEY (ven_user) 
-        REFERENCES users(id) 
-        ON DELETE RESTRICT 
-        ON UPDATE RESTRICT,
-    
-    CONSTRAINT fk_ven_cliente FOREIGN KEY (ven_cliente) 
-        REFERENCES pro_clientes(cliente_id) 
-        ON DELETE RESTRICT 
-        ON UPDATE RESTRICT
-) 
-
-CREATE TABLE pro_clientes (
+    CONSTRAINT fk_ven_user FOREIGN KEY (ven_user) REFERENCES users(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT fk_ven_cliente FOREIGN KEY (ven_cliente) REFERENCES pro_clientes(cliente_id) ON DELETE RESTRICT ON UPDATE RESTRICT
+) CREATE TABLE pro_clientes (
     cliente_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     cliente_nombre1 VARCHAR(50) NOT NULL,
     cliente_nombre2 VARCHAR(50) NULL,
@@ -720,13 +711,19 @@ CREATE TABLE pro_clientes (
     cliente_situacion INT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
     UNIQUE KEY uk_cliente_dpi (cliente_dpi),
     UNIQUE KEY uk_cliente_nit (cliente_nit),
     UNIQUE KEY uk_cliente_user_id (cliente_user_id),
-    
-    CONSTRAINT fk_cliente_user FOREIGN KEY (cliente_user_id) 
-        REFERENCES users(id) 
-        ON DELETE SET NULL 
-        ON UPDATE CASCADE
-) 
+    CONSTRAINT fk_cliente_user FOREIGN KEY (cliente_user_id) REFERENCES users(id) ON DELETE
+    SET
+        NULL ON UPDATE CASCADE
+)
+
+ALTER TABLE pro_pagos_subidos
+  MODIFY ps_estado ENUM('PENDIENTE','PENDIENTE_VALIDACION','APROBADO','RECHAZADO')
+  DEFAULT 'PENDIENTE';
+
+
+ALTER TABLE cja_historial
+  MODIFY cja_tipo ENUM('VENTA','IMPORTACION','EGRESO','DEPOSITO','AJUSTE_POS') NOT NULL
+  COMMENT 'Tipo de movimiento';
