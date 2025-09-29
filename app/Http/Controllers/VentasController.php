@@ -39,6 +39,7 @@ class VentasController extends Controller
         ));
     }
 
+
     public function buscarClientes(Request $request)
     {
         // echo json_encode($_GET);
@@ -83,6 +84,7 @@ class VentasController extends Controller
 
         return response()->json($subcategorias);
     }
+
 
     public function getMarcas($subcategoria_id)
     {
@@ -137,10 +139,10 @@ class VentasController extends Controller
         $busqueda = trim($request->query('busqueda', ''));
 
         $productos = DB::table('pro_productos')
-            ->join('pro_precios', 'producto_id', '=', 'precio_producto_id')
-            ->join('pro_categorias', 'producto_categoria_id', '=', 'categoria_id')
-            ->join('pro_subcategorias', 'producto_subcategoria_id', '=', 'subcategoria_id')
-            ->join('pro_marcas', 'producto_marca_id', '=', 'marca_id')
+            ->leftJoin('pro_precios', 'producto_id', '=', 'precio_producto_id')
+            ->Join('pro_categorias', 'producto_categoria_id', '=', 'categoria_id')
+            ->Join('pro_subcategorias', 'producto_subcategoria_id', '=', 'subcategoria_id')
+            ->leftJoin('pro_marcas', 'producto_marca_id', '=', 'marca_id')
             ->leftJoin('pro_modelo', 'producto_modelo_id', '=', 'modelo_id')
             ->leftJoin('pro_calibres', 'producto_calibre_id', '=', 'calibre_id')
             ->leftJoin('pro_paises', 'producto_madein', '=', 'pais_id')
@@ -181,9 +183,10 @@ class VentasController extends Controller
                 'producto_situacion',
                 'producto_requiere_serie',
                 'precio_venta',
-                'precio_especial',
+                'precio_venta_empresa',
                 'foto_url',
-                'stock_cantidad_total'
+                'stock_cantidad_total',
+                'producto_requiere_stock'
             )
             ->orderBy('producto_nombre')
             ->get();
@@ -257,6 +260,8 @@ class VentasController extends Controller
             'cliente_telefono'  => ['nullable', 'string', 'max:30'],
             'cliente_correo'    => ['nullable', 'string', 'max:150'],
             'cliente_tipo'      => ['nullable', 'integer', 'in:0,1,2'],
+            'cliente_user_id' => ['nullable', 'integer'],
+
         ]);
         //  echo json_encode($data);
         // exit;
@@ -264,9 +269,6 @@ class VentasController extends Controller
         $cliente = Clientes::create($data);
         return response()->json($cliente, 201);
     }
-
-
-
 
 
 
@@ -306,6 +308,7 @@ class VentasController extends Controller
                 'productos.*.precio_unitario' => 'required|numeric|min:0',
                 'productos.*.subtotal_producto' => 'required|numeric|min:0',
                 'productos.*.requiere_serie' => 'required|in:0,1',
+                'productos.*.producto_requiere_stock' => 'required|in:0,1',
                 'productos.*.series_seleccionadas' => 'nullable|array',
                 'productos.*.tiene_lotes' => 'required|boolean',
                 'productos.*.lotes_seleccionados' => 'nullable|array',
@@ -340,13 +343,24 @@ class VentasController extends Controller
                     ], 422);
                 }
 
-                // Validar stock disponible
-                $stockActual = DB::table('pro_stock_actual')->where('stock_producto_id', $producto->producto_id)->first();
-                if (!$stockActual || $stockActual->stock_cantidad_disponible < $productoData['cantidad']) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Stock insuficiente para el producto: {$producto->producto_nombre}"
-                    ], 422);
+                // // Validar stock disponible
+                // $stockActual = DB::table('pro_stock_actual')->where('stock_producto_id', $producto->producto_id)->first();
+                // if (!$stockActual || $stockActual->stock_cantidad_disponible < $productoData['cantidad']) {
+                //     return response()->json([
+                //         'success' => false,
+                //         'message' => "Stock insuficiente para el producto: {$producto->producto_nombre}"
+                //     ], 422);
+                // }
+
+                // Validar stock disponible SOLO si el producto lo necesita
+                if ($productoData['producto_requiere_stock'] == 1) {
+                    $stockActual = DB::table('pro_stock_actual')->where('stock_producto_id', $producto->producto_id)->first();
+                    if (!$stockActual || $stockActual->stock_cantidad_disponible < $productoData['cantidad']) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Stock insuficiente para el producto: {$producto->producto_nombre}"
+                        ], 422);
+                    }
                 }
 
                 // Insertar detalle de venta en pro_detalle_ventas
@@ -358,173 +372,193 @@ class VentasController extends Controller
                     'det_descuento' => 0,
                 ]);
 
-                // PROCESAR SEGÚN TIPO DE PRODUCTO
-                if ($productoData['requiere_serie'] == 1) {
-                    // ===============================
-                    // PRODUCTO CON SERIES
-                    // ===============================
-                    $seriesSeleccionadas = $productoData['series_seleccionadas'] ?? [];
+                if ($productoData['producto_requiere_stock'] == 1) {
+                    // PROCESAR SEGÚN TIPO DE PRODUCTO
+                    if ($productoData['requiere_serie'] == 1) {
+                        // ===============================
+                        // PRODUCTO CON SERIES
+                        // ===============================
+                        $seriesSeleccionadas = $productoData['series_seleccionadas'] ?? [];
 
-                    if (empty($seriesSeleccionadas)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "El producto {$producto->producto_nombre} requiere series"
-                        ], 422);
-                    }
-
-                    if (count($seriesSeleccionadas) !== $productoData['cantidad']) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Debe seleccionar exactamente {$productoData['cantidad']} serie(s) para {$producto->producto_nombre}"
-                        ], 422);
-                    }
-
-                    // Obtener IDs de series por número de serie
-                    $seriesInfo = DB::table('pro_series_productos')
-                        ->whereIn('serie_numero_serie', $seriesSeleccionadas)
-                        ->where('serie_producto_id', $producto->producto_id)
-                        ->where('serie_estado', 'disponible')
-                        ->where('serie_situacion', 1)
-                        ->get();
-
-                    if ($seriesInfo->count() !== count($seriesSeleccionadas)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Una o más series no están disponibles para el producto {$producto->producto_nombre}"
-                        ], 422);
-                    }
-
-                    // Actualizar series: cambiar estado y situación
-                    $seriesIds = $seriesInfo->pluck('serie_id');
-                    DB::table('pro_series_productos')
-                        ->whereIn('serie_id', $seriesIds)
-                        ->update([
-                            'serie_estado' => 'vendido',
-                            'serie_situacion' => 0,
-                        ]);
-
-                    // Registrar movimiento por cada serie
-                    foreach ($seriesInfo as $serieInfo) {
-                        DB::table('pro_movimientos')->insert([
-                            'mov_producto_id' => $producto->producto_id,
-                            'mov_tipo' => 'venta',
-                            'mov_origen' => 'venta',
-                            'mov_destino' => 'cliente',
-                            'mov_cantidad' => 1,
-                            'mov_precio_unitario' => $productoData['precio_unitario'],
-                            'mov_valor_total' => $productoData['precio_unitario'],
-                            'mov_fecha' => now(),
-                            'mov_usuario_id' => auth()->id(),
-                            'mov_serie_id' => $serieInfo->serie_id,
-                            'mov_documento_referencia' => "VENTA-{$ventaId}",
-                            'mov_observaciones' => "Venta - Serie: {$serieInfo->serie_numero_serie}",
-                            'mov_situacion' => 1,
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ]);
-                    }
-
-                    // Actualizar stock
-                    DB::table('pro_stock_actual')
-                        ->where('stock_producto_id', $producto->producto_id)
-                        ->decrement('stock_cantidad_disponible', count($seriesSeleccionadas));
-
-                    DB::table('pro_stock_actual')
-                        ->where('stock_producto_id', $producto->producto_id)
-                        ->decrement('stock_cantidad_total', count($seriesSeleccionadas));
-                } else {
-                    // ===============================
-                    // PRODUCTO SIN SERIES (CON O SIN LOTES)
-                    // ===============================
-                    if ($productoData['tiene_lotes'] && !empty($productoData['lotes_seleccionados'])) {
-                        // PRODUCTO CON LOTES
-                        $lotesSeleccionados = $productoData['lotes_seleccionados'];
-                        $totalAsignado = array_sum(array_column($lotesSeleccionados, 'cantidad'));
-
-                        if ($totalAsignado !== $productoData['cantidad']) {
+                        if (empty($seriesSeleccionadas)) {
                             return response()->json([
                                 'success' => false,
-                                'message' => "La cantidad asignada en lotes ($totalAsignado) debe coincidir con la cantidad del producto (" . $productoData['cantidad'] . ") para " . $producto->producto_nombre
+                                'message' => "El producto {$producto->producto_nombre} requiere series"
                             ], 422);
                         }
 
-                        // Procesar cada lote
-                        foreach ($lotesSeleccionados as $loteData) {
-                            $lote = DB::table('pro_lotes')->where('lote_id', $loteData['lote_id'])->first();
+                        if (count($seriesSeleccionadas) !== $productoData['cantidad']) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Debe seleccionar exactamente {$productoData['cantidad']} serie(s) para {$producto->producto_nombre}"
+                            ], 422);
+                        }
 
-                            if (!$lote || $lote->lote_cantidad_disponible < $loteData['cantidad']) {
-                                return response()->json([
-                                    'success' => false,
-                                    'message' => "El lote no tiene suficiente stock disponible"
-                                ], 422);
-                            }
+                        // Obtener IDs de series por número de serie
+                        $seriesInfo = DB::table('pro_series_productos')
+                            ->whereIn('serie_numero_serie', $seriesSeleccionadas)
+                            ->where('serie_producto_id', $producto->producto_id)
+                            ->where('serie_estado', 'disponible')
+                            ->where('serie_situacion', 1)
+                            ->get();
 
-                            // Actualizar cantidad disponible en el lote
-                            DB::table('pro_lotes')
-                                ->where('lote_id', $loteData['lote_id'])
-                                ->decrement('lote_cantidad_disponible', $loteData['cantidad']);
+                        if ($seriesInfo->count() !== count($seriesSeleccionadas)) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Una o más series no están disponibles para el producto {$producto->producto_nombre}"
+                            ], 422);
+                        }
 
-                            DB::table('pro_lotes')
-                                ->where('lote_id', $loteData['lote_id'])
-                                ->decrement('lote_cantidad_total', $loteData['cantidad']);
+                        // Actualizar series: cambiar estado y situación
+                        $seriesIds = $seriesInfo->pluck('serie_id');
+                        DB::table('pro_series_productos')
+                            ->whereIn('serie_id', $seriesIds)
+                            ->update([
+                                'serie_estado' => 'vendido',
+                                'serie_situacion' => 0,
+                            ]);
 
-
-                            // Registrar movimiento de lote
+                        // Registrar movimiento por cada serie
+                        foreach ($seriesInfo as $serieInfo) {
                             DB::table('pro_movimientos')->insert([
                                 'mov_producto_id' => $producto->producto_id,
                                 'mov_tipo' => 'venta',
                                 'mov_origen' => 'venta',
                                 'mov_destino' => 'cliente',
-                                'mov_cantidad' => $loteData['cantidad'],
+                                'mov_cantidad' => 1,
                                 'mov_precio_unitario' => $productoData['precio_unitario'],
-                                'mov_valor_total' => $productoData['precio_unitario'] * $loteData['cantidad'],
+                                'mov_valor_total' => $productoData['precio_unitario'],
                                 'mov_fecha' => now(),
                                 'mov_usuario_id' => auth()->id(),
-                                'mov_lote_id' => $loteData['lote_id'],
+                                'mov_serie_id' => $serieInfo->serie_id,
                                 'mov_documento_referencia' => "VENTA-{$ventaId}",
-                                'mov_observaciones' => "Venta - Lote: {$lote->lote_codigo}",
+                                'mov_observaciones' => "Venta - Serie: {$serieInfo->serie_numero_serie}",
                                 'mov_situacion' => 1,
                                 'created_at' => now(),
                                 'updated_at' => now()
                             ]);
+                        }
 
-                            // Si el lote se agotó, cambiar situación
-                            $loteActualizado = DB::table('pro_lotes')->where('lote_id', $loteData['lote_id'])->first();
-                            if ($loteActualizado->lote_cantidad_disponible <= 0) {
+                        // Actualizar stock
+                        DB::table('pro_stock_actual')
+                            ->where('stock_producto_id', $producto->producto_id)
+                            ->decrement('stock_cantidad_disponible', count($seriesSeleccionadas));
+
+                        DB::table('pro_stock_actual')
+                            ->where('stock_producto_id', $producto->producto_id)
+                            ->decrement('stock_cantidad_total', count($seriesSeleccionadas));
+                    } else {
+                        // ===============================
+                        // PRODUCTO SIN SERIES (CON O SIN LOTES)
+                        // ===============================
+                        if ($productoData['tiene_lotes'] && !empty($productoData['lotes_seleccionados'])) {
+                            // PRODUCTO CON LOTES
+                            $lotesSeleccionados = $productoData['lotes_seleccionados'];
+                            $totalAsignado = array_sum(array_column($lotesSeleccionados, 'cantidad'));
+
+                            if ($totalAsignado !== $productoData['cantidad']) {
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => "La cantidad asignada en lotes ($totalAsignado) debe coincidir con la cantidad del producto (" . $productoData['cantidad'] . ") para " . $producto->producto_nombre
+                                ], 422);
+                            }
+
+                            // Procesar cada lote
+                            foreach ($lotesSeleccionados as $loteData) {
+                                $lote = DB::table('pro_lotes')->where('lote_id', $loteData['lote_id'])->first();
+
+                                if (!$lote || $lote->lote_cantidad_disponible < $loteData['cantidad']) {
+                                    return response()->json([
+                                        'success' => false,
+                                        'message' => "El lote no tiene suficiente stock disponible"
+                                    ], 422);
+                                }
+
+                                // Actualizar cantidad disponible en el lote
                                 DB::table('pro_lotes')
                                     ->where('lote_id', $loteData['lote_id'])
-                                    ->update(['lote_situacion' => 0]);
+                                    ->decrement('lote_cantidad_disponible', $loteData['cantidad']);
+
+                                DB::table('pro_lotes')
+                                    ->where('lote_id', $loteData['lote_id'])
+                                    ->decrement('lote_cantidad_total', $loteData['cantidad']);
+
+
+                                // Registrar movimiento de lote
+                                DB::table('pro_movimientos')->insert([
+                                    'mov_producto_id' => $producto->producto_id,
+                                    'mov_tipo' => 'venta',
+                                    'mov_origen' => 'venta',
+                                    'mov_destino' => 'cliente',
+                                    'mov_cantidad' => $loteData['cantidad'],
+                                    'mov_precio_unitario' => $productoData['precio_unitario'],
+                                    'mov_valor_total' => $productoData['precio_unitario'] * $loteData['cantidad'],
+                                    'mov_fecha' => now(),
+                                    'mov_usuario_id' => auth()->id(),
+                                    'mov_lote_id' => $loteData['lote_id'],
+                                    'mov_documento_referencia' => "VENTA-{$ventaId}",
+                                    'mov_observaciones' => "Venta - Lote: {$lote->lote_codigo}",
+                                    'mov_situacion' => 1,
+                                    'created_at' => now(),
+                                    'updated_at' => now()
+                                ]);
+
+                                // Si el lote se agotó, cambiar situación
+                                $loteActualizado = DB::table('pro_lotes')->where('lote_id', $loteData['lote_id'])->first();
+                                if ($loteActualizado->lote_cantidad_disponible <= 0) {
+                                    DB::table('pro_lotes')
+                                        ->where('lote_id', $loteData['lote_id'])
+                                        ->update(['lote_situacion' => 0]);
+                                }
                             }
+                        } else {
+                            // PRODUCTO SIN LOTES (STOCK GENERAL)
+                            DB::table('pro_movimientos')->insert([
+                                'mov_producto_id' => $producto->producto_id,
+                                'mov_tipo' => 'venta',
+                                'mov_origen' => 'venta',
+                                'mov_destino' => 'cliente',
+                                'mov_cantidad' => $productoData['cantidad'],
+                                'mov_precio_unitario' => $productoData['precio_unitario'],
+                                'mov_valor_total' => $productoData['precio_unitario'] * $productoData['cantidad'],
+                                'mov_fecha' => now(),
+                                'mov_usuario_id' => auth()->id(),
+                                'mov_lote_id' => null,
+                                'mov_documento_referencia' => "VENTA-{$ventaId}",
+                                'mov_observaciones' => "Venta - Stock general",
+                                'mov_situacion' => 1,
+                                'created_at' => now(),
+                                'updated_at' => now()
+                            ]);
                         }
-                    } else {
-                        // PRODUCTO SIN LOTES (STOCK GENERAL)
-                        DB::table('pro_movimientos')->insert([
-                            'mov_producto_id' => $producto->producto_id,
-                            'mov_tipo' => 'venta',
-                            'mov_origen' => 'venta',
-                            'mov_destino' => 'cliente',
-                            'mov_cantidad' => $productoData['cantidad'],
-                            'mov_precio_unitario' => $productoData['precio_unitario'],
-                            'mov_valor_total' => $productoData['precio_unitario'] * $productoData['cantidad'],
-                            'mov_fecha' => now(),
-                            'mov_usuario_id' => auth()->id(),
-                            'mov_lote_id' => null,
-                            'mov_documento_referencia' => "VENTA-{$ventaId}",
-                            'mov_observaciones' => "Venta - Stock general",
-                            'mov_situacion' => 1,
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ]);
+
+                        // Actualizar stock total (común para ambos casos)
+                        DB::table('pro_stock_actual')
+                            ->where('stock_producto_id', $producto->producto_id)
+                            ->decrement('stock_cantidad_disponible', $productoData['cantidad']);
+
+                        DB::table('pro_stock_actual')
+                            ->where('stock_producto_id', $producto->producto_id)
+                            ->decrement('stock_cantidad_total', $productoData['cantidad']);
                     }
-
-                    // Actualizar stock total (común para ambos casos)
-                    DB::table('pro_stock_actual')
-                        ->where('stock_producto_id', $producto->producto_id)
-                        ->decrement('stock_cantidad_disponible', $productoData['cantidad']);
-
-                    DB::table('pro_stock_actual')
-                        ->where('stock_producto_id', $producto->producto_id)
-                        ->decrement('stock_cantidad_total', $productoData['cantidad']);
+                } else {
+                    DB::table('pro_movimientos')->insert([
+                        'mov_producto_id' => $producto->producto_id,
+                        'mov_tipo' => 'venta',
+                        'mov_origen' => 'venta',
+                        'mov_destino' => 'cliente',
+                        'mov_cantidad' => $productoData['cantidad'],
+                        'mov_precio_unitario' => $productoData['precio_unitario'],
+                        'mov_valor_total' => $productoData['precio_unitario'] * $productoData['cantidad'],
+                        'mov_fecha' => now(),
+                        'mov_usuario_id' => auth()->id(),
+                        'mov_lote_id' => null,
+                        'mov_documento_referencia' => "VENTA-{$ventaId}",
+                        'mov_observaciones' => "Venta - Stock general",
+                        'mov_situacion' => 1,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
                 }
             }
 
@@ -659,7 +693,7 @@ class VentasController extends Controller
                 'porc_vend_estado' => 'PENDIENTE',  // Estado inicial de la comisión (pendiente)
                 'porc_vend_situacion' => 'ACTIVO',  // Situación activa de la comisión
                 'porc_vend_observaciones' => 'Comisión por venta',  // Observaciones (puedes personalizarlo según sea necesario)
-          
+
             ]);
 
 
