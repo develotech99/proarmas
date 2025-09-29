@@ -1,574 +1,868 @@
 // resources/js/pagos/administrar.js
-// DataTables v2 + Tailwind, SIN jQuery
-import DataTable from 'datatables.net-dt';
-import 'datatables.net-dt/css/dataTables.dataTables.css';
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
+import DataTable from "vanilla-datatables";
+import "vanilla-datatables/src/vanilla-dataTables.css";
 
-// =========================
-// Config & helpers
-// =========================
-const API_BASE = '/admin/pagos';
-const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+/* =========================
+ *  Helpers generales
+ * ========================= */
 
-const $ = (sel, ctx = document) => ctx.querySelector(sel);
-const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
-const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-const show = (id) => document.getElementById(id)?.classList.remove('hidden');
-const hide = (id) => document.getElementById(id)?.classList.add('hidden');
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-const fmtQ = (n) => 'Q ' + Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const getHeaders = () => ({
+    "Content-Type": "application/json",
+    "X-CSRF-TOKEN": csrfToken
+});
+const API = "/admin/pagos";
 
-const toast = (title, icon = 'info') => Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2200, icon, title });
-
-const fetchJSON = async (url, { method = 'GET', body = null, isForm = false } = {}) => {
-    const headers = {};
-    if (CSRF) headers['X-CSRF-TOKEN'] = CSRF;
-    if (!isForm) headers['Content-Type'] = 'application/json';
-
-    const res = await fetch(url, {
-        method,
-        headers,
-        body: isForm ? body : (body ? JSON.stringify(body) : null),
+const fmtQ = (n) =>
+    "Q " +
+    Number(n || 0).toLocaleString("es-GT", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
     });
-    if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
-    }
-    return res.json();
+
+const swalLoadingOpen = (title = "Procesando...") =>
+    Swal.fire({
+        title,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+    });
+
+const swalLoadingClose = () => Swal.close();
+
+const debounce = (fn, ms = 350) => {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+    };
 };
 
-const debounce = (fn, ms = 400) => {
-    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+const setTxt = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
 };
 
-// =========================
-// Estado global
-// =========================
-const state = {
-    saldos: [],         // [{metodo_id, metodo, caja_saldo_moneda, caja_saldo_monto_actual}]
-    uploadTmp: null,    // {path, headers, rows}
+const abrirModal = (id) => document.getElementById(id)?.classList.remove("hidden");
+const cerrarModal = (id) => document.getElementById(id)?.classList.add("hidden");
+
+/* =========================
+ *  Estado simple
+ * ========================= */
+let validarState = { ps: null, venta: null, debia: 0, hizo: 0 };
+let uploadTmp = null;
+
+/* =========================
+ *  DataTables (vanilla-datatables)
+ * ========================= */
+let dtPendientes = null;
+let dtMovimientos = null;
+let dtPreview = null;
+
+const labelsES = {
+    placeholder: "Buscar...",
+    perPage: "{select} registros por página",
+    noRows: "No se encontraron registros",
+    info: "Mostrando {start} a {end} de {rows} registros",
 };
 
-// =========================
-// DataTables locales (ES)
-// =========================
-const DT_ES = {
-    aria: { sortAscending: ': Activar para ordenar asc', sortDescending: ': Activar para ordenar desc' },
-    processing: 'Procesando...',
-    search: 'Buscar:',
-    lengthMenu: 'Mostrar _MENU_',
-    info: 'Mostrando _START_ a _END_ de _TOTAL_',
-    infoEmpty: 'Mostrando 0 a 0 de 0',
-    infoFiltered: '(filtrado de _MAX_ totales)',
-    loadingRecords: 'Cargando...',
-    zeroRecords: 'No se encontraron resultados',
-    emptyTable: 'No hay datos disponibles',
-    paginate: { first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último' },
+const initTablaPendientes = () => {
+    if (dtPendientes) dtPendientes.destroy();
+    dtPendientes = new DataTable("#tablaPendientes", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: labelsES,
+        data: {
+            headings: [
+                "Fecha",
+                "Venta",
+                "Cliente",
+                "Concepto",
+                "Debía",
+                "Depositado",
+                "Diferencia",
+                "Comprobante",
+                "Acciones",
+            ],
+            data: [],
+        },
+    });
 };
 
-// =========================
-// Stats / dashboard
-// =========================
-async function loadStats() {
+const initTablaMovimientos = () => {
+    if (dtMovimientos) dtMovimientos.destroy();
+    dtMovimientos = new DataTable("#tablaMovimientos", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: labelsES,
+        data: {
+            headings: ["Fecha", "Tipo", "Referencia", "Método", "Monto", "Estado"],
+            data: [],
+        },
+    });
+};
+
+const initTablaPreview = () => {
+    if (dtPreview) dtPreview.destroy();
+    dtPreview = new DataTable("#tablaPrevia", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 25,
+        perPageSelect: [10, 25, 50, 100],
+        labels: labelsES,
+        data: {
+            headings: ["Fecha", "Descripción", "Referencia", "Monto", "Detectado"],
+            data: [],
+        },
+    });
+};
+
+/* =========================
+ *  Stats / Dashboard
+ *  Espera: { codigo, mensaje, detalle, data:{ saldo_total_gtq, saldos, pendientes, ultima_carga } }
+ * ========================= */
+const CargarStats = async () => {
     try {
-        const r = await fetchJSON(`${API_BASE}/dashboard-stats`);
-        const { saldo_total_gtq = 0, saldos = [], pendientes = 0, ultima_carga = null } = r || {};
+        swalLoadingOpen("Cargando estadísticas...");
+        const url = `${API}/dashboard-stats`;
+        const resp = await fetch(url, { method: "GET" });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
 
-        state.saldos = saldos;
-        setText('saldoCajaTotalGTQ', fmtQ(saldo_total_gtq));
+        if (codigo === 1) {
+            const {
+                saldo_total_gtq = 0,
+                saldos = [],
+                pendientes = 0,
+                ultima_carga = null,
+            } = data || {};
 
-        const efectivo = saldos.find(s => (s.metodo || '').toLowerCase().includes('efectivo'));
-        setText('saldoEfectivoGTQ', fmtQ(efectivo?.caja_saldo_monto_actual || 0));
-        setText('contadorPendientes', String(pendientes));
-        setText('ultimaCargaEstado', ultima_carga ? new Date(ultima_carga).toLocaleString() : '—');
+            setTxt("saldoCajaTotalGTQ", fmtQ(saldo_total_gtq));
 
-        fillMetodoSelects();
-    } catch (e) {
-        toast(`No se pudieron cargar las estadísticas: ${e.message}`, 'error');
-    }
-}
+            const efectivo = saldos.find((s) =>
+                (s.metodo || "").toLowerCase().includes("efectivo")
+            );
+            setTxt("saldoEfectivoGTQ", fmtQ(efectivo?.caja_saldo_monto_actual || 0));
+            setTxt("contadorPendientes", String(pendientes));
+            setTxt(
+                "ultimaCargaEstado",
+                ultima_carga ? new Date(ultima_carga).toLocaleString() : "—"
+            );
 
-function fillMetodoSelects() {
-    const filtroMetodo = $('#filtroMetodo');
-    const egMetodo = $('#egMetodo');
-    if (filtroMetodo) {
-        filtroMetodo.innerHTML = `<option value="">Todos los métodos</option>` +
-            state.saldos.map(m => `<option value="${m.metodo_id}">${m.metodo}</option>`).join('');
-    }
-    if (egMetodo) {
-        egMetodo.innerHTML = state.saldos.map(m => `<option value="${m.metodo_id}">${m.metodo}</option>`).join('');
-    }
-}
-
-// =========================
-/** BANDEJA: DataTable sin jQuery */
-// =========================
-let dtPendientes;
-
-function initDtPendientes() {
-    const el = document.getElementById('tablaPendientes');
-    if (!el) return;
-
-    dtPendientes = new DataTable(el, {
-        language: DT_ES,
-        responsive: true,
-        autoWidth: false,
-        searching: false,
-        processing: true,
-        columns: [
-            { title: 'Fecha', data: 'fecha', render: v => (v ? new Date(v).toLocaleDateString() : '—') },
-            { title: 'Venta', data: 'venta_id', render: v => (v ? `#${v}` : '—') },
-            { title: 'Cliente', data: 'cliente', defaultContent: '—' },
-            { title: 'Concepto', data: 'concepto', className: 'text-xs text-gray-600', defaultContent: '—' },
-            { title: 'Debía', data: 'debia', className: 'text-right', render: v => fmtQ(v) },
-            { title: 'Depositado', data: 'depositado', className: 'text-right', render: v => fmtQ(v) },
-            {
-                title: 'Diferencia',
-                data: 'diferencia',
-                className: 'text-right',
-                render: v => {
-                    const n = Number(v || 0);
-                    const cls = n === 0 ? 'text-emerald-600' : n > 0 ? 'text-amber-600' : 'text-rose-600';
-                    return `<span class="${cls}">${fmtQ(n)}</span>`;
-                }
-            },
-            {
-                title: 'Comprobante',
-                data: null,
-                className: 'text-center',
-                render: row => {
-                    if (!row?.imagen) return '—';
-                    const img = encodeURIComponent(row.imagen);
-                    const ref = row.referencia || '';
-                    const fecha = row.fecha || '';
-                    const monto = row.depositado || 0;
-                    return `<button class="text-blue-600 hover:underline btn-ver-comp"
-                    data-img="${img}" data-ref="${ref}" data-fecha="${fecha}" data-monto="${monto}">
-                    Ver
-                  </button>`;
-                }
-            },
-            {
-                title: 'Acciones',
-                data: null,
-                className: 'text-center',
-                render: row => {
-                    return `<button class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg btn-validar"
-                    data-ps="${row.ps_id}" data-venta="${row.venta_id}"
-                    data-debia="${row.debia}" data-hizo="${row.depositado}">
-                    Validar
-                  </button>`;
-                }
-            },
-        ],
-        data: [], // se carga via loadPendientes()
-    });
-
-    // Delegación de eventos del tbody
-    el.tBodies[0].addEventListener('click', (ev) => {
-        const btn = ev.target.closest('button');
-        if (!btn) return;
-        if (btn.classList.contains('btn-ver-comp')) {
-            const img = decodeURIComponent(btn.getAttribute('data-img') || '');
-            const ref = btn.getAttribute('data-ref') || '';
-            const fecha = btn.getAttribute('data-fecha') || '';
-            const monto = btn.getAttribute('data-monto') || 0;
-            openModalComprobante({ img, ref, fecha, monto });
-        } else if (btn.classList.contains('btn-validar')) {
-            openModalValidar({
-                ps: Number(btn.getAttribute('data-ps')),
-                venta: Number(btn.getAttribute('data-venta')),
-                debia: Number(btn.getAttribute('data-debia') || 0),
-                hizo: Number(btn.getAttribute('data-hizo') || 0),
-            });
+            // Rellenar selects
+            const filtroMetodo = document.getElementById("filtroMetodo");
+            const egMetodo = document.getElementById("egMetodo");
+            if (filtroMetodo) {
+                filtroMetodo.innerHTML =
+                    `<option value="">Todos los métodos</option>` +
+                    saldos
+                        .map((m) => `<option value="${m.metodo_id}">${m.metodo}</option>`)
+                        .join("");
+            }
+            if (egMetodo) {
+                egMetodo.innerHTML = saldos
+                    .map((m) => `<option value="${m.metodo_id}">${m.metodo}</option>`)
+                    .join("");
+            }
+        } else {
+            console.error(mensaje);
         }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Error stats:", e);
+    }
+};
+
+/* =========================
+ *  Pendientes
+ *  Espera: { codigo, mensaje, data:[...] }
+ * ========================= */
+
+const renderPendientes = (rows = []) => {
+
+    const isSmall = window.matchMedia('(max-width: 768px)').matches;
+
+
+    const data = rows.map((r) => {
+        const fecha = r.fecha ? new Date(r.fecha).toLocaleDateString() : "—";
+        const venta = r.venta_id ? `#${r.venta_id}` : "—";
+        const cliente = r.cliente || "—";
+
+
+        const ventaTotal = Number(r.venta_total || 0);
+        const pendienteVenta = Number(r.pendiente_venta || 0);
+        const debiaEnvio = Number(r.debia_envio || 0);
+        const cuotasSel = Number(r.cuotas_seleccionadas || 0);
+        const cuotasTotal = Number(r.cuotas_total_venta || 0);
+
+        const concepto = r.concepto || "—";
+        const debia = fmtQ(r.debia);
+        const deposito = fmtQ(r.depositado);
+        const difNum = Number(r.diferencia || 0);
+        const difCls = difNum === 0 ? "text-emerald-600"
+            : difNum > 0 ? "text-amber-600"
+                : "text-rose-600";
+        const dif = `<span class="${difCls}">${fmtQ(difNum)}</span>`;
+
+        const cuotasInfo = (cuotasSel || cuotasTotal)
+            ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 text-indigo-700">
+           Cuotas: ${cuotasSel || 0}${cuotasTotal ? ` / ${cuotasTotal}` : ""}
+         </span>`
+            : "";
+
+        const detalleHtml = `
+      <div class="space-y-1">
+        <div class="font-medium">${concepto}</div>
+        <div class="text-[12px] text-gray-500 flex flex-wrap gap-2">
+          <span>Venta: <b>${fmtQ(ventaTotal)}</b></span>
+          <span>Pend. venta: <b>${fmtQ(pendienteVenta)}</b></span>
+          ${debiaEnvio ? `<span>Debía (envío): <b>${fmtQ(debiaEnvio)}</b></span>` : ""}
+          ${cuotasInfo}
+        </div>
+      </div>
+    `;
+
+        const comp = r.imagen
+            ? `<button class="btn-ver-comp text-blue-600 hover:underline"
+           data-img="${r.imagen}"
+           data-ref="${r.referencia || ""}"
+           data-fecha="${r.fecha || ""}"
+           data-monto="${r.depositado || 0}">
+           Ver
+         </button>`
+            : "—";
+
+        const acciones = `
+      <div class="flex justify-center">
+        <button class="btn-validar bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg"
+          data-ps="${r.ps_id}" data-venta="${r.venta_id}"
+          data-debia="${r.debia}" data-hizo="${r.depositado}">
+          Validar
+        </button>
+      </div>
+    `;
+
+        if (isSmall) {
+            const cabecera = `
+        <div class="text-[12px] text-gray-500">${fecha} • Venta <b>${venta}</b></div>
+        <div class="text-[13px] font-medium">${cliente}</div>
+      `;
+            const totales = `
+        <div class="mt-2 text-[12px] text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
+          <span>Debía: <b>${debia}</b></span>
+          <span>Depósito: <b>${deposito}</b></span>
+          <span>Dif.: <b class="${difCls}">${fmtQ(difNum)}</b></span>
+          <span>Comprobante: ${comp}</span>
+        </div>
+      `;
+            return [
+                cabecera + detalleHtml + totales,
+                acciones
+            ];
+        }
+
+        return [
+            fecha,
+            venta,
+            cliente,
+            detalleHtml,
+            debia,
+            deposito,
+            dif,
+            comp,
+            acciones
+        ];
     });
 
-    // Filtros externos
-    const buscar = $('#buscarFactura');
-    const filtroEstado = $('#filtroEstado');
-    if (buscar) buscar.addEventListener('input', debounce(loadPendientes, 400));
-    if (filtroEstado) filtroEstado.addEventListener('change', loadPendientes);
-}
+    if (dtPendientes) dtPendientes.destroy();
 
-async function loadPendientes() {
+    const headingsDesktop = [
+        "Fecha",
+        "Venta",
+        "Cliente",
+        "Detalle",
+        "Debía",
+        "Depositado",
+        "Diferencia",
+        "Comprobante",
+        "Acciones",
+    ];
+
+    const headingsMobile = [
+        "Factura / Cliente / Detalle",
+        "Acciones",
+    ];
+
+    dtPendientes = new DataTable("#tablaPendientes", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: labelsES,
+        data: {
+            headings: isSmall ? headingsMobile : headingsDesktop,
+            data,
+        },
+    });
+
+    const empty = document.getElementById("emptyPendientes");
+    if (empty) empty.classList.toggle("hidden", rows.length > 0);
+};
+
+const BuscarPendientes = async () => {
     try {
-        const q = $('#buscarFactura')?.value?.trim() || '';
-        const estado = $('#filtroEstado')?.value || '';
+        swalLoadingOpen("Cargando pendientes...");
+        const q = document.getElementById("buscarFactura")?.value?.trim() || "";
+        const estado = document.getElementById("filtroEstado")?.value || "";
+        const url = new URL(`${API}/pendientes`, window.location.origin);
+        if (q) url.searchParams.set("q", q);
+        if (estado) url.searchParams.set("estado", estado);
 
-        const url = new URL(`${API_BASE}/pendientes`, window.location.origin);
-        if (q) url.searchParams.set('q', q);
-        if (estado) url.searchParams.set('estado', estado);
+        const resp = await fetch(url, { method: "GET" });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
 
-        const res = await fetchJSON(url.toString());
-        const rows = res?.data || [];
-        if (!rows.length) show('emptyPendientes'); else hide('emptyPendientes');
-
-        dtPendientes?.clear();
-        dtPendientes?.rows?.add(rows);
-        dtPendientes?.draw();
+        if (codigo === 1) {
+            renderPendientes(data || []);
+        } else {
+            console.error(mensaje);
+            renderPendientes([]);
+        }
     } catch (e) {
-        toast(`Error cargando pendientes: ${e.message}`, 'error');
-        dtPendientes?.clear().draw();
-        show('emptyPendientes');
+        swalLoadingClose();
+        console.error("Error pendientes:", e);
+        renderPendientes([]);
     }
-}
+};
 
-// =========================
-/** MOVIMIENTOS: DataTable sin jQuery */
-// =========================
-let dtMovs;
+document.addEventListener("click", (e) => {
+    // Ver comprobante
+    if (e.target.closest(".btn-ver-comp")) {
+        const btn = e.target.closest(".btn-ver-comp");
+        const img = decodeURIComponent(btn.dataset.img || "");
+        const ref = btn.dataset.ref || "—";
+        const fecha = btn.dataset.fecha
+            ? new Date(btn.dataset.fecha).toLocaleString()
+            : "—";
+        const monto = Number(btn.dataset.monto || 0);
 
-function computeMonthRange() {
-    const val = $('#filtroMes')?.value || '';
-    const pad = (n) => String(n).padStart(2, '0');
+        const src = img;
+        const imgEl = document.getElementById("imgComprobante");
+        const aEl = document.getElementById("btnDescargarComprobante");
+        if (imgEl) imgEl.src = src;
+        if (aEl) aEl.href = src;
+
+        setTxt("refComprobante", ref);
+        setTxt("fechaComprobante", fecha);
+        setTxt("montoComprobante", fmtQ(monto));
+        abrirModal("modalComprobante");
+    }
+
+    // Validar
+    if (e.target.closest(".btn-validar")) {
+        const btn = e.target.closest(".btn-validar");
+        validarState = {
+            ps: Number(btn.dataset.ps),
+            venta: Number(btn.dataset.venta),
+            debia: Number(btn.dataset.debia || 0),
+            hizo: Number(btn.dataset.hizo || 0),
+        };
+        setTxt("mvVenta", `#${validarState.venta}`);
+        setTxt("mvDebia", fmtQ(validarState.debia));
+        setTxt("mvHizo", fmtQ(validarState.hizo));
+        setTxt("mvDif", fmtQ(validarState.hizo - validarState.debia));
+        setTxt("mvMetodo", "—");
+        abrirModal("modalValidar");
+    }
+
+    if (
+        e.target.closest("[data-modal-close], [data-close-modal]") ||
+        e.target.closest("[data-modal-backdrop]") ||
+        (e.target.classList?.contains("bg-black/50") && e.target.closest(".fixed.inset-0.z-50"))
+    ) {
+        cerrarModal("modalValidar");
+        cerrarModal("modalEgreso");
+        cerrarModal("modalComprobante");
+        cerrarModal("modalDetalleVenta");
+    }
+
+
+});
+
+
+/* =========================
+ *  Aprobar / Rechazar
+ *  Espera: { codigo:1, mensaje }
+ * ========================= */
+const Aprobar = async () => {
+    if (!validarState.ps) return;
+    try {
+        swalLoadingOpen("Aprobando pago...");
+        const url = `${API}/aprobar`;
+        const body = JSON.stringify({
+            ps_id: validarState.ps,
+            observaciones: document.getElementById("mvObs")?.value || "",
+        });
+        const resp = await fetch(url, {
+            method: "POST",
+            headers: getHeaders(),
+            body,
+        });
+        const { codigo, mensaje } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || "Pago aprobado", "success");
+            cerrarModal("modalValidar");
+            await CargarStats();
+            await BuscarPendientes();
+            await CargarMovimientos();
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo aprobar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Aprobar error:", e);
+    }
+};
+
+const Rechazar = async () => {
+    if (!validarState.ps) return;
+    const motivo = document.getElementById("mvObs")?.value || "";
+    if (!motivo || motivo.length < 5) {
+        return Swal.fire("Atención", "Indica el motivo (mín 5 caracteres).", "info");
+    }
+    try {
+        swalLoadingOpen("Rechazando pago...");
+        const resp = await fetch(`${API}/rechazar`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify({ ps_id: validarState.ps, motivo }),
+        });
+        const { codigo, mensaje } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || "Pago rechazado", "success");
+            cerrarModal("modalValidar");
+            await CargarStats();
+            await BuscarPendientes();
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo rechazar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Rechazar error:", e);
+    }
+};
+
+document.getElementById("btnAprobar")?.addEventListener("click", Aprobar);
+document.getElementById("btnRechazar")?.addEventListener("click", Rechazar);
+
+/* =========================
+ *  Movimientos
+ *  Espera: { codigo:1, data:{ data:[...], total } } o { codigo:1, data:[...] }
+ * ========================= */
+const rangoMes = () => {
+    const val = document.getElementById("filtroMes")?.value || "";
+    const pad = (n) => String(n).padStart(2, "0");
     if (val) {
-        const [y, m] = val.split('-').map(Number);
-        const first = new Date(y, m - 1, 1);
-        const last = new Date(y, m, 0);
+        const [y, m] = val.split("-").map(Number);
+        const f = new Date(y, m - 1, 1);
+        const l = new Date(y, m, 0);
         return {
-            from: `${first.getFullYear()}-${pad(first.getMonth() + 1)}-${pad(first.getDate())}`,
-            to: `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`,
+            from: `${f.getFullYear()}-${pad(f.getMonth() + 1)}-${pad(f.getDate())}`,
+            to: `${l.getFullYear()}-${pad(l.getMonth() + 1)}-${pad(l.getDate())}`,
         };
     }
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth(), 1);
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const n = new Date();
+    const f = new Date(n.getFullYear(), n.getMonth(), 1);
+    const l = new Date(n.getFullYear(), n.getMonth() + 1, 0);
     return {
-        from: `${first.getFullYear()}-${pad(first.getMonth() + 1)}-${pad(first.getDate())}`,
-        to: `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`,
+        from: `${f.getFullYear()}-${pad(f.getMonth() + 1)}-${pad(f.getDate())}`,
+        to: `${l.getFullYear()}-${pad(l.getMonth() + 1)}-${pad(l.getDate())}`,
     };
-}
+};
 
-function initDtMovs() {
-    const el = document.getElementById('tablaMovimientos');
-    if (!el) return;
-
-    dtMovs = new DataTable(el, {
-        language: DT_ES,
-        responsive: true,
-        autoWidth: false,
-        searching: false,
-        processing: true,
-        order: [[0, 'desc']],
-        columns: [
-            { title: 'Fecha', data: 'cja_fecha', render: v => (v ? new Date(v).toLocaleString() : '—') },
-            { title: 'Tipo', data: 'cja_tipo' },
-            { title: 'Referencia', data: 'cja_no_referencia', defaultContent: '—' },
-            { title: 'Método', data: 'metodo', defaultContent: '—' },
-            {
-                title: 'Monto',
-                data: 'cja_monto',
-                className: 'text-right',
-                render: (v, _t, row) => {
-                    const esIn = ['VENTA', 'DEPOSITO', 'AJUSTE_POS'].includes(row?.cja_tipo || '');
-                    return `<span class="${esIn ? 'text-emerald-600' : 'text-rose-600'}">${fmtQ(v)}</span>`;
-                }
-            },
-            { title: 'Estado', data: 'cja_situacion' },
-        ],
-        data: [], // via loadMovimientos()
+const renderMovimientos = (rows = []) => {
+    const data = rows.map((r) => {
+        const fecha = r.cja_fecha ? new Date(r.cja_fecha).toLocaleString() : "—";
+        const tipo = r.cja_tipo || "—";
+        const ref = r.cja_no_referencia || "—";
+        const metodo = r.metodo || "—";
+        const esIn = ["VENTA", "DEPOSITO", "AJUSTE_POS"].includes(tipo);
+        const monto = `<span class="${esIn ? "text-emerald-600" : "text-rose-600"}">${fmtQ(
+            r.cja_monto
+        )}</span>`;
+        const est = r.cja_situacion || "—";
+        return [fecha, tipo, ref, metodo, monto, est];
     });
 
-    $('#btnFiltrarMovs')?.addEventListener('click', loadMovimientos);
-}
-
-async function loadMovimientos() {
-    try {
-        const metodoId = $('#filtroMetodo')?.value || '';
-        const { from, to } = computeMonthRange();
-        const url = new URL(`${API_BASE}/movimientos`, window.location.origin);
-        url.searchParams.set('from', from);
-        url.searchParams.set('to', to);
-        if (metodoId) url.searchParams.set('metodo_id', metodoId);
-
-        const r = await fetchJSON(url.toString());
-        const rows = r?.data || [];
-        const total = Number(r?.total || 0);
-
-        dtMovs?.clear();
-        dtMovs?.rows?.add(rows);
-        dtMovs?.draw();
-
-        setText('totalMovimientosMes', fmtQ(total));
-    } catch (e) {
-        toast(`No se pudieron cargar movimientos: ${e.message}`, 'error');
-        dtMovs?.clear().draw();
-        setText('totalMovimientosMes', fmtQ(0));
-    }
-}
-
-// =========================
-/** PREVIEW CSV/XLSX: DataTable sin jQuery */
-// =========================
-let dtPreview;
-
-function initDtPreview() {
-    const el = document.getElementById('tablaPrevia');
-    if (!el) return;
-
-    dtPreview = new DataTable(el, {
-        language: DT_ES,
-        responsive: true,
-        autoWidth: false,
-        searching: false,
-        order: [[0, 'asc']],
-        columns: [
-            { title: 'Fecha', data: 'fecha' },
-            { title: 'Descripción', data: 'descripcion' },
-            { title: 'Referencia', data: 'referencia' },
-            { title: 'Monto', data: 'monto', className: 'text-right', render: v => fmtQ(v) },
-            { title: 'Detectado', data: 'detectado', defaultContent: '—' },
-        ],
-        data: [],
+    if (dtMovimientos) dtMovimientos.destroy();
+    dtMovimientos = new DataTable("#tablaMovimientos", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: labelsES,
+        data: {
+            headings: ["Fecha", "Tipo", "Referencia", "Método", "Monto", "Estado"],
+            data,
+        },
     });
-}
+};
 
-function renderPreview(rows) {
-    const safe = (rows || []).map(r => ({
-        fecha: r.fecha || '—',
-        descripcion: r.descripcion || '—',
-        referencia: r.referencia || '—',
-        monto: r.monto ?? 0,
-        detectado: r.detectado ?? '—',
-    }));
-    dtPreview?.clear();
-    dtPreview?.rows?.add(safe);
-    dtPreview?.draw();
-    show('vistaPrevia');
-    setText('totalMovimientos', String(safe.length));
-}
-
-// =========================
-// Modales (sin jQuery)
-// =========================
-function openModal(sel) { document.querySelector(sel)?.classList.remove('hidden'); }
-function closeModal(sel) { document.querySelector(sel)?.classList.add('hidden'); }
-
-function bindModalClose() {
-    $$('[data-close-modal]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const target = btn.getAttribute('data-close-modal');
-            if (target) closeModal(target);
-        });
-    });
-}
-
-function openModalComprobante({ img, ref, fecha, monto }) {
-    const base = img?.startsWith('http') ? img : (`/storage/${img}`);
-    const imgEl = $('#imgComprobante'); if (imgEl) imgEl.src = base || '';
-    const link = $('#btnDescargarComprobante'); if (link) link.href = base || '#';
-    setText('refComprobante', ref || '—');
-    setText('fechaComprobante', fecha ? new Date(fecha).toLocaleString() : '—');
-    setText('montoComprobante', fmtQ(monto || 0));
-    openModal('#modalComprobante');
-}
-
-function openModalValidar({ ps, venta, debia, hizo }) {
-    setText('mvVenta', `#${venta}`);
-    setText('mvDebia', fmtQ(debia));
-    setText('mvHizo', fmtQ(hizo));
-    setText('mvDif', fmtQ(hizo - debia));
-    setText('mvMetodo', '—');
-
-    const btnA = $('#btnAprobar');
-    const btnR = $('#btnRechazar');
-    if (btnA) { btnA.setAttribute('data-ps-id', String(ps)); btnA.setAttribute('data-venta-id', String(venta)); }
-    if (btnR) { btnR.setAttribute('data-ps-id', String(ps)); btnR.setAttribute('data-venta-id', String(venta)); }
-    openModal('#modalValidar');
-}
-
-async function aprobarPago() {
-    const psId = $('#btnAprobar')?.getAttribute('data-ps-id');
-    const obs = $('#mvObs')?.value || '';
-    if (!psId) return;
+const CargarMovimientos = async () => {
     try {
-        const r = await fetchJSON(`${API_BASE}/aprobar`, { method: 'POST', body: { ps_id: Number(psId), observaciones: obs } });
-        if (!r?.ok) throw new Error(r?.msg || 'Error desconocido');
-        toast('Pago aprobado', 'success');
-        closeModal('#modalValidar');
-        await Promise.all([loadStats(), loadPendientes(), loadMovimientos()]);
-    } catch (e) { toast(`No se pudo aprobar: ${e.message}`, 'error'); }
-}
+        swalLoadingOpen("Cargando movimientos...");
+        const metodoId = document.getElementById("filtroMetodo")?.value || "";
+        const { from, to } = rangoMes();
+        const url = new URL(`${API}/movimientos`, window.location.origin);
+        url.searchParams.set("from", from);
+        url.searchParams.set("to", to);
+        if (metodoId) url.searchParams.set("metodo_id", metodoId);
 
-async function rechazarPago() {
-    const psId = $('#btnRechazar')?.getAttribute('data-ps-id');
-    const motivo = $('#mvObs')?.value || '';
-    if (!psId) return;
-    if (!motivo || motivo.length < 5) return toast('Indica el motivo (mín 5 caracteres).', 'error');
-    try {
-        const r = await fetchJSON(`${API_BASE}/rechazar`, { method: 'POST', body: { ps_id: Number(psId), motivo } });
-        if (!r?.ok) throw new Error(r?.msg || 'Error desconocido');
-        toast('Pago rechazado', 'success');
-        closeModal('#modalValidar');
-        await Promise.all([loadStats(), loadPendientes()]);
-    } catch (e) { toast(`No se pudo rechazar: ${e.message}`, 'error'); }
-}
+        const resp = await fetch(url, { method: "GET" });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
 
-// =========================
-// Egresos
-// =========================
-function openModalEgreso() { openModal('#modalEgreso'); }
-
-async function guardarEgreso() {
-    const egFecha = $('#egFecha')?.value || '';
-    const egMetodo = $('#egMetodo')?.value || '';
-    const egMonto = $('#egMonto')?.value || '';
-    const egMotivo = $('#egMotivo')?.value || '';
-    const egReferencia = $('#egReferencia')?.value || '';
-    const egArchivo = $('#egArchivo')?.files?.[0] || null;
-
-    if (!egMetodo || !egMonto || !egMotivo) return toast('Completa método, monto y motivo.', 'error');
-
-    const fd = new FormData();
-    if (egFecha) fd.append('fecha', egFecha);
-    fd.append('metodo_id', egMetodo);
-    fd.append('monto', egMonto);
-    fd.append('motivo', egMotivo);
-    if (egReferencia) fd.append('referencia', egReferencia);
-    if (egArchivo) fd.append('archivo', egArchivo);
-
-    try {
-        const r = await fetchJSON(`${API_BASE}/egresos`, { method: 'POST', body: fd, isForm: true });
-        if (!r?.ok) throw new Error(r?.msg || 'Error desconocido');
-        toast('Egreso registrado', 'success');
-        closeModal('#modalEgreso');
-        await Promise.all([loadStats(), loadMovimientos()]);
-    } catch (e) {
-        toast(`No se pudo registrar egreso: ${e.message}`, 'error');
-    }
-}
-
-// =========================
-// Upload Estado de Cuenta
-// =========================
-function bindUpload() {
-    const zone = $('#uploadZone');
-    const input = $('#archivoMovimientos');
-    const btnPreview = $('#btnVistaPrevia');
-    const btnProcesar = $('#btnProcesar');
-    const btnLimpiar = $('#btnLimpiar');
-    const fileInfo = $('#fileInfo');
-    const uploadContent = $('#uploadContent');
-    const fileName = $('#fileName');
-    const fileSize = $('#fileSize');
-    const bancoOrigen = $('#bancoOrigen');
-
-    const enableActions = (enabled) => {
-        if (btnPreview) btnPreview.disabled = !enabled;
-        if (btnProcesar) btnProcesar.disabled = !enabled || !state.uploadTmp;
-    };
-
-    const resetUpload = () => {
-        if (input) input.value = '';
-        state.uploadTmp = null;
-        fileInfo?.classList.add('hidden');
-        uploadContent?.classList.remove('hidden');
-        enableActions(false);
-        hide('vistaPrevia');
-        setText('totalMovimientos', '0');
-    };
-
-    const onFileSelected = () => {
-        const f = input?.files?.[0];
-        if (!f) return;
-        if (fileName) fileName.textContent = f.name;
-        if (fileSize) fileSize.textContent = `${(f.size / (1024 * 1024)).toFixed(2)} MB`;
-        fileInfo?.classList.remove('hidden');
-        uploadContent?.classList.add('hidden');
-        enableActions(true);
-    };
-
-    if (zone && input) {
-        zone.addEventListener('click', () => input.click());
-        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
-        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-        zone.addEventListener('drop', (e) => {
-            e.preventDefault(); zone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) {
-                input.files = e.dataTransfer.files;
-                onFileSelected();
-            }
-        });
-        input.addEventListener('change', onFileSelected);
-    }
-
-    btnPreview?.addEventListener('click', async () => {
-        const f = input?.files?.[0];
-        if (!f) return toast('Selecciona un archivo primero.', 'error');
-
-        const fd = new FormData();
-        fd.append('archivo', f);
-        if (bancoOrigen?.value) fd.append('banco_id', bancoOrigen.value);
-
-        try {
-            const r = await fetchJSON(`${API_BASE}/movs/upload`, { method: 'POST', body: fd, isForm: true });
-            if (!r?.path) throw new Error('Respuesta inválida del servidor');
-            state.uploadTmp = r;
-            renderPreview(r.rows || []);
-            show('vistaPrevia');
-            enableActions(true);
-            setText('totalMovimientos', String((r.rows || []).length));
-        } catch (e) {
-            toast(`No se pudo previsualizar: ${e.message}`, 'error');
+        if (codigo === 1) {
+            const rows = Array.isArray(data?.movimientos) ? data.movimientos
+                : Array.isArray(data) ? data
+                    : [];
+            const total = Number(data?.total ?? 0);
+            renderMovimientos(rows);
+            setTxt("totalMovimientosMes", fmtQ(total));
+        } else {
+            console.error(mensaje);
+            renderMovimientos([]);
+            setTxt("totalMovimientosMes", fmtQ(0));
         }
-    });
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Error movs:", e);
+        renderMovimientos([]);
+        setTxt("totalMovimientosMes", fmtQ(0));
+    }
+};
 
-    btnProcesar?.addEventListener('click', async () => {
-        if (!state.uploadTmp?.path) return toast('Primero genera la vista previa.', 'error');
-        const fi = $('#fechaInicio')?.value || '';
-        const ff = $('#fechaFin')?.value || '';
+document.getElementById("btnFiltrarMovs")?.addEventListener("click", CargarMovimientos);
 
-        const body = {
-            archivo_path: state.uploadTmp.path,
+/* =========================
+ *  Egresos
+ *  Espera: { codigo:1, mensaje }
+ * ========================= */
+const AbrirEgreso = () => abrirModal("modalEgreso");
+document.getElementById("btnAbrirEgreso")?.addEventListener("click", AbrirEgreso);
+
+document.getElementById("btnGuardarEgreso")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    // Validación mínima (método, monto, motivo)
+    const egMetodo = document.getElementById("egMetodo")?.value;
+    const egMonto = document.getElementById("egMonto")?.value;
+    const egMotivo = document.getElementById("egMotivo")?.value;
+    if (!egMetodo || !egMonto || !egMotivo) {
+        return Swal.fire("Campos vacíos", "Completa método, monto y motivo.", "info");
+    }
+
+    try {
+        swalLoadingOpen("Guardando egreso...");
+        const form = document.getElementById("formEgreso");
+        const fd = new FormData(form);
+        const resp = await fetch(`${API}/egresos`, { method: "POST", body: fd });
+        const { codigo, mensaje } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || "Egreso registrado", "success");
+            cerrarModal("modalEgreso");
+            form.reset();
+            await CargarStats();
+            await CargarMovimientos();
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo registrar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Egreso error:", e);
+    }
+});
+
+/* =========================
+ *  Upload Estado de Cuenta
+ *  Preview: { codigo:1, data:{ path, headers, rows } }
+ *  Procesar: { codigo:1, mensaje }
+ * ========================= */
+const zone = document.getElementById("uploadZone");
+const inputFile = document.getElementById("archivoMovimientos");
+const btnPreview = document.getElementById("btnVistaPrevia");
+const btnProcesar = document.getElementById("btnProcesar");
+const btnLimpiar = document.getElementById("btnLimpiar");
+const fileInfo = document.getElementById("fileInfo");
+const uploadContent = document.getElementById("uploadContent");
+const fileName = document.getElementById("fileName");
+const fileSize = document.getElementById("fileSize");
+const bancoOrigen = document.getElementById("bancoOrigen");
+
+const enableUploadActions = (ok) => {
+    if (btnPreview) btnPreview.disabled = !ok;
+    if (btnProcesar) btnProcesar.disabled = !ok || !uploadTmp;
+};
+
+const resetUpload = () => {
+    if (inputFile) inputFile.value = "";
+    uploadTmp = null;
+    fileInfo?.classList.add("hidden");
+    uploadContent?.classList.remove("hidden");
+    enableUploadActions(false);
+    document.getElementById("vistaPrevia")?.classList.add("hidden");
+    setTxt("totalMovimientos", "0");
+};
+
+const onFileSelected = () => {
+    const f = inputFile?.files?.[0];
+    if (!f) return;
+    if (fileName) fileName.textContent = f.name;
+    if (fileSize) fileSize.textContent = `${(f.size / (1024 * 1024)).toFixed(2)} MB`;
+    fileInfo?.classList.remove("hidden");
+    uploadContent?.classList.add("hidden");
+    enableUploadActions(true);
+};
+
+zone?.addEventListener("click", () => inputFile?.click());
+zone?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    zone.classList.add("dragover");
+});
+zone?.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+zone?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) {
+        inputFile.files = e.dataTransfer.files;
+        onFileSelected();
+    }
+});
+inputFile?.addEventListener("change", onFileSelected);
+
+btnPreview?.addEventListener("click", async () => {
+    const f = inputFile?.files?.[0];
+    if (!f) return Swal.fire("Archivo faltante", "Selecciona un archivo.", "info");
+
+    try {
+        swalLoadingOpen("Subiendo archivo...");
+        const fd = new FormData();
+        fd.append("archivo", f);
+        if (bancoOrigen?.value) fd.append("banco_id", bancoOrigen.value);
+
+        fd.append("_token", csrfToken);
+        const resp = await fetch(`${API}/movs/upload`, { method: "POST", body: fd });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1 && data?.path) {
+            uploadTmp = data;
+            // Render preview
+            const rows = (data.rows || []).map((r) => [
+                r.fecha || "—",
+                r.descripcion || "—",
+                r.referencia || "—",
+                fmtQ(r.monto ?? 0),
+                r.detectado ?? "—",
+            ]);
+
+            if (dtPreview) dtPreview.destroy();
+            dtPreview = new DataTable("#tablaPrevia", {
+                searchable: false,
+                sortable: true,
+                fixedHeight: true,
+                perPage: 25,
+                perPageSelect: [10, 25, 50, 100],
+                labels: labelsES,
+                data: {
+                    headings: ["Fecha", "Descripción", "Referencia", "Monto", "Detectado"],
+                    data: rows,
+                },
+            });
+
+            document.getElementById("vistaPrevia")?.classList.remove("hidden");
+            setTxt("totalMovimientos", String(rows.length));
+            enableUploadActions(true);
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo previsualizar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Preview error:", e);
+    }
+});
+
+btnProcesar?.addEventListener("click", async () => {
+    if (!uploadTmp?.path) {
+        return Swal.fire("Primero la vista previa", "Genera la vista previa.", "info");
+    }
+    try {
+        swalLoadingOpen("Procesando archivo...");
+        const fi = document.getElementById("fechaInicio")?.value || "";
+        const ff = document.getElementById("fechaFin")?.value || "";
+        const body = JSON.stringify({
+            archivo_path: uploadTmp.path,
             banco_id: bancoOrigen?.value ? Number(bancoOrigen.value) : undefined,
             fecha_inicio: fi || undefined,
             fecha_fin: ff || undefined,
-        };
+        });
 
-        try {
-            const r = await fetchJSON(`${API_BASE}/movs/procesar`, { method: 'POST', body });
-            if (!r?.ok && !r?.ec_id) throw new Error(r?.msg || 'Respuesta inválida');
-            toast('Estado de cuenta registrado para conciliación.', 'success');
-            await loadStats();
-        } catch (e) {
-            toast(`Error al procesar: ${e.message}`, 'error');
+        const resp = await fetch(`${API}/movs/procesar`, {
+            method: "POST",
+            headers: getHeaders(),
+            body,
+        });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || "Estado de cuenta registrado", "success");
+
+            const ecId = data?.ec_id;
+            if (ecId) {
+                await ConciliarAutomatico(ecId);
+            }
+
+            await CargarStats();
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo procesar", "error");
         }
-    });
-
-    btnLimpiar?.addEventListener('click', resetUpload);
-}
-
-// =========================
-// Bind botones globales
-// =========================
-function bindGlobalButtons() {
-    $('#btnAbrirEgreso')?.addEventListener('click', openModalEgreso);
-    $('#btnGuardarEgreso')?.addEventListener('click', guardarEgreso);
-    $('#btnAprobar')?.addEventListener('click', aprobarPago);
-    $('#btnRechazar')?.addEventListener('click', rechazarPago);
-    $('#btnRefrescar')?.addEventListener('click', async () => {
-        await Promise.all([loadStats(), loadPendientes(), loadMovimientos()]);
-        toast('Refrescado', 'success');
-    });
-    bindModalClose();
-}
-
-// =========================
-// Init
-// =========================
-document.addEventListener('DOMContentLoaded', async () => {
-    // DataTables inits
-    initDtPendientes();
-    initDtMovs();
-    initDtPreview();
-
-    // Upload + botones
-    bindGlobalButtons();
-    bindUpload();
-
-    // Primeras cargas
-    await loadStats();
-    await loadPendientes();
-    await loadMovimientos();
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Procesar error:", e);
+    }
 });
+
+const ConciliarAutomatico = async (ecId) => {
+    try {
+        swalLoadingOpen("Conciliando pagos...");
+        const resp = await fetch(`${API}/conciliar`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify({ ec_id: ecId })
+        });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            const { matches = [], no_match = [] } = data;
+
+            // Mostrar sección de conciliación
+            const seccion = document.getElementById('seccionConciliacion');
+            const matchesDiv = document.getElementById('matchesList');
+            const noMatchDiv = document.getElementById('noMatchList');
+
+            if (seccion) seccion.classList.remove('hidden');
+
+            // Renderizar coincidencias
+            if (matches.length > 0) {
+                matchesDiv.innerHTML = `
+                    <h4 class="font-semibold text-emerald-700 mb-2">✓ Coincidencias (${matches.length})</h4>
+                    ${matches.map(m => `
+                        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <p class="font-semibold text-sm">Venta #${m.venta_id}</p>
+                                    <p class="text-xs text-gray-600">Ref: ${m.banco_ref}</p>
+                                    <p class="text-xs text-gray-600">Fecha banco: ${m.banco_fecha || '—'}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-emerald-700">${fmtQ(m.banco_monto)}</p>
+                                    <span class="text-xs px-2 py-1 bg-emerald-600 text-white rounded">${m.confianza}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+            } else {
+                matchesDiv.innerHTML = '<p class="text-sm text-gray-500">No se encontraron coincidencias automáticas.</p>';
+            }
+
+            // Renderizar sin coincidencia
+            if (no_match.length > 0) {
+                noMatchDiv.innerHTML = `
+                    <h4 class="font-semibold text-amber-700 mb-2 mt-4">⚠ Sin coincidencia (${no_match.length})</h4>
+                    ${no_match.map(n => `
+                        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <p class="font-semibold text-sm">Venta #${n.venta_id}</p>
+                                    <p class="text-xs text-gray-600">Ref cliente: ${n.ps_referencia || 'Sin ref'}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-amber-700">${fmtQ(n.ps_monto)}</p>
+                                    <span class="text-xs px-2 py-1 bg-amber-600 text-white rounded">MANUAL</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+            }
+
+            await BuscarPendientes();
+
+            seccion.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Conciliar error:", e);
+    }
+};
+
+btnLimpiar?.addEventListener("click", resetUpload);
+
+/* =========================
+ *  Filtros y refresco
+ * ========================= */
+document.getElementById("buscarFactura")?.addEventListener("input", debounce(BuscarPendientes, 350));
+document.getElementById("filtroEstado")?.addEventListener("change", BuscarPendientes);
+
+document.getElementById("btnRefrescar")?.addEventListener("click", async () => {
+    await CargarStats();
+    await BuscarPendientes();
+    await CargarMovimientos();
+    await Swal.fire({
+        title: "Actualizado",
+        text: "Datos refrescados",
+        icon: "success",
+        timer: 1200,
+        showConfirmButton: false,
+    });
+});
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        ["modalValidar", "modalEgreso", "modalComprobante", "modalDetalleVenta"].forEach(cerrarModal);
+    }
+});
+
+/* =========================
+ *  Init
+ * ========================= */
+const Init = async () => {
+    initTablaPendientes();
+    initTablaMovimientos();
+    initTablaPreview();
+    await CargarStats();
+    await BuscarPendientes();
+    await CargarMovimientos();
+};
+document.addEventListener("DOMContentLoaded", Init);

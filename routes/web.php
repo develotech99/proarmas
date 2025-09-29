@@ -1,7 +1,6 @@
 <?php
 
-use App\Http\Controllers\Admin\AdminPagosController;
-use App\Http\Controllers\Admin\PagosAdminController;
+use App\Http\Controllers\AdminPagosController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\MetodoPagoController;
@@ -463,14 +462,15 @@ Route::middleware('auth')->group(function () {
 
 
       Route::prefix('admin/pagos')->group(function () {
-            Route::get('/dashboard-stats', [AdminPagosController::class, 'stats']);
-            Route::post('/movs/upload',   [AdminPagosController::class, 'estadoCuentaPreview']);
-            Route::post('/movs/procesar', [AdminPagosController::class, 'estadoCuentaProcesar']);
-            Route::get('/pendientes',     [AdminPagosController::class, 'pendientes']);
-            Route::post('/aprobar',       [AdminPagosController::class, 'aprobar']);
-            Route::post('/rechazar',      [AdminPagosController::class, 'rechazar']);
-            Route::get('/movimientos',    [AdminPagosController::class, 'movimientos']);
-            Route::post('/egresos',       [AdminPagosController::class, 'registrarEgreso']);
+            Route::get('dashboard-stats', [AdminPagosController::class, 'stats']);
+            Route::post('movs/upload',   [AdminPagosController::class, 'estadoCuentaPreview']);
+            Route::post('movs/procesar', [AdminPagosController::class, 'estadoCuentaProcesar']);
+            Route::get('pendientes',     [AdminPagosController::class, 'pendientes']);
+            Route::post('aprobar',       [AdminPagosController::class, 'aprobar']);
+            Route::post('rechazar',      [AdminPagosController::class, 'rechazar']);
+            Route::get('movimientos',    [AdminPagosController::class, 'movimientos']);
+            Route::post('egresos',       [AdminPagosController::class, 'registrarEgreso']);
+            Route::post('conciliar', [AdminPagosController::class, 'conciliarAutomatico']);
       });
 });
 
