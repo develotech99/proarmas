@@ -158,18 +158,6 @@
                     <span>Mis Pagos</span>
                 </a>
 
-                <!-- Subir Comprobante de Pago -->
-                <a href="{{ route('subir.pago') }}"
-                    class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 3h2l.4 2M7 13h10l4-8H5.4m-2.4 0L5 7h14m-4 6v6a1 1 0 01-1 1H6a1 1 0 01-1-1v-6m6 0V9a1 1 0 011-1h2a1 1 0 011 1v4">
-                        </path>
-                    </svg>
-                    <span>Subir Comprobante de Pago</span>
-                </a>
-
-
                 <!-- Opciones para el Administrador -->
 
                 <a href="{{ route('admin.pagos') }}"

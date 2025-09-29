@@ -24,6 +24,15 @@
         .chip {
             @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
         }
+
+
+        /* Vista Previa - que se vea como tus otras tablas */
+        #tablaPrevia.dataTable-table { width: 100%; table-layout: auto; }
+        #tablaPrevia thead th, #tablaPrevia tbody td { padding: .5rem .75rem; }
+        #tablaPrevia thead th { background: #f9fafb; position: sticky; top: 0; z-index: 1; }
+        .dataTable-container { overflow: auto; }      /* permite scroll si hay muchas filas */
+        .tabular-nums { font-variant-numeric: tabular-nums; } /* números con ancho fijo */
+
     </style>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
