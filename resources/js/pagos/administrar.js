@@ -1,527 +1,868 @@
-// Gestión de Movimientos Bancarios - Admin Panel
-const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
-const BANKS = { '1': 'Banrural', '2': 'Banco Industrial' };
+// resources/js/pagos/administrar.js
+import Swal from "sweetalert2";
+import DataTable from "vanilla-datatables";
+import "vanilla-datatables/src/vanilla-dataTables.css";
 
-// DOM Elements
-const uploadZone = document.getElementById('uploadZone');
-const archivoInput = document.getElementById('archivoMovimientos');
-const uploadContent = document.getElementById('uploadContent');
-const fileInfo = document.getElementById('fileInfo');
-const fileName = document.getElementById('fileName');
-const fileSize = document.getElementById('fileSize');
-const bancoSelect = document.getElementById('bancoOrigen');
-const fechaInicio = document.getElementById('fechaInicio');
-const fechaFin = document.getElementById('fechaFin');
-const btnProcesar = document.getElementById('btnProcesar');
-const btnVistaPrevia = document.getElementById('btnVistaPrevia');
-const btnLimpiar = document.getElementById('btnLimpiar');
-const vistaPrevia = document.getElementById('vistaPrevia');
-const tablaPrevia = document.getElementById('cuerpoTablaPrevia');
-const procesamientoEstado = document.getElementById('procesamientoEstado');
+/* =========================
+ *  Helpers generales
+ * ========================= */
 
-// Estado global
-let archivoActual = null;
-let datosMovimientos = [];
-let estadisticas = {
-    validacionesExitosas: 0,
-    pendientesValidacion: 0,
-    totalMovimientos: 0,
-    ultimaCarga: null
-};
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-/* ========== UTILIDADES ========== */
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-GT', {
-        style: 'currency',
-        currency: 'GTQ',
-        minimumFractionDigits: 2
-    }).format(amount);
-};
+const getHeaders = () => ({
+    "Content-Type": "application/json",
+    "X-CSRF-TOKEN": csrfToken
+});
+const API = "/admin/pagos";
 
-const formatDate = (dateString) => {
-    try {
-        // Manejar diferentes formatos de fecha
-        let date;
-        if (dateString.includes('/')) {
-            const parts = dateString.split('/');
-            // Asumiendo DD/MM/YYYY
-            date = new Date(parts[2], parts[1] - 1, parts[0]);
-        } else {
-            date = new Date(dateString);
-        }
-
-        return date.toLocaleDateString('es-GT', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-    } catch (e) {
-        return dateString;
-    }
-};
-
-const showSuccess = (title, text) => {
-    Swal.fire({
-        icon: 'success',
-        title: title,
-        text: text,
-        confirmButtonColor: '#10B981'
+const fmtQ = (n) =>
+    "Q " +
+    Number(n || 0).toLocaleString("es-GT", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
     });
-};
 
-const showError = (title, text) => {
+const swalLoadingOpen = (title = "Procesando...") =>
     Swal.fire({
-        icon: 'error',
-        title: title,
-        text: text,
-        confirmButtonColor: '#EF4444'
-    });
-};
-
-const showLoading = (title) => {
-    Swal.fire({
-        title: title,
+        title,
         allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+    });
+
+const swalLoadingClose = () => Swal.close();
+
+const debounce = (fn, ms = 350) => {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+    };
+};
+
+const setTxt = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+};
+
+const abrirModal = (id) => document.getElementById(id)?.classList.remove("hidden");
+const cerrarModal = (id) => document.getElementById(id)?.classList.add("hidden");
+
+/* =========================
+ *  Estado simple
+ * ========================= */
+let validarState = { ps: null, venta: null, debia: 0, hizo: 0 };
+let uploadTmp = null;
+
+/* =========================
+ *  DataTables (vanilla-datatables)
+ * ========================= */
+let dtPendientes = null;
+let dtMovimientos = null;
+let dtPreview = null;
+
+const labelsES = {
+    placeholder: "Buscar...",
+    perPage: "{select} registros por página",
+    noRows: "No se encontraron registros",
+    info: "Mostrando {start} a {end} de {rows} registros",
+};
+
+const initTablaPendientes = () => {
+    if (dtPendientes) dtPendientes.destroy();
+    dtPendientes = new DataTable("#tablaPendientes", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: labelsES,
+        data: {
+            headings: [
+                "Fecha",
+                "Venta",
+                "Cliente",
+                "Concepto",
+                "Debía",
+                "Depositado",
+                "Diferencia",
+                "Comprobante",
+                "Acciones",
+            ],
+            data: [],
+        },
     });
 };
 
-/* ========== MANEJO DE ARCHIVOS ========== */
-const updateFileInfo = (file) => {
-    if (!file) return;
-
-    archivoActual = file;
-    fileName.textContent = file.name;
-    fileSize.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-
-    uploadContent.classList.add('hidden');
-    fileInfo.classList.remove('hidden');
-
-    // Habilitar botones
-    btnVistaPrevia.removeAttribute('disabled');
-    updateProcessButton();
+const initTablaMovimientos = () => {
+    if (dtMovimientos) dtMovimientos.destroy();
+    dtMovimientos = new DataTable("#tablaMovimientos", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: labelsES,
+        data: {
+            headings: ["Fecha", "Tipo", "Referencia", "Método", "Monto", "Estado"],
+            data: [],
+        },
+    });
 };
 
-const updateProcessButton = () => {
-    const hasFile = archivoActual !== null;
-    const hasBanco = bancoSelect.value !== '';
-    const hasFechas = fechaInicio.value !== '' && fechaFin.value !== '';
+const initTablaPreview = () => {
+    if (dtPreview) dtPreview.destroy();
+    dtPreview = new DataTable("#tablaPrevia", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 25,
+        perPageSelect: [10, 25, 50, 100],
+        labels: labelsES,
+        data: {
+            headings: ["Fecha", "Descripción", "Referencia", "Monto", "Detectado"],
+            data: [],
+        },
+    });
+};
 
-    if (hasFile && hasBanco && hasFechas) {
-        btnProcesar.removeAttribute('disabled');
-    } else {
-        btnProcesar.setAttribute('disabled', 'disabled');
+/* =========================
+ *  Stats / Dashboard
+ *  Espera: { codigo, mensaje, detalle, data:{ saldo_total_gtq, saldos, pendientes, ultima_carga } }
+ * ========================= */
+const CargarStats = async () => {
+    try {
+        swalLoadingOpen("Cargando estadísticas...");
+        const url = `${API}/dashboard-stats`;
+        const resp = await fetch(url, { method: "GET" });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            const {
+                saldo_total_gtq = 0,
+                saldos = [],
+                pendientes = 0,
+                ultima_carga = null,
+            } = data || {};
+
+            setTxt("saldoCajaTotalGTQ", fmtQ(saldo_total_gtq));
+
+            const efectivo = saldos.find((s) =>
+                (s.metodo || "").toLowerCase().includes("efectivo")
+            );
+            setTxt("saldoEfectivoGTQ", fmtQ(efectivo?.caja_saldo_monto_actual || 0));
+            setTxt("contadorPendientes", String(pendientes));
+            setTxt(
+                "ultimaCargaEstado",
+                ultima_carga ? new Date(ultima_carga).toLocaleString() : "—"
+            );
+
+            // Rellenar selects
+            const filtroMetodo = document.getElementById("filtroMetodo");
+            const egMetodo = document.getElementById("egMetodo");
+            if (filtroMetodo) {
+                filtroMetodo.innerHTML =
+                    `<option value="">Todos los métodos</option>` +
+                    saldos
+                        .map((m) => `<option value="${m.metodo_id}">${m.metodo}</option>`)
+                        .join("");
+            }
+            if (egMetodo) {
+                egMetodo.innerHTML = saldos
+                    .map((m) => `<option value="${m.metodo_id}">${m.metodo}</option>`)
+                    .join("");
+            }
+        } else {
+            console.error(mensaje);
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Error stats:", e);
     }
 };
 
-const limpiarFormulario = () => {
-    archivoActual = null;
-    datosMovimientos = [];
-    archivoInput.value = '';
-    bancoSelect.value = '';
-    fechaInicio.value = '';
-    fechaFin.value = '';
+/* =========================
+ *  Pendientes
+ *  Espera: { codigo, mensaje, data:[...] }
+ * ========================= */
 
-    uploadContent.classList.remove('hidden');
-    fileInfo.classList.add('hidden');
-    vistaPrevia.classList.add('hidden');
+const renderPendientes = (rows = []) => {
 
-    btnVistaPrevia.setAttribute('disabled', 'disabled');
-    btnProcesar.setAttribute('disabled', 'disabled');
+    const isSmall = window.matchMedia('(max-width: 768px)').matches;
 
-    updateEstadoProcesamiento('Esperando archivo...');
-};
 
-/* ========== PROCESAMIENTO DE CSV ========== */
-const parseCSV = (file) => {
-    return new Promise((resolve, reject) => {
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            encoding: 'UTF-8',
-            complete: (results) => {
-                if (results.errors.length > 0) {
-                    console.warn('Errores en CSV:', results.errors);
-                }
-                resolve(results.data);
-            },
-            error: reject
-        });
-    });
-};
+    const data = rows.map((r) => {
+        const fecha = r.fecha ? new Date(r.fecha).toLocaleDateString() : "—";
+        const venta = r.venta_id ? `#${r.venta_id}` : "—";
+        const cliente = r.cliente || "—";
 
-const procesarMovimientos = (rawData) => {
-    const movimientos = [];
 
-    rawData.forEach((row, index) => {
-        try {
-            // Mapear columnas del CSV guatemalteco
-            const fecha = row['Fecha'] || row['fecha'] || '';
-            const descripcion = row['Descripción'] || row['Descripcion'] || row['descripcion'] || '';
-            const referencia = row['Referencia'] || row['referencia'] || row['Secuencial'] || '';
-            const debito = row['Débito (-)'] || row['Debito (-)'] || row['debito'] || '0';
-            const credito = row['Crédito (+)'] || row['Credito (+)'] || row['credito'] || '0';
+        const ventaTotal = Number(r.venta_total || 0);
+        const pendienteVenta = Number(r.pendiente_venta || 0);
+        const debiaEnvio = Number(r.debia_envio || 0);
+        const cuotasSel = Number(r.cuotas_seleccionadas || 0);
+        const cuotasTotal = Number(r.cuotas_total_venta || 0);
 
-            // Limpiar y convertir montos
-            const montoDebito = parseFloat(debito.toString().replace(/[^0-9.-]/g, '')) || 0;
-            const montoCredito = parseFloat(credito.toString().replace(/[^0-9.-]/g, '')) || 0;
+        const concepto = r.concepto || "—";
+        const debia = fmtQ(r.debia);
+        const deposito = fmtQ(r.depositado);
+        const difNum = Number(r.diferencia || 0);
+        const difCls = difNum === 0 ? "text-emerald-600"
+            : difNum > 0 ? "text-amber-600"
+                : "text-rose-600";
+        const dif = `<span class="${difCls}">${fmtQ(difNum)}</span>`;
 
-            // Solo procesar movimientos con crédito (depósitos)
-            if (montoCredito > 0) {
-                movimientos.push({
-                    id: index,
-                    fecha: fecha.trim(),
-                    descripcion: descripcion.trim(),
-                    referencia: referencia.toString().trim(),
-                    monto: montoCredito,
-                    tipo: 'CREDITO',
-                    estado: 'PENDIENTE',
-                    coincidencias: []
-                });
-            }
-        } catch (error) {
-            console.warn(`Error procesando fila ${index}:`, error);
+        const cuotasInfo = (cuotasSel || cuotasTotal)
+            ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 text-indigo-700">
+           Cuotas: ${cuotasSel || 0}${cuotasTotal ? ` / ${cuotasTotal}` : ""}
+         </span>`
+            : "";
+
+        const detalleHtml = `
+      <div class="space-y-1">
+        <div class="font-medium">${concepto}</div>
+        <div class="text-[12px] text-gray-500 flex flex-wrap gap-2">
+          <span>Venta: <b>${fmtQ(ventaTotal)}</b></span>
+          <span>Pend. venta: <b>${fmtQ(pendienteVenta)}</b></span>
+          ${debiaEnvio ? `<span>Debía (envío): <b>${fmtQ(debiaEnvio)}</b></span>` : ""}
+          ${cuotasInfo}
+        </div>
+      </div>
+    `;
+
+        const comp = r.imagen
+            ? `<button class="btn-ver-comp text-blue-600 hover:underline"
+           data-img="${r.imagen}"
+           data-ref="${r.referencia || ""}"
+           data-fecha="${r.fecha || ""}"
+           data-monto="${r.depositado || 0}">
+           Ver
+         </button>`
+            : "—";
+
+        const acciones = `
+      <div class="flex justify-center">
+        <button class="btn-validar bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg"
+          data-ps="${r.ps_id}" data-venta="${r.venta_id}"
+          data-debia="${r.debia}" data-hizo="${r.depositado}">
+          Validar
+        </button>
+      </div>
+    `;
+
+        if (isSmall) {
+            const cabecera = `
+        <div class="text-[12px] text-gray-500">${fecha} • Venta <b>${venta}</b></div>
+        <div class="text-[13px] font-medium">${cliente}</div>
+      `;
+            const totales = `
+        <div class="mt-2 text-[12px] text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
+          <span>Debía: <b>${debia}</b></span>
+          <span>Depósito: <b>${deposito}</b></span>
+          <span>Dif.: <b class="${difCls}">${fmtQ(difNum)}</b></span>
+          <span>Comprobante: ${comp}</span>
+        </div>
+      `;
+            return [
+                cabecera + detalleHtml + totales,
+                acciones
+            ];
         }
+
+        return [
+            fecha,
+            venta,
+            cliente,
+            detalleHtml,
+            debia,
+            deposito,
+            dif,
+            comp,
+            acciones
+        ];
     });
 
-    return movimientos;
+    if (dtPendientes) dtPendientes.destroy();
+
+    const headingsDesktop = [
+        "Fecha",
+        "Venta",
+        "Cliente",
+        "Detalle",
+        "Debía",
+        "Depositado",
+        "Diferencia",
+        "Comprobante",
+        "Acciones",
+    ];
+
+    const headingsMobile = [
+        "Factura / Cliente / Detalle",
+        "Acciones",
+    ];
+
+    dtPendientes = new DataTable("#tablaPendientes", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: labelsES,
+        data: {
+            headings: isSmall ? headingsMobile : headingsDesktop,
+            data,
+        },
+    });
+
+    const empty = document.getElementById("emptyPendientes");
+    if (empty) empty.classList.toggle("hidden", rows.length > 0);
 };
 
-/* ========== VALIDACIÓN AUTOMÁTICA ========== */
-const validarPagosAutomaticamente = async (movimientos) => {
-    showLoading('Validando pagos automáticamente...');
+const BuscarPendientes = async () => {
+    try {
+        swalLoadingOpen("Cargando pendientes...");
+        const q = document.getElementById("buscarFactura")?.value?.trim() || "";
+        const estado = document.getElementById("filtroEstado")?.value || "";
+        const url = new URL(`${API}/pendientes`, window.location.origin);
+        if (q) url.searchParams.set("q", q);
+        if (estado) url.searchParams.set("estado", estado);
+
+        const resp = await fetch(url, { method: "GET" });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            renderPendientes(data || []);
+        } else {
+            console.error(mensaje);
+            renderPendientes([]);
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Error pendientes:", e);
+        renderPendientes([]);
+    }
+};
+
+document.addEventListener("click", (e) => {
+    // Ver comprobante
+    if (e.target.closest(".btn-ver-comp")) {
+        const btn = e.target.closest(".btn-ver-comp");
+        const img = decodeURIComponent(btn.dataset.img || "");
+        const ref = btn.dataset.ref || "—";
+        const fecha = btn.dataset.fecha
+            ? new Date(btn.dataset.fecha).toLocaleString()
+            : "—";
+        const monto = Number(btn.dataset.monto || 0);
+
+        const src = img;
+        const imgEl = document.getElementById("imgComprobante");
+        const aEl = document.getElementById("btnDescargarComprobante");
+        if (imgEl) imgEl.src = src;
+        if (aEl) aEl.href = src;
+
+        setTxt("refComprobante", ref);
+        setTxt("fechaComprobante", fecha);
+        setTxt("montoComprobante", fmtQ(monto));
+        abrirModal("modalComprobante");
+    }
+
+    // Validar
+    if (e.target.closest(".btn-validar")) {
+        const btn = e.target.closest(".btn-validar");
+        validarState = {
+            ps: Number(btn.dataset.ps),
+            venta: Number(btn.dataset.venta),
+            debia: Number(btn.dataset.debia || 0),
+            hizo: Number(btn.dataset.hizo || 0),
+        };
+        setTxt("mvVenta", `#${validarState.venta}`);
+        setTxt("mvDebia", fmtQ(validarState.debia));
+        setTxt("mvHizo", fmtQ(validarState.hizo));
+        setTxt("mvDif", fmtQ(validarState.hizo - validarState.debia));
+        setTxt("mvMetodo", "—");
+        abrirModal("modalValidar");
+    }
+
+    if (
+        e.target.closest("[data-modal-close], [data-close-modal]") ||
+        e.target.closest("[data-modal-backdrop]") ||
+        (e.target.classList?.contains("bg-black/50") && e.target.closest(".fixed.inset-0.z-50"))
+    ) {
+        cerrarModal("modalValidar");
+        cerrarModal("modalEgreso");
+        cerrarModal("modalComprobante");
+        cerrarModal("modalDetalleVenta");
+    }
+
+
+});
+
+
+/* =========================
+ *  Aprobar / Rechazar
+ *  Espera: { codigo:1, mensaje }
+ * ========================= */
+const Aprobar = async () => {
+    if (!validarState.ps) return;
+    try {
+        swalLoadingOpen("Aprobando pago...");
+        const url = `${API}/aprobar`;
+        const body = JSON.stringify({
+            ps_id: validarState.ps,
+            observaciones: document.getElementById("mvObs")?.value || "",
+        });
+        const resp = await fetch(url, {
+            method: "POST",
+            headers: getHeaders(),
+            body,
+        });
+        const { codigo, mensaje } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || "Pago aprobado", "success");
+            cerrarModal("modalValidar");
+            await CargarStats();
+            await BuscarPendientes();
+            await CargarMovimientos();
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo aprobar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Aprobar error:", e);
+    }
+};
+
+const Rechazar = async () => {
+    if (!validarState.ps) return;
+    const motivo = document.getElementById("mvObs")?.value || "";
+    if (!motivo || motivo.length < 5) {
+        return Swal.fire("Atención", "Indica el motivo (mín 5 caracteres).", "info");
+    }
+    try {
+        swalLoadingOpen("Rechazando pago...");
+        const resp = await fetch(`${API}/rechazar`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify({ ps_id: validarState.ps, motivo }),
+        });
+        const { codigo, mensaje } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || "Pago rechazado", "success");
+            cerrarModal("modalValidar");
+            await CargarStats();
+            await BuscarPendientes();
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo rechazar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Rechazar error:", e);
+    }
+};
+
+document.getElementById("btnAprobar")?.addEventListener("click", Aprobar);
+document.getElementById("btnRechazar")?.addEventListener("click", Rechazar);
+
+/* =========================
+ *  Movimientos
+ *  Espera: { codigo:1, data:{ data:[...], total } } o { codigo:1, data:[...] }
+ * ========================= */
+const rangoMes = () => {
+    const val = document.getElementById("filtroMes")?.value || "";
+    const pad = (n) => String(n).padStart(2, "0");
+    if (val) {
+        const [y, m] = val.split("-").map(Number);
+        const f = new Date(y, m - 1, 1);
+        const l = new Date(y, m, 0);
+        return {
+            from: `${f.getFullYear()}-${pad(f.getMonth() + 1)}-${pad(f.getDate())}`,
+            to: `${l.getFullYear()}-${pad(l.getMonth() + 1)}-${pad(l.getDate())}`,
+        };
+    }
+    const n = new Date();
+    const f = new Date(n.getFullYear(), n.getMonth(), 1);
+    const l = new Date(n.getFullYear(), n.getMonth() + 1, 0);
+    return {
+        from: `${f.getFullYear()}-${pad(f.getMonth() + 1)}-${pad(f.getDate())}`,
+        to: `${l.getFullYear()}-${pad(l.getMonth() + 1)}-${pad(l.getDate())}`,
+    };
+};
+
+const renderMovimientos = (rows = []) => {
+    const data = rows.map((r) => {
+        const fecha = r.cja_fecha ? new Date(r.cja_fecha).toLocaleString() : "—";
+        const tipo = r.cja_tipo || "—";
+        const ref = r.cja_no_referencia || "—";
+        const metodo = r.metodo || "—";
+        const esIn = ["VENTA", "DEPOSITO", "AJUSTE_POS"].includes(tipo);
+        const monto = `<span class="${esIn ? "text-emerald-600" : "text-rose-600"}">${fmtQ(
+            r.cja_monto
+        )}</span>`;
+        const est = r.cja_situacion || "—";
+        return [fecha, tipo, ref, metodo, monto, est];
+    });
+
+    if (dtMovimientos) dtMovimientos.destroy();
+    dtMovimientos = new DataTable("#tablaMovimientos", {
+        searchable: false,
+        sortable: true,
+        fixedHeight: true,
+        perPage: 10,
+        perPageSelect: [5, 10, 20, 50],
+        labels: labelsES,
+        data: {
+            headings: ["Fecha", "Tipo", "Referencia", "Método", "Monto", "Estado"],
+            data,
+        },
+    });
+};
+
+const CargarMovimientos = async () => {
+    try {
+        swalLoadingOpen("Cargando movimientos...");
+        const metodoId = document.getElementById("filtroMetodo")?.value || "";
+        const { from, to } = rangoMes();
+        const url = new URL(`${API}/movimientos`, window.location.origin);
+        url.searchParams.set("from", from);
+        url.searchParams.set("to", to);
+        if (metodoId) url.searchParams.set("metodo_id", metodoId);
+
+        const resp = await fetch(url, { method: "GET" });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            const rows = Array.isArray(data?.movimientos) ? data.movimientos
+                : Array.isArray(data) ? data
+                    : [];
+            const total = Number(data?.total ?? 0);
+            renderMovimientos(rows);
+            setTxt("totalMovimientosMes", fmtQ(total));
+        } else {
+            console.error(mensaje);
+            renderMovimientos([]);
+            setTxt("totalMovimientosMes", fmtQ(0));
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Error movs:", e);
+        renderMovimientos([]);
+        setTxt("totalMovimientosMes", fmtQ(0));
+    }
+};
+
+document.getElementById("btnFiltrarMovs")?.addEventListener("click", CargarMovimientos);
+
+/* =========================
+ *  Egresos
+ *  Espera: { codigo:1, mensaje }
+ * ========================= */
+const AbrirEgreso = () => abrirModal("modalEgreso");
+document.getElementById("btnAbrirEgreso")?.addEventListener("click", AbrirEgreso);
+
+document.getElementById("btnGuardarEgreso")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    // Validación mínima (método, monto, motivo)
+    const egMetodo = document.getElementById("egMetodo")?.value;
+    const egMonto = document.getElementById("egMonto")?.value;
+    const egMotivo = document.getElementById("egMotivo")?.value;
+    if (!egMetodo || !egMonto || !egMotivo) {
+        return Swal.fire("Campos vacíos", "Completa método, monto y motivo.", "info");
+    }
 
     try {
-        const response = await fetch('/admin/movimientos/validar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF
-            },
-            body: JSON.stringify({
-                movimientos: movimientos,
-                banco_id: bancoSelect.value,
-                fecha_inicio: fechaInicio.value,
-                fecha_fin: fechaFin.value
-            })
+        swalLoadingOpen("Guardando egreso...");
+        const form = document.getElementById("formEgreso");
+        const fd = new FormData(form);
+        const resp = await fetch(`${API}/egresos`, { method: "POST", body: fd });
+        const { codigo, mensaje } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || "Egreso registrado", "success");
+            cerrarModal("modalEgreso");
+            form.reset();
+            await CargarStats();
+            await CargarMovimientos();
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo registrar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Egreso error:", e);
+    }
+});
+
+/* =========================
+ *  Upload Estado de Cuenta
+ *  Preview: { codigo:1, data:{ path, headers, rows } }
+ *  Procesar: { codigo:1, mensaje }
+ * ========================= */
+const zone = document.getElementById("uploadZone");
+const inputFile = document.getElementById("archivoMovimientos");
+const btnPreview = document.getElementById("btnVistaPrevia");
+const btnProcesar = document.getElementById("btnProcesar");
+const btnLimpiar = document.getElementById("btnLimpiar");
+const fileInfo = document.getElementById("fileInfo");
+const uploadContent = document.getElementById("uploadContent");
+const fileName = document.getElementById("fileName");
+const fileSize = document.getElementById("fileSize");
+const bancoOrigen = document.getElementById("bancoOrigen");
+
+const enableUploadActions = (ok) => {
+    if (btnPreview) btnPreview.disabled = !ok;
+    if (btnProcesar) btnProcesar.disabled = !ok || !uploadTmp;
+};
+
+const resetUpload = () => {
+    if (inputFile) inputFile.value = "";
+    uploadTmp = null;
+    fileInfo?.classList.add("hidden");
+    uploadContent?.classList.remove("hidden");
+    enableUploadActions(false);
+    document.getElementById("vistaPrevia")?.classList.add("hidden");
+    setTxt("totalMovimientos", "0");
+};
+
+const onFileSelected = () => {
+    const f = inputFile?.files?.[0];
+    if (!f) return;
+    if (fileName) fileName.textContent = f.name;
+    if (fileSize) fileSize.textContent = `${(f.size / (1024 * 1024)).toFixed(2)} MB`;
+    fileInfo?.classList.remove("hidden");
+    uploadContent?.classList.add("hidden");
+    enableUploadActions(true);
+};
+
+zone?.addEventListener("click", () => inputFile?.click());
+zone?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    zone.classList.add("dragover");
+});
+zone?.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+zone?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) {
+        inputFile.files = e.dataTransfer.files;
+        onFileSelected();
+    }
+});
+inputFile?.addEventListener("change", onFileSelected);
+
+btnPreview?.addEventListener("click", async () => {
+    const f = inputFile?.files?.[0];
+    if (!f) return Swal.fire("Archivo faltante", "Selecciona un archivo.", "info");
+
+    try {
+        swalLoadingOpen("Subiendo archivo...");
+        const fd = new FormData();
+        fd.append("archivo", f);
+        if (bancoOrigen?.value) fd.append("banco_id", bancoOrigen.value);
+
+        fd.append("_token", csrfToken);
+        const resp = await fetch(`${API}/movs/upload`, { method: "POST", body: fd });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1 && data?.path) {
+            uploadTmp = data;
+            // Render preview
+            const rows = (data.rows || []).map((r) => [
+                r.fecha || "—",
+                r.descripcion || "—",
+                r.referencia || "—",
+                fmtQ(r.monto ?? 0),
+                r.detectado ?? "—",
+            ]);
+
+            if (dtPreview) dtPreview.destroy();
+            dtPreview = new DataTable("#tablaPrevia", {
+                searchable: false,
+                sortable: true,
+                fixedHeight: true,
+                perPage: 25,
+                perPageSelect: [10, 25, 50, 100],
+                labels: labelsES,
+                data: {
+                    headings: ["Fecha", "Descripción", "Referencia", "Monto", "Detectado"],
+                    data: rows,
+                },
+            });
+
+            document.getElementById("vistaPrevia")?.classList.remove("hidden");
+            setTxt("totalMovimientos", String(rows.length));
+            enableUploadActions(true);
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo previsualizar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Preview error:", e);
+    }
+});
+
+btnProcesar?.addEventListener("click", async () => {
+    if (!uploadTmp?.path) {
+        return Swal.fire("Primero la vista previa", "Genera la vista previa.", "info");
+    }
+    try {
+        swalLoadingOpen("Procesando archivo...");
+        const fi = document.getElementById("fechaInicio")?.value || "";
+        const ff = document.getElementById("fechaFin")?.value || "";
+        const body = JSON.stringify({
+            archivo_path: uploadTmp.path,
+            banco_id: bancoOrigen?.value ? Number(bancoOrigen.value) : undefined,
+            fecha_inicio: fi || undefined,
+            fecha_fin: ff || undefined,
         });
 
-        const result = await response.json();
+        const resp = await fetch(`${API}/movs/procesar`, {
+            method: "POST",
+            headers: getHeaders(),
+            body,
+        });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
 
-        if (result.codigo === 1) {
-            Swal.close();
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || "Estado de cuenta registrado", "success");
 
-            // Mostrar resultados de la validación
-            await Swal.fire({
-                icon: 'success',
-                title: '¡Validación Completada!',
-                html: `
-                    <div class="text-left">
-                        <div class="bg-green-50 p-4 rounded-lg mb-4">
-                            <h4 class="font-semibold text-green-800 mb-2">Resultados:</h4>
-                            <div class="space-y-2">
-                                <div class="flex justify-between">
-                                    <span>✅ Pagos Validados:</span>
-                                    <span class="font-bold text-green-600">${result.data.validados}</span>
+            const ecId = data?.ec_id;
+            if (ecId) {
+                await ConciliarAutomatico(ecId);
+            }
+
+            await CargarStats();
+        } else {
+            await Swal.fire("Error", mensaje || "No se pudo procesar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Procesar error:", e);
+    }
+});
+
+const ConciliarAutomatico = async (ecId) => {
+    try {
+        swalLoadingOpen("Conciliando pagos...");
+        const resp = await fetch(`${API}/conciliar`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify({ ec_id: ecId })
+        });
+        const { codigo, mensaje, data } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            const { matches = [], no_match = [] } = data;
+
+            // Mostrar sección de conciliación
+            const seccion = document.getElementById('seccionConciliacion');
+            const matchesDiv = document.getElementById('matchesList');
+            const noMatchDiv = document.getElementById('noMatchList');
+
+            if (seccion) seccion.classList.remove('hidden');
+
+            // Renderizar coincidencias
+            if (matches.length > 0) {
+                matchesDiv.innerHTML = `
+                    <h4 class="font-semibold text-emerald-700 mb-2">✓ Coincidencias (${matches.length})</h4>
+                    ${matches.map(m => `
+                        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <p class="font-semibold text-sm">Venta #${m.venta_id}</p>
+                                    <p class="text-xs text-gray-600">Ref: ${m.banco_ref}</p>
+                                    <p class="text-xs text-gray-600">Fecha banco: ${m.banco_fecha || '—'}</p>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span>⏳ Pendientes:</span>
-                                    <span class="font-bold text-yellow-600">${result.data.pendientes}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>📊 Total Procesados:</span>
-                                    <span class="font-bold text-blue-600">${result.data.procesados}</span>
+                                <div class="text-right">
+                                    <p class="font-bold text-emerald-700">${fmtQ(m.banco_monto)}</p>
+                                    <span class="text-xs px-2 py-1 bg-emerald-600 text-white rounded">${m.confianza}</span>
                                 </div>
                             </div>
                         </div>
-                        <p class="text-sm text-gray-600">Los pagos han sido actualizados automáticamente.</p>
-                    </div>
-                `,
-                confirmButtonColor: '#10B981'
-            });
-
-            // Actualizar estadísticas
-            actualizarEstadisticas();
-            cargarHistorial();
-
-        } else {
-            Swal.close();
-            showError('Error de Validación', result.mensaje || 'No se pudieron validar los movimientos');
-        }
-
-    } catch (error) {
-        console.error('Error validando pagos:', error);
-        Swal.close();
-        showError('Error de Conexión', 'No se pudo conectar con el servidor');
-    }
-};
-
-/* ========== UI UPDATES ========== */
-const updateEstadoProcesamiento = (mensaje, tipo = 'info') => {
-    if (!procesamientoEstado) return;
-
-    let icon, colorClass;
-    switch (tipo) {
-        case 'success':
-            icon = `<svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>`;
-            colorClass = 'text-green-600';
-            break;
-        case 'error':
-            icon = `<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                    </svg>`;
-            colorClass = 'text-red-600';
-            break;
-        case 'processing':
-            icon = `<svg class="w-5 h-5 text-blue-500 processing-animation" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>`;
-            colorClass = 'text-blue-600';
-            break;
-        default:
-            icon = `<svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>`;
-            colorClass = 'text-gray-500';
-    }
-
-    procesamientoEstado.innerHTML = `
-        <div class="flex items-center ${colorClass}">
-            ${icon}
-            <span class="text-sm ml-3">${mensaje}</span>
-        </div>
-    `;
-};
-
-const renderVistaPrevia = (movimientos) => {
-    if (!tablaPrevia) return;
-
-    tablaPrevia.innerHTML = '';
-
-    movimientos.slice(0, 50).forEach((mov, index) => {
-        const row = document.createElement('tr');
-        row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-
-        row.innerHTML = `
-            <td class="px-4 py-3 text-sm text-gray-900">${formatDate(mov.fecha)}</td>
-            <td class="px-4 py-3 text-sm text-gray-900">${mov.descripcion}</td>
-            <td class="px-4 py-3 text-sm font-mono text-blue-600">${mov.referencia}</td>
-            <td class="px-4 py-3 text-sm font-semibold text-green-600">${formatCurrency(mov.monto)}</td>
-            <td class="px-4 py-3">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Pendiente
-                </span>
-            </td>
-        `;
-
-        tablaPrevia.appendChild(row);
-    });
-
-    if (movimientos.length > 50) {
-        const moreRow = document.createElement('tr');
-        moreRow.innerHTML = `
-            <td colspan="5" class="px-4 py-3 text-center text-sm text-gray-500">
-                ... y ${movimientos.length - 50} movimientos más
-            </td>
-        `;
-        tablaPrevia.appendChild(moreRow);
-    }
-
-    vistaPrevia.classList.remove('hidden');
-};
-
-const actualizarEstadisticas = async () => {
-    try {
-        const response = await fetch('/admin/movimientos/estadisticas');
-        const result = await response.json();
-
-        if (result.codigo === 1) {
-            const stats = result.data;
-
-            document.getElementById('validacionesExitosas').textContent = stats.validados || 0;
-            document.getElementById('pendientesValidacion').textContent = stats.pendientes || 0;
-            document.getElementById('totalMovimientos').textContent = stats.total || 0;
-            document.getElementById('ultimaCarga').textContent = stats.ultimaCarga || '—';
-        }
-    } catch (error) {
-        console.warn('Error cargando estadísticas:', error);
-    }
-};
-
-const cargarHistorial = async () => {
-    try {
-        const response = await fetch('/admin/movimientos/historial');
-        const result = await response.json();
-
-        if (result.codigo === 1) {
-            const historial = document.getElementById('historialCargas');
-            if (!historial) return;
-
-            historial.innerHTML = '';
-
-            if (result.data.length === 0) {
-                historial.innerHTML = `
-                    <div class="text-center text-gray-500 py-8">
-                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V6a2 2 0 012-2h5.5L16 8.5V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <p class="text-sm">No hay cargas recientes</p>
-                    </div>
+                    `).join('')}
                 `;
-                return;
+            } else {
+                matchesDiv.innerHTML = '<p class="text-sm text-gray-500">No se encontraron coincidencias automáticas.</p>';
             }
 
-            result.data.forEach(carga => {
-                const div = document.createElement('div');
-                div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
-                div.innerHTML = `
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">${BANKS[carga.banco_id] || 'Banco'}</p>
-                        <p class="text-xs text-gray-500">${formatDate(carga.fecha)}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-semibold text-blue-600">${carga.registros} movimientos</p>
-                        <p class="text-xs text-green-600">${carga.validados} validados</p>
-                    </div>
+            // Renderizar sin coincidencia
+            if (no_match.length > 0) {
+                noMatchDiv.innerHTML = `
+                    <h4 class="font-semibold text-amber-700 mb-2 mt-4">⚠ Sin coincidencia (${no_match.length})</h4>
+                    ${no_match.map(n => `
+                        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <p class="font-semibold text-sm">Venta #${n.venta_id}</p>
+                                    <p class="text-xs text-gray-600">Ref cliente: ${n.ps_referencia || 'Sin ref'}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-amber-700">${fmtQ(n.ps_monto)}</p>
+                                    <span class="text-xs px-2 py-1 bg-amber-600 text-white rounded">MANUAL</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
                 `;
-                historial.appendChild(div);
-            });
+            }
+
+            await BuscarPendientes();
+
+            seccion.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-    } catch (error) {
-        console.warn('Error cargando historial:', error);
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Conciliar error:", e);
     }
 };
 
-/* ========== EVENT LISTENERS ========== */
-// Upload Zone Events
-uploadZone?.addEventListener('click', () => {
-    archivoInput?.click();
-});
+btnLimpiar?.addEventListener("click", resetUpload);
 
-uploadZone?.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadZone.classList.add('dragover');
-});
+/* =========================
+ *  Filtros y refresco
+ * ========================= */
+document.getElementById("buscarFactura")?.addEventListener("input", debounce(BuscarPendientes, 350));
+document.getElementById("filtroEstado")?.addEventListener("change", BuscarPendientes);
 
-uploadZone?.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    uploadZone.classList.remove('dragover');
-});
-
-uploadZone?.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadZone.classList.remove('dragover');
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        updateFileInfo(files[0]);
-    }
-});
-
-// File Input Change
-archivoInput?.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        updateFileInfo(e.target.files[0]);
-    }
-});
-
-// Form Controls
-bancoSelect?.addEventListener('change', updateProcessButton);
-fechaInicio?.addEventListener('change', updateProcessButton);
-fechaFin?.addEventListener('change', updateProcessButton);
-
-// Vista Previa Button
-btnVistaPrevia?.addEventListener('click', async () => {
-    if (!archivoActual) {
-        showError('Error', 'No hay archivo seleccionado');
-        return;
-    }
-
-    updateEstadoProcesamiento('Procesando vista previa...', 'processing');
-
-    try {
-        const data = await parseCSV(archivoActual);
-        datosMovimientos = procesarMovimientos(data);
-
-        if (datosMovimientos.length === 0) {
-            updateEstadoProcesamiento('No se encontraron movimientos válidos', 'error');
-            showError('Sin Datos', 'No se encontraron movimientos de crédito en el archivo');
-            return;
-        }
-
-        renderVistaPrevia(datosMovimientos);
-        updateEstadoProcesamiento(`${datosMovimientos.length} movimientos listos para procesar`, 'success');
-
-    } catch (error) {
-        console.error('Error procesando archivo:', error);
-        updateEstadoProcesamiento('Error procesando archivo', 'error');
-        showError('Error de Archivo', 'No se pudo procesar el archivo. Verifique el formato.');
-    }
-});
-
-// Procesar Button
-btnProcesar?.addEventListener('click', async () => {
-    if (datosMovimientos.length === 0) {
-        showError('Sin Datos', 'Primero debe generar la vista previa del archivo');
-        return;
-    }
-
-    const confirmed = await Swal.fire({
-        title: '¿Procesar movimientos?',
-        html: `
-            <div class="text-left">
-                <p class="mb-4">Se procesarán <strong>${datosMovimientos.length} movimientos</strong> del banco <strong>${BANKS[bancoSelect.value]}</strong></p>
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <p class="text-sm"><strong>Período:</strong> ${fechaInicio.value} a ${fechaFin.value}</p>
-                    <p class="text-sm"><strong>Total a validar:</strong> ${formatCurrency(datosMovimientos.reduce((sum, m) => sum + m.monto, 0))}</p>
-                </div>
-                <p class="mt-4 text-sm text-gray-600">Esta acción buscará coincidencias automáticamente y validará los pagos correspondientes.</p>
-            </div>
-        `,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, procesar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#10B981'
+document.getElementById("btnRefrescar")?.addEventListener("click", async () => {
+    await CargarStats();
+    await BuscarPendientes();
+    await CargarMovimientos();
+    await Swal.fire({
+        title: "Actualizado",
+        text: "Datos refrescados",
+        icon: "success",
+        timer: 1200,
+        showConfirmButton: false,
     });
+});
 
-    if (confirmed.isConfirmed) {
-        updateEstadoProcesamiento('Validando pagos...', 'processing');
-        await validarPagosAutomaticamente(datosMovimientos);
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        ["modalValidar", "modalEgreso", "modalComprobante", "modalDetalleVenta"].forEach(cerrarModal);
     }
 });
 
-// Limpiar Button
-btnLimpiar?.addEventListener('click', async () => {
-    const confirmed = await Swal.fire({
-        title: '¿Limpiar formulario?',
-        text: 'Se perderán todos los datos cargados',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, limpiar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#6B7280'
-    });
-
-    if (confirmed.isConfirmed) {
-        limpiarFormulario();
-    }
-});
-
-/* ========== INICIALIZACIÓN ========== */
-document.addEventListener('DOMContentLoaded', () => {
-    actualizarEstadisticas();
-    cargarHistorial();
-
-    // Establecer fechas por defecto (último mes)
-    const hoy = new Date();
-    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-
-    if (fechaInicio) fechaInicio.value = inicioMes.toISOString().split('T')[0];
-    if (fechaFin) fechaFin.value = hoy.toISOString().split('T')[0];
-});
-
-console.log('Sistema de gestión de movimientos bancarios cargado ✅');
+/* =========================
+ *  Init
+ * ========================= */
+const Init = async () => {
+    initTablaPendientes();
+    initTablaMovimientos();
+    initTablaPreview();
+    await CargarStats();
+    await BuscarPendientes();
+    await CargarMovimientos();
+};
+document.addEventListener("DOMContentLoaded", Init);
