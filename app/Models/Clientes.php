@@ -25,6 +25,7 @@ class Clientes extends Model
         'cliente_correo',
         'cliente_tipo',
         'cliente_situacion',
+        'cliente_user_id',
     ];
 
 

@@ -195,8 +195,9 @@
         <div class="absolute inset-0 bg-black bg-opacity-50" id="overlayCarrito"></div>
 
         <!-- Panel deslizante -->
+        <!-- Agrega 'relative' al panel del carrito -->
         <div id="panelCarrito"
-            class="absolute right-0 top-0 h-full w-0 bg-white shadow-xl transition-all duration-300 ease-in-out overflow-hidden">
+            class="absolute right-0 top-0 h-full w-0 bg-white shadow-xl transition-all duration-300 ease-in-out overflow-hidden ">
             <div class="flex flex-col h-full">
                 <!-- Header -->
                 <div class="bg-blue-600 text-white p-4 flex items-center justify-between flex-shrink-0">
@@ -277,7 +278,7 @@
                                         <!-- Número de Autorización -->
                                         <div>
                                             <label class="block text-sm font-semibold text-gray-700 mb-2">Número de
-                                                Autorización</label>
+                                                Autorización / No. Cheque</label>
                                             <input type="text" id="numeroAutorizacion"
                                                 placeholder="Ingrese el número de autorización"
                                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
@@ -309,6 +310,9 @@
                                                     <input type="radio" name="metodoAbono" value="transferencia"
                                                         id="transferenciaAbono">
                                                     <label for="transferenciaAbono" class="text-sm">Transferencia</label>
+                                                    <input type="radio" name="metodoAbono" value="cheque"
+                                                        id="chequeAbono">
+                                                    <label for="chequeAbono" class="text-sm">Cheque</label>
                                                 </div>
                                             </div>
                                         </div>
@@ -352,8 +356,72 @@
 
                 <!-- Footer fijo con resumen y botón -->
                 <div class="border-t bg-gray-50 p-4 flex-shrink-0">
+
+
+
+                    <!-- Checkbox para requerir documentación -->
+                    <label class="flex items-center gap-2 cursor-pointer mb-4">
+                        <input type="checkbox" id="checkRequiereDocumentacion"
+                            class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <span class="text-sm font-semibold text-gray-800">
+                            <i class="fas fa-file-contract text-blue-600"></i>
+                            Esta venta requiere documentación
+                        </span>
+                    </label>
+
+                    <!-- Modal flotante de documentación -->
+
+                    <div id="modalDocumentacion"
+                        class="absolute inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-40">
+                        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-800 flex justify-between items-center">
+                                Agregar Documento
+                                <button class="text-gray-500 hover:text-gray-700">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </h3>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de
+                                        Documento</label>
+                                    <select id="tipoDocumentoSelect"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="">Seleccionar...</option>
+                                        <option value="licencia_portacion">Licencia de Portación</option>
+                                        <option value="licencia_tenencia">Tenencia</option>
+
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Número de
+                                        Documento</label>
+                                    <input type="text" id="numeroDocumentoInput" placeholder="Ej: 123456789"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+
+                                <button type="button" id="btnCerrarModalDocumentacion"
+                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                                    <i class="fas fa-plus"></i> Agregar Documento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+
+
                     <!-- Resumen compacto -->
                     <div class="mb-4">
+
+
+
+
+
+
+
                         <div class="flex justify-between mb-2">
                             <span class="text-gray-600">Subtotal:</span>
                             <span id="subtotalModal" class="font-semibold">Q0.00</span>
@@ -433,6 +501,7 @@
                                     <option value="">Seleccionar cliente...</option>
                                     @foreach ($clientes as $cliente)
                                         <option value="{{ $cliente->user_id }}"
+                                            data-clienteid="{{ $cliente->user_id}}"
                                             data-nombre1="{{ $cliente->user_primer_nombre }}"
                                             data-nombre2="{{ $cliente->user_segundo_nombre ?? '' }}"
                                             data-apellido1="{{ $cliente->user_primer_apellido }}"
@@ -446,6 +515,8 @@
                             </div>
                         </div>
 
+                          <input id="idCliente" name="cliente_user_id" type="hidden" 
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                         <!-- Nombres -->
                         <input id="nc_nombre1" name="cliente_nombre1" type="text" placeholder="Primer nombre"
                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">

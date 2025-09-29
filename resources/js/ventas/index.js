@@ -111,6 +111,7 @@ clientePremiumSelect.addEventListener("change", function () {
 
 // Función para llenar los datos del cliente
 function llenarDatosCliente(option) {
+    document.getElementById("idCliente").value = option.dataset.clienteid || "";
     document.getElementById("nc_nombre1").value = option.dataset.nombre1 || "";
     document.getElementById("nc_nombre2").value = option.dataset.nombre2 || "";
     document.getElementById("nc_apellido1").value =
@@ -122,6 +123,7 @@ function llenarDatosCliente(option) {
 
 // Función para limpiar el formulario
 function limpiarFormulario() {
+    document.getElementById("idCliente").value = "";
     document.getElementById("nc_nombre1").value = "";
     document.getElementById("nc_nombre2").value = "";
     document.getElementById("nc_apellido1").value = "";
@@ -372,24 +374,37 @@ function mostrarProductos(productosData) {
     grid.innerHTML = productosData
         .map((producto) => {
             const stock = Number(producto.stock_cantidad_total ?? 0);
+            const necesitaStock = Number(producto.producto_requiere_stock ?? 1) === 1;
 
-            // Badge de stock por color
+            // Badge de stock por color - SOLO si el producto necesita stock
             let stockBadgeHtml = "";
-            if (stock > 4) {
-                stockBadgeHtml = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Stock: ${stock}</span>`;
-            } else if (stock > 0) {
-                stockBadgeHtml = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Stock: ${stock}</span>`;
+            if (necesitaStock) {
+                if (stock > 4) {
+                    stockBadgeHtml = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Stock: ${stock}</span>`;
+                } else if (stock > 0) {
+                    stockBadgeHtml = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Stock: ${stock}</span>`;
+                } else {
+                    stockBadgeHtml = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Sin stock</span>`;
+                }
             } else {
-                stockBadgeHtml = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Sin stock</span>`;
+                // Badge para productos que NO necesitan stock (servicios, documentación, etc.)
+                stockBadgeHtml = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <i class="fas fa-infinity mr-1"></i>Disponible
+                </span>`;
             }
+
+            // Determinar si el botón debe estar deshabilitado
+            const sinStock = necesitaStock && stock <= 0;
+            const botonClase = sinStock 
+                ? "w-full bg-gray-400 text-white py-2 px-4 rounded-lg cursor-not-allowed text-sm font-medium flex items-center justify-center opacity-60"
+                : "w-full bg-gray-900 text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition-colors duration-200 text-sm font-medium flex items-center justify-center";
 
             return `
         <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
           <div class="relative h-48 bg-gray-100">
-            <img src="storage/productos/standar.webp"
+            <img src="images/standar.webp"
                  alt="${producto.producto_nombre}"
-                 class="w-full h-full object-cover"
-                 onerror="this.src='/storage/producto-standar.webp'">
+                 class="w-full h-full object-cover">
             <!-- Badge de stock -->
             <div class="absolute top-2 right-2">
               ${stockBadgeHtml}
@@ -402,10 +417,10 @@ function mostrarProductos(productosData) {
                   producto.precio_venta
               ).toFixed(2)}</div>
               ${
-                  producto.precio_especial
+                  producto.precio_venta_empresa
                       ? `
                 <div class="text-sm text-blue-600">Precio especial: Q${parseFloat(
-                    producto.precio_especial
+                    producto.precio_venta_empresa
                 ).toFixed(2)}</div>
               `
                       : ""
@@ -429,9 +444,10 @@ function mostrarProductos(productosData) {
             <button type="button"
                     data-action="agregar"
                     data-id="${producto.producto_id}"
-                    class="w-full bg-gray-900 text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition-colors duration-200 text-sm font-medium flex items-center justify-center">
+                    ${sinStock ? 'disabled' : ''}
+                    class="${botonClase}">
               <i class="fas fa-shopping-cart mr-2"></i>
-              Agregar
+              ${sinStock ? 'Sin stock' : 'Agregar'}
             </button>
           </div>
         </div>`;
@@ -666,8 +682,9 @@ function agregarProductoAlCarrito(producto) {
         (p) => String(p.producto_id) === id
     );
 
-    // Normaliza stock del producto entrante
+    // Normaliza datos del producto entrante
     const stockProducto = Number(producto.stock_cantidad_total ?? 0);
+    const necesitaStock = Number(producto.producto_requiere_stock ?? 1) === 1;
     const requiereSerie = Number(producto.producto_requiere_serie ?? 0) === 1;
     const seriesDisp = Array.isArray(producto.series_disponibles)
         ? producto.series_disponibles
@@ -682,20 +699,26 @@ function agregarProductoAlCarrito(producto) {
     );
     const lotesSuma = Number(producto.lotes_cantidad_total ?? 0);
 
+    // 🔹 PRECIOS - Extraer correctamente
+    const precioVenta = Number(producto.precio_venta ?? 0);
+    const precioVentaEmpresa = Number(producto.precio_venta_empresa ?? 0);
+
     if (existente) {
-        // NO permitir superar el stock actual del ítem en carrito
-        const stockItem = Number(
-            existente.stock ??
-                existente.stock_cantidad_total ??
-                stockProducto ??
-                0
-        );
-        if (existente.cantidad >= stockItem) {
-            mostrarNotificacion?.(
-                `Stock máximo disponible: ${stockItem}`,
-                "warning"
+        // Solo validar stock si el producto lo necesita
+        if (necesitaStock) {
+            const stockItem = Number(
+                existente.stock ??
+                    existente.stock_cantidad_total ??
+                    stockProducto ??
+                    0
             );
-            return;
+            if (existente.cantidad >= stockItem) {
+                mostrarNotificacion?.(
+                    `Stock máximo disponible: ${stockItem}`,
+                    "warning"
+                );
+                return;
+            }
         }
 
         // (Opcional) si requiere serie, evitar superar # series disponibles
@@ -720,20 +743,23 @@ function agregarProductoAlCarrito(producto) {
             existente.lotes = lotesDelProducto;
             existente.cantidad_lotes = cantLotes;
             existente.lotes_cantidad_total = lotesSuma;
-            // estructura donde luego guardarás la asignación por lote
-            existente.lotesSeleccionados = existente.lotesSeleccionados ?? []; // [{lote_id, cantidad}]
+            existente.lotesSeleccionados = existente.lotesSeleccionados ?? [];
         }
 
         existente.cantidad += 1;
     } else {
-        // Si el producto no tiene stock, no agregarlo
-        if (stockProducto <= 0) {
+        // Solo validar stock si el producto lo necesita
+        if (necesitaStock && stockProducto <= 0) {
             mostrarNotificacion?.(
                 "Sin stock disponible para este producto.",
                 "warning"
             );
             return;
         }
+
+        // 🔹 Precio inicial siempre es el precio_venta (normal)
+        let precioInicial = precioVenta;
+        let precioActivo = 'normal';
 
         carritoProductos.push({
             // Identidad / visual
@@ -744,36 +770,34 @@ function agregarProductoAlCarrito(producto) {
                 ? `/storage/productos/${producto.foto_url}`
                 : "/storage/productos/standar.webp",
 
-            // Precios
-            precio: parseFloat(
-                producto.precio_especial || producto.precio_venta
-            ),
-            precio_original: parseFloat(producto.precio_venta),
-            precio_especial: producto.precio_especial
-                ? parseFloat(producto.precio_especial)
-                : null,
+            // 🔹 PRECIOS CORREGIDOS - mantener valores originales
+            precio_venta: precioVenta,                    // Precio normal
+            precio_venta_empresa: precioVentaEmpresa,     // Precio especial
+            precio: precioInicial,                         // Precio que se está usando
+            precio_activo: precioActivo,                   // 'normal' o 'empresa'
 
             // Cantidad y stock
             cantidad: 1,
             stock: stockProducto,
             stock_cantidad_total: stockProducto,
+            producto_requiere_stock: producto.producto_requiere_stock ?? 1,
 
-            // Series (como ya lo tenías)
+            // Series
             producto_requiere_serie: producto.producto_requiere_serie ?? 0,
             series_disponibles: seriesDisp,
             seriesSeleccionadas: [],
 
-            // 🔹 LOTES (nuevo en el carrito)
-            lotes: lotesDelProducto, // [{lote_id, lote_producto_id, lote_cantidad_total, ...}]
-            cantidad_lotes: cantLotes, // cuantos lotes tiene
-            lotes_cantidad_total: lotesSuma, // suma de lote_cantidad_total
-            lotesSeleccionados: [], // ← aquí luego guardas asignaciones {lote_id, cantidad}
+            // 🔹 LOTES
+            lotes: lotesDelProducto,
+            cantidad_lotes: cantLotes,
+            lotes_cantidad_total: lotesSuma,
+            lotesSeleccionados: [],
         });
     }
 
     actualizarVistaCarrito();
     actualizarContadorCarrito();
-    mostrarNotificacion(
+    mostrarNotificacion?.(
         `${producto.producto_nombre} agregado al carrito`,
         "success"
     );
@@ -785,14 +809,18 @@ function cambiarCantidad(producto_id, cambio) {
     if (!p) return;
 
     const stock = Number(p.stock_cantidad_total ?? 0);
+    const necesitaStock = Number(p.producto_requiere_stock ?? 1) === 1;
     const nueva = (p.cantidad || 0) + cambio;
 
     if (nueva <= 0) return eliminarProducto(id);
-    if (nueva > stock)
+    
+    // Solo validar stock si el producto lo necesita
+    if (necesitaStock && nueva > stock) {
         return mostrarNotificacion?.(
             `Stock máximo disponible: ${stock}`,
             "warning"
         );
+    }
 
     p.cantidad = nueva;
 
@@ -842,7 +870,7 @@ function actualizarVistaCarrito() {
     if (!Array.isArray(carritoProductos)) carritoProductos = [];
     console.log(carritoProductos);
 
-    // 🔧 Normalizar carrito en caliente (por si algunos items vienen con otras llaves)
+    // 🔧 Normalizar carrito en caliente
     carritoProductos = carritoProductos.map((p) => {
         if (!p || typeof p !== "object") return p;
 
@@ -855,37 +883,53 @@ function actualizarVistaCarrito() {
             p.imagen ??
             (p.foto_url
                 ? `/storage/productos/${p.foto_url}`
-                : "/storage/productos/standar.webp");
+                : "images/standar.webp");
 
-        // precios
-        p.precio = Number(p.precio ?? p.precio_especial ?? p.precio_venta ?? 0);
+        // precios - NO sobrescribir si ya existen
+        if (!p.precio_venta) p.precio_venta = Number(p.precio ?? 0);
+        if (!p.precio_venta_empresa) p.precio_venta_empresa = Number(p.precio_venta_empresa ?? 0);
+        
+        // Convertir a números
+        p.precio_venta = Number(p.precio_venta);
+        p.precio_venta_empresa = Number(p.precio_venta_empresa);
+        
+        // Precio activo (el que se está usando)
+        if (!p.precio_activo) {
+            p.precio_activo = 'normal';
+        }
+        
+        // Precio final según selección
+        p.precio = p.precio_activo === 'empresa' ? p.precio_venta_empresa : p.precio_venta;
 
         // cantidad
         p.cantidad = Number(p.cantidad ?? 1);
 
-        // ✅ stock (acepta varias llaves)
+        // stock
         p.stock_cantidad_total = Number(
             p.stock_cantidad_total ?? p.stockDisponible ?? p.stock ?? 0
         );
 
-        // ✅ requiere serie (0/1 desde varias llaves)
+        // producto necesita stock (1=sí, 0=no)
+        p.producto_requiere_stock = Number(p.producto_requiere_stock ?? 1);
+
+        // requiere serie
         p.producto_requiere_serie = Number(
             p.producto_requiere_serie ?? p.requiere_serie ?? 0
         );
 
-        // ✅ series disponibles (lista)
+        // series disponibles
         if (!Array.isArray(p.series_disponibles)) {
             p.series_disponibles = Array.isArray(p.seriesDisponibles)
                 ? p.seriesDisponibles
                 : [];
         }
 
-        // ✅ series seleccionadas
+        // series seleccionadas
         if (!Array.isArray(p.seriesSeleccionadas)) {
             p.seriesSeleccionadas = [];
         }
 
-        // ✅ LOTES disponibles (lista) + seleccionados
+        // LOTES
         if (!Array.isArray(p.lotes)) p.lotes = [];
         if (!Array.isArray(p.lotesSeleccionados)) p.lotesSeleccionados = [];
 
@@ -904,6 +948,7 @@ function actualizarVistaCarrito() {
     container.innerHTML = carritoProductos
         .map((p) => {
             const stock = Number(p.stock_cantidad_total ?? 0);
+            const necesitaStock = Number(p.producto_requiere_stock ?? 1) === 1;
             const requiereSerie = Number(p.producto_requiere_serie ?? 0) === 1;
             const seriesSel = Array.isArray(p.seriesSeleccionadas)
                 ? p.seriesSeleccionadas
@@ -914,13 +959,15 @@ function actualizarVistaCarrito() {
             const tieneSuficientesSeries =
                 !requiereSerie || seriesSel.length === Number(p.cantidad || 0);
 
-            const badgeSerie = requiereSerie
+            // Badge de serie - SOLO si necesita stock
+            const badgeSerie = (necesitaStock && requiereSerie)
                 ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium
                        ${
                            tieneSuficientesSeries
-                               ? "bg-green-100 text-green-700"
-                               : "bg-yellow-100 text-yellow-700"
+                               ? "bg-emerald-100 text-emerald-700"
+                               : "bg-amber-100 text-amber-700"
                        }">
+                    <i class="fas fa-barcode mr-1"></i>
                     Serie: ${seriesSel.length}/${p.cantidad}
                </span>`
                 : "";
@@ -933,75 +980,117 @@ function actualizarVistaCarrito() {
                   )
                 : 0;
 
-            const badgeLotes = hasLotes
+            // Badge de lotes - SOLO si necesita stock
+            const badgeLotes = (necesitaStock && hasLotes)
                 ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium
          ${
              asignadoLotes === Number(p.cantidad || 0)
-                 ? "bg-green-100 text-green-700"
-                 : "bg-yellow-100 text-yellow-700"
+                 ? "bg-emerald-100 text-emerald-700"
+                 : "bg-amber-100 text-amber-700"
          }">
+       <i class="fas fa-layer-group mr-1"></i>
        Lotes: ${asignadoLotes}/${p.cantidad}
      </span>`
                 : "";
 
+            // Selector de precio (solo si hay precio empresa)
+            const tienePrecioEmpresa = p.precio_venta_empresa > 0 && p.precio_venta_empresa !== p.precio_venta;
+            const selectorPrecio = tienePrecioEmpresa
+                ? `
+                <div class="mt-1.5 flex items-center gap-1.5 text-[10px]">
+                    <span class="text-gray-500 font-medium">Precio:</span>
+                    <button type="button"
+                            data-action="cambiar-precio"
+                            data-id="${String(p.producto_id)}"
+                            data-tipo="normal"
+                            class="px-2 py-1 rounded-md font-medium transition-all duration-200 border
+                            ${p.precio_activo === 'normal' 
+                                ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
+                                : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
+                        Venta (Q${p.precio_venta.toFixed(2)})
+                    </button>
+                    <button type="button"
+                            data-action="cambiar-precio"
+                            data-id="${String(p.producto_id)}"
+                            data-tipo="empresa"
+                            class="px-2 py-1 rounded-md font-medium transition-all duration-200 border
+                            ${p.precio_activo === 'empresa' 
+                                ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
+                                : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
+                        Especial (Q${p.precio_venta_empresa.toFixed(2)})
+                    </button>
+                </div>
+                `
+                : "";
+
             return `
-        <div class="bg-white p-3 rounded-lg border shadow-sm flex items-start gap-3">
+        <div class="group bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-start gap-4">
           <!-- Imagen -->
-          <div class="w-16 h-16 flex-shrink-0">
-            <img src="/storage/productos/standar.webp"
+          <div class="relative w-20 h-20 flex-shrink-0">
+            <img src="${p.imagen}"
                  alt="${p.nombre}"
-                 class="w-full h-full object-cover rounded-md border">
+                 class="w-full h-full object-cover rounded-lg border border-gray-200 group-hover:scale-105 transition-transform duration-300">
+            <div class="absolute -top-2 -right-2 bg-gradient-to-br from-blue-500 to-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                ${p.cantidad}x
+            </div>
           </div>
 
           <!-- Info -->
-          <div class="flex-1">
+          <div class="flex-1 min-w-0">
             <div class="flex justify-between items-start mb-2">
-              <div>
-                <h4 class="font-medium text-sm text-gray-900">${p.nombre}</h4>
-                <p class="text-xs text-gray-500">${p.marca ?? ""}</p>
-                <div class="mt-1 flex items-center gap-2">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700 border">
-                    Stock disp.: ${stock}
+              <div class="flex-1 min-w-0 mr-2">
+                <h4 class="font-semibold text-sm text-gray-900 truncate">${p.nombre}</h4>
+                ${p.marca ? `<p class="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                    <i class="fas fa-industry text-[9px]"></i>
+                    ${p.marca}
+                </p>` : ''}
+                <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                  ${necesitaStock ? `
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 border border-gray-300">
+                    <i class="fas fa-box mr-1"></i>
+                    Stock: ${stock}
                   </span>
+                  ` : ''}
                   ${badgeSerie}
-                   ${badgeLotes}
+                  ${badgeLotes}
                 </div>
               </div>
               <button type="button"
                       data-action="eliminar"
                       data-id="${String(p.producto_id)}"
-                      class="text-red-500 hover:text-red-700 p-1">
-                <i class="fas fa-times text-sm"></i>
+                      class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all duration-200">
+                <i class="fas fa-trash-alt text-xs"></i>
               </button>
             </div>
 
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <button type="button"
-                        data-action="disminuir"
-                        data-id="${String(p.producto_id)}"
-                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 w-7 h-7 rounded-full flex items-center justify-center text-sm">
-                  <i class="fas fa-minus text-xs"></i>
-                </button>
+            <!-- Controles de cantidad -->
+            <div class="flex items-center gap-2 mb-2">
+                <div class="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
+                    <button type="button"
+                            data-action="disminuir"
+                            data-id="${String(p.producto_id)}"
+                            class="bg-white hover:bg-gray-100 text-gray-700 w-7 h-7 rounded-md flex items-center justify-center text-sm shadow-sm border border-gray-200 transition-all duration-200 hover:scale-105 active:scale-95">
+                      <i class="fas fa-minus text-xs"></i>
+                    </button>
 
-                <span class="font-semibold text-sm w-8 text-center">${
-                    p.cantidad
-                }</span>
+                    <span class="font-bold text-sm w-10 text-center text-gray-900">${p.cantidad}</span>
 
-                <button type="button"
-                        data-action="aumentar"
-                        data-id="${String(p.producto_id)}"
-                        class="bg-blue-500 hover:bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm">
-                  <i class="fas fa-plus text-xs"></i>
-                </button>
+                    <button type="button"
+                            data-action="aumentar"
+                            data-id="${String(p.producto_id)}"
+                            class="bg-blue-600 hover:bg-blue-700 text-white w-7 h-7 rounded-md flex items-center justify-center text-sm shadow-sm transition-all duration-200 hover:scale-105 active:scale-95">
+                      <i class="fas fa-plus text-xs font-bold"></i>
+                    </button>
+                </div>
 
                 ${
-                    requiereSerie && seriesDisponibles.length > 0
+                    (necesitaStock && requiereSerie && seriesDisponibles.length > 0)
                         ? `
                   <button type="button"
                           data-action="series"
                           data-id="${String(p.producto_id)}"
-                          class="ml-2 px-2 py-1 rounded-md text-xs font-medium border bg-white hover:bg-gray-50">
+                          class="px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-blue-200 bg-white hover:bg-blue-50 hover:border-blue-300 text-blue-700 transition-all duration-200 flex items-center gap-1.5">
+                    <i class="fas fa-barcode"></i>
                     Series
                   </button>
                 `
@@ -1009,30 +1098,34 @@ function actualizarVistaCarrito() {
                 }
 
                 ${
-                    hasLotes
+                    (necesitaStock && hasLotes)
                         ? `
                     <button type="button"
                             data-action="lotes"
                             data-id="${String(p.producto_id)}"
-                            class="ml-2 px-2 py-1 rounded-md text-xs font-medium border bg-white hover:bg-gray-50">
+                            class="px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-300 text-purple-700 transition-all duration-200 flex items-center gap-1.5">
+                        <i class="fas fa-layer-group"></i>
                         Lotes
                     </button>
                     `
                         : ``
                 }
+            </div>
 
+            <!-- Selector de precio -->
+            ${selectorPrecio}
+
+            <!-- Precio total -->
+            <div class="mt-2 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-2">
+              <div class="text-xs text-gray-600">
+                <span class="font-medium">Precio unitario:</span>
+                <span class="ml-1 font-semibold text-emerald-700">Q${p.precio.toFixed(2)}</span>
+                ${p.precio_activo === 'empresa' ? '<span class="ml-1 text-[10px] text-purple-600 font-medium">(Especial)</span>' : ''}
               </div>
-
               <div class="text-right">
-                <div class="font-semibold text-green-600 text-sm">
+                <div class="text-xs text-gray-500 font-medium">Total</div>
+                <div class="font-bold text-emerald-600 text-lg">
                   Q${(p.precio * p.cantidad).toFixed(2)}
-                </div>
-                <div class="text-xs text-gray-500">
-                  Q${p.precio.toFixed(2)} c/u ${
-                p.precio_especial
-                    ? '<span class="text-blue-600">(Especial)</span>'
-                    : ""
-            }
                 </div>
               </div>
             </div>
@@ -1040,6 +1133,21 @@ function actualizarVistaCarrito() {
         </div>`;
         })
         .join("");
+
+    // Event listener para cambio de precio
+    container.querySelectorAll('[data-action="cambiar-precio"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.dataset.id;
+            const tipo = e.currentTarget.dataset.tipo;
+            
+            const producto = carritoProductos.find(p => String(p.producto_id) === id);
+            if (producto) {
+                producto.precio_activo = tipo;
+                producto.precio = tipo === 'empresa' ? producto.precio_venta_empresa : producto.precio_venta;
+                actualizarVistaCarrito();
+            }
+        });
+    });
 
     calcularTotales?.();
 }
@@ -1687,7 +1795,7 @@ document.querySelectorAll('input[name="metodoAbono"]').forEach((radio) => {
             "autorizacionContainer"
         );
 
-        if (this.value === "transferencia") {
+        if (this.value === "transferencia" || this.value === "cheque") {
             // Mostrar contenedor de autorización cuando se seleccione Transferencia
             autorizacionContainer.classList.remove("hidden");
         } else {
@@ -1849,86 +1957,81 @@ function validarProductosCarrito() {
         const nombre = producto.nombre || `Producto ${index + 1}`;
         const cantidad = Number(producto.cantidad || 0);
         const stock = Number(producto.stock_cantidad_total || 0);
-        const requiereSerie =
-            Number(producto.producto_requiere_serie || 0) === 1;
-        const tieneLotes =
-            Array.isArray(producto.lotes) && producto.lotes.length > 0;
+        const necesitaStock = Number(producto.producto_requiere_stock ?? 1) === 1;
+        const requiereSerie = Number(producto.producto_requiere_serie || 0) === 1;
+        const tieneLotes = Array.isArray(producto.lotes) && producto.lotes.length > 0;
 
-        // Validar cantidad vs stock
+        // Validar cantidad básica (siempre)
         if (cantidad <= 0) {
             errores.push(`${nombre}: La cantidad debe ser mayor a 0`);
         }
-        if (cantidad > stock) {
-            errores.push(
-                `${nombre}: Cantidad solicitada (${cantidad}) supera el stock disponible (${stock})`
-            );
-        }
 
-        // Validar series si las requiere
-        if (requiereSerie) {
-            const seriesSeleccionadas = Array.isArray(
-                producto.seriesSeleccionadas
-            )
-                ? producto.seriesSeleccionadas
-                : [];
-
-            if (seriesSeleccionadas.length === 0) {
+        // Solo validar stock, series y lotes si el producto necesita stock
+        if (necesitaStock) {
+            // Validar cantidad vs stock
+            if (cantidad > stock) {
                 errores.push(
-                    `${nombre}: Debe seleccionar las series (requiere ${cantidad} serie(s))`
-                );
-            } else if (seriesSeleccionadas.length !== cantidad) {
-                errores.push(
-                    `${nombre}: Debe seleccionar exactamente ${cantidad} serie(s). Actualmente: ${seriesSeleccionadas.length}`
-                );
-            }
-        }
-
-        // Validar lotes si los tiene
-        if (tieneLotes) {
-            const lotesSeleccionados = Array.isArray(
-                producto.lotesSeleccionados
-            )
-                ? producto.lotesSeleccionados
-                : [];
-
-            const totalAsignadoLotes = lotesSeleccionados.reduce(
-                (sum, lote) => sum + Number(lote.cantidad || 0),
-                0
-            );
-
-            if (totalAsignadoLotes === 0) {
-                errores.push(
-                    `${nombre}: Debe asignar los productos a los lotes disponibles`
-                );
-            } else if (totalAsignadoLotes !== cantidad) {
-                errores.push(
-                    `${nombre}: La cantidad asignada en lotes (${totalAsignadoLotes}) debe coincidir con la cantidad del producto (${cantidad})`
+                    `${nombre}: Cantidad solicitada (${cantidad}) supera el stock disponible (${stock})`
                 );
             }
 
-            // Verificar que no exceda la cantidad disponible en cada lote
-            lotesSeleccionados.forEach((loteSeleccionado) => {
-                const loteOriginal = producto.lotes.find(
-                    (l) =>
-                        Number(l.lote_id) === Number(loteSeleccionado.lote_id)
-                );
-                if (loteOriginal) {
-                    const maxLote = Number(
-                        loteOriginal.lote_cantidad_total || 0
+            // Validar series si las requiere
+            if (requiereSerie) {
+                const seriesSeleccionadas = Array.isArray(producto.seriesSeleccionadas)
+                    ? producto.seriesSeleccionadas
+                    : [];
+
+                if (seriesSeleccionadas.length === 0) {
+                    errores.push(
+                        `${nombre}: Debe seleccionar las series (requiere ${cantidad} serie(s))`
                     );
-                    const cantidadAsignada = Number(
-                        loteSeleccionado.cantidad || 0
+                } else if (seriesSeleccionadas.length !== cantidad) {
+                    errores.push(
+                        `${nombre}: Debe seleccionar exactamente ${cantidad} serie(s). Actualmente: ${seriesSeleccionadas.length}`
                     );
-                    if (cantidadAsignada > maxLote) {
-                        errores.push(
-                            `${nombre}: Cantidad asignada al lote ${loteOriginal.lote_codigo} (${cantidadAsignada}) supera lo disponible (${maxLote})`
-                        );
-                    }
                 }
-            });
+            }
+
+            // Validar lotes si los tiene
+            if (tieneLotes) {
+                const lotesSeleccionados = Array.isArray(producto.lotesSeleccionados)
+                    ? producto.lotesSeleccionados
+                    : [];
+
+                const totalAsignadoLotes = lotesSeleccionados.reduce(
+                    (sum, lote) => sum + Number(lote.cantidad || 0),
+                    0
+                );
+
+                if (totalAsignadoLotes === 0) {
+                    errores.push(
+                        `${nombre}: Debe asignar los productos a los lotes disponibles`
+                    );
+                } else if (totalAsignadoLotes !== cantidad) {
+                    errores.push(
+                        `${nombre}: La cantidad asignada en lotes (${totalAsignadoLotes}) debe coincidir con la cantidad del producto (${cantidad})`
+                    );
+                }
+
+                // Verificar que no exceda la cantidad disponible en cada lote
+                lotesSeleccionados.forEach((loteSeleccionado) => {
+                    const loteOriginal = producto.lotes.find(
+                        (l) => Number(l.lote_id) === Number(loteSeleccionado.lote_id)
+                    );
+                    if (loteOriginal) {
+                        const maxLote = Number(loteOriginal.lote_cantidad_total || 0);
+                        const cantidadAsignada = Number(loteSeleccionado.cantidad || 0);
+                        if (cantidadAsignada > maxLote) {
+                            errores.push(
+                                `${nombre}: Cantidad asignada al lote ${loteOriginal.lote_codigo} (${cantidadAsignada}) supera lo disponible (${maxLote})`
+                            );
+                        }
+                    }
+                });
+            }
         }
 
-        // Validar precios
+        // Validar precios (siempre, para todos los productos)
         if (!producto.precio || producto.precio <= 0) {
             errores.push(`${nombre}: Precio inválido`);
         }
@@ -2144,6 +2247,9 @@ async function procesarVentaFinal() {
                 cantidad: producto.cantidad,
                 precio_unitario: producto.precio,
                 subtotal_producto: (producto.precio * producto.cantidad).toFixed(2),
+
+                 // Indica si el producto requiere validación de stock
+                producto_requiere_stock: producto.producto_requiere_stock,
                 
                 // Series si las requiere
                 requiere_serie: producto.producto_requiere_serie || 0,
@@ -2210,7 +2316,16 @@ async function procesarVentaFinal() {
                     datosVenta.pago.numero_autorizacion_abono = numeroAutorizacionAbono;
                     datosVenta.pago.banco_id_abono = bancoIdAbono;
                 }
+                          // Si el abono es por transferencia, agregar datos bancarios
+                if (metodoAbono === "cheque") {
+                    const numeroAutorizacionAbono = document.getElementById("numeroAutorizacion").value.trim();
+                    const bancoIdAbono = document.getElementById("selectBanco").value;
+                    
+                    datosVenta.pago.numero_autorizacion_abono = numeroAutorizacionAbono;
+                    datosVenta.pago.banco_id_abono = bancoIdAbono;
+                }
                 break;
+
         }
 
         console.log('Datos de venta a enviar:', datosVenta);
@@ -2312,3 +2427,59 @@ function limpiarFormularioVenta() {
     calcularTotales();
 }
 
+
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    const checkbox = document.getElementById('checkRequiereDocumentacion');
+    const modal = document.getElementById('modalDocumentacion');
+    const btnCerrarModal = document.getElementById('btnCerrarModalDocumentacion'); // si usas ID
+
+    // Mostrar/ocultar modal al marcar el checkbox
+    checkbox.addEventListener('change', function () {
+        if (this.checked) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        } else {
+            cerrarModalDocumentacion(); // También cerrar si desmarcan
+        }
+    });
+
+    // Si el botón de cerrar tiene ID o clase, usa esto:
+    if (btnCerrarModal) {
+        btnCerrarModal.addEventListener('click', cerrarModalDocumentacion);
+    }
+
+    // Opcional: cerrar al hacer clic fuera del contenido
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) {
+            cerrarModalDocumentacion();
+        }
+    });
+});
+
+// Función para cerrar el modal
+function cerrarModalDocumentacion() {
+    const modal = document.getElementById('modalDocumentacion');
+    const checkbox = document.getElementById('checkRequiereDocumentacion');
+    
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    checkbox.checked = false;
+}
+
+// Función para agregar documento
+function agregarDocumentoVenta() {
+    const tipo = document.getElementById("tipoDocumentoSelect").value;
+    const numero = document.getElementById("numeroDocumentoInput").value;
+
+    if (!tipo || !numero) {
+        alert("Por favor completa todos los campos.");
+        return;
+    }
+
+    // Aquí puedes enviar a un array, backend o agregar a una lista visual
+    console.log("Documento agregado:", tipo, numero);
+
+    cerrarModalDocumentacion();
+}
