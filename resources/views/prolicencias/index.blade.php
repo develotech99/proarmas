@@ -8,14 +8,14 @@
 
   <!-- Datos para Alpine/JS -->
   <script id="licencias-data" type="application/json">
-                                          @json($licencias->items())
-                                          </script>
+                                    @json($licencias->items())
+                                    </script>
   <script id="empresas-data" type="application/json">[]</script>
   <script id="modelos-data" type="application/json">[]</script>
 
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="licenciasManager()" x-init="
-                                              formData.lipaimp_id = formData.lipaimp_id || '';
-                                            ">
+                                        formData.lipaimp_id = formData.lipaimp_id || '';
+                                      ">
 
     <!-- Header -->
     <div class="md:flex md:items-center md:justify-between mb-6">
@@ -77,9 +77,9 @@
           x-transition:enter-end="opacity-100 transform translate-y-0"
           x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
           x-transition:leave-end="opacity-0" class="mb-2 rounded-md p-4 shadow-lg max-w-sm" :class="{
-                                                              'bg-green-50 text-green-800 border border-green-200': alert.type === 'success',
-                                                              'bg-red-50 text-red-800 border border-red-200': alert.type === 'error'
-                                                           }">
+                                                        'bg-green-50 text-green-800 border border-green-200': alert.type === 'success',
+                                                        'bg-red-50 text-red-800 border border-red-200': alert.type === 'error'
+                                                     }">
           <div class="flex justify-between items-center">
             <span x-text="alert.message" class="text-sm font-medium"></span>
             <button @click="removeAlert(alert.id)" class="ml-2 text-current opacity-70 hover:opacity-100">
@@ -403,51 +403,50 @@
                     <!-- Estado -->
                     <!-- Estado -->
                     <td class="px-6 py-4 whitespace-nowrap text-sm" x-data="{
-                                                                                                    val: {{ (int) $licencia->lipaimp_situacion }},
-                                                                                                    colors: {
-                                                                                                      1:{bg:'#FEF3C7', fg:'#92400E'},
-                                                                                                      2:{bg:'#DCFCE7', fg:'#166534'},
-                                                                                                      3:{bg:'#FEE2E2', fg:'#991B1B'},
-                                                                                                      4:{bg:'#DBEAFE', fg:'#1E40AF'},
-                                                                                                      5:{bg:'#D1FAE5', fg:'#065F46'},
-                                                                                                      6:{bg:'#E5E7EB', fg:'#111827'},
-                                                                                                    },
-                                                                                                    paint(el, v){
-                                                                                                      const c = this.colors[parseInt(v)];
-                                                                                                      if(!el) return;
-                                                                                                      if(c){ el.style.backgroundColor = c.bg; el.style.color = c.fg; }
-                                                                                                      else { el.style.backgroundColor = ''; el.style.color = ''; }
-                                                                                                    }
-                                                                                                  }"
-                      x-init="paint($refs.sel, val)">
+                                                                                        val: {{ (int) $licencia->lipaimp_situacion }},
+                                                                                        colors: {
+                                                                                          1:{bg:'#FEF3C7', fg:'#92400E'},
+                                                                                          2:{bg:'#DCFCE7', fg:'#166534'},
+                                                                                          3:{bg:'#FEE2E2', fg:'#991B1B'},
+                                                                                          4:{bg:'#DBEAFE', fg:'#1E40AF'},
+                                                                                          5:{bg:'#D1FAE5', fg:'#065F46'},
+                                                                                          6:{bg:'#E5E7EB', fg:'#111827'},
+                                                                                        },
+                                                                                        paint(el, v){
+                                                                                          const c = this.colors[parseInt(v)];
+                                                                                          if(!el) return;
+                                                                                          if(c){ el.style.backgroundColor = c.bg; el.style.color = c.fg; }
+                                                                                          else { el.style.backgroundColor = ''; el.style.color = ''; }
+                                                                                        }
+                                                                                      }" x-init="paint($refs.sel, val)">
 
                       <select x-ref="sel" :value="val" @change="
-                                                                                                        const nuevo = $event.target.value;
-                                                                                                        paint($refs.sel, nuevo);
+                                                                                            const nuevo = $event.target.value;
+                                                                                            paint($refs.sel, nuevo);
 
-                                                                                                        fetch('{{ route('prolicencias.updateEstado', $licencia->lipaimp_id) }}', {
-                                                                                                          method: 'PUT',
-                                                                                                          headers: {
-                                                                                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                                                                                            'X-Requested-With': 'XMLHttpRequest',
-                                                                                                            'Accept': 'application/json',
-                                                                                                            'Content-Type': 'application/json'
-                                                                                                          },
-                                                                                                          body: JSON.stringify({ lipaimp_situacion: nuevo }),
-                                                                                                          cache: 'no-store'
-                                                                                                        })
-                                                                                                        .then(r => r.json())
-                                                                                                        .then(data => {
-                                                                                                          if (data.ok) {
-                                                                                                            val = parseInt(nuevo);
-                                                                                                            return Swal.fire('Actualizado', data.message || 'Estado actualizado', 'success')
-                                                                                                              .then(() => window.location.reload());   // 👈 recarga la página
-                                                                                                          } else {
-                                                                                                            Swal.fire('Error', data.message || 'No se pudo actualizar', 'error');
-                                                                                                          }
-                                                                                                        })
-                                                                                                        .catch(() => Swal.fire('Error', 'No se pudo actualizar', 'error'));
-                                                                                                      "
+                                                                                            fetch('{{ route('prolicencias.updateEstado', $licencia->lipaimp_id) }}', {
+                                                                                              method: 'PUT',
+                                                                                              headers: {
+                                                                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                                                                'X-Requested-With': 'XMLHttpRequest',
+                                                                                                'Accept': 'application/json',
+                                                                                                'Content-Type': 'application/json'
+                                                                                              },
+                                                                                              body: JSON.stringify({ lipaimp_situacion: nuevo }),
+                                                                                              cache: 'no-store'
+                                                                                            })
+                                                                                            .then(r => r.json())
+                                                                                            .then(data => {
+                                                                                              if (data.ok) {
+                                                                                                val = parseInt(nuevo);
+                                                                                                return Swal.fire('Actualizado', data.message || 'Estado actualizado', 'success')
+                                                                                                  .then(() => window.location.reload());   // 👈 recarga la página
+                                                                                              } else {
+                                                                                                Swal.fire('Error', data.message || 'No se pudo actualizar', 'error');
+                                                                                              }
+                                                                                            })
+                                                                                            .catch(() => Swal.fire('Error', 'No se pudo actualizar', 'error'));
+                                                                                          "
                         class="rounded-md border-gray-300 text-sm"
                         style="transition: background-color .15s ease, color .15s ease;">
 
@@ -867,7 +866,7 @@
                   Eliminar
                 </button>
               </template>
-
+              
             </div>
 
             <button type="button" @click="closePagosModal()" class="text-gray-400 hover:text-gray-600">
@@ -1046,34 +1045,22 @@
                           class="bg-gray-50 dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-lg p-3">
                           <!-- Vista previa del archivo -->
                           <div class="mb-2">
-                            <!-- Imagen (nuevo o remoto) -->
-                            <div
-                              x-show="(comp.file && comp.file.type.startsWith('image/')) || (!comp.file && comp._isImage)"
-                              class="mb-2">
+                            <div x-show="comp.file && comp.file.type.startsWith('image/')" class="mb-2">
                               <img :src="comp._url" alt="Vista previa" class="w-full h-24 object-cover rounded">
                             </div>
-
-                            <!-- PDF (nuevo o remoto) -->
-                            <div
-                              x-show="(comp.file && comp.file.type === 'application/pdf') || (!comp.file && comp._isPdf)"
-                              class="mb-2">
-                              <embed :src="`${comp._url}#toolbar=0&navpanes=0&scrollbar=0`" type="application/pdf"
-                                class="w-full h-24 rounded" />
+                            <div x-show="comp.file && comp.file.type === 'application/pdf'" class="mb-2">
+                              <iframe :src="`${comp._url}#toolbar=0&navpanes=0&scrollbar=0`" class="w-full h-24 rounded"
+                                loading="lazy">
+                              </iframe>
                             </div>
-
-                            <!-- Fallback -->
                             <div
-                              x-show="!((comp.file && (comp.file.type.startsWith('image/') || comp.file.type==='application/pdf')) || (!comp.file && (comp._isImage || comp._isPdf)))"
+                              x-show="!comp.file || (!comp.file.type.startsWith('image/') && comp.file.type !== 'application/pdf')"
                               class="flex items-center justify-center h-24 bg-gray-200 dark:bg-gray-700 rounded">
-                              <!-- ícono -->
                               <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                             </div>
-                            <a :href="comp._url" target="_blank" class="text-xs text-blue-600 underline">Abrir PDF</a>
-
-
                           </div>
 
                           <!-- Información del archivo -->
