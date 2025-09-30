@@ -2,6 +2,7 @@
  * Gestor del Sistema de Reportes - Armería
  * JavaScript puro - Laravel
  */
+import Chart from 'chart.js/auto';
 class ReportesManager {
     constructor() {
         this.currentTab = 'dashboard';
@@ -169,22 +170,31 @@ class ReportesManager {
     /**
      * Cargar datos específicos del tab
      */
-    async loadTabData(tab) {
-        switch (tab) {
-            case 'ventas':
-                await this.loadReporteVentas();
-                break;
-            case 'productos':
-                await this.loadReporteProductos();
-                break;
-            case 'comisiones':
-                await this.loadReporteComisiones();
-                break;
-            case 'pagos':
-                await this.loadReportePagos();
-                break;
-        }
+/**
+ * Cargar datos específicos del tab
+ */
+async loadTabData(tab) {
+    switch (tab) {
+        case 'ventas':
+            await this.loadReporteVentas();
+            break;
+        case 'productos':
+            await this.loadReporteProductos();
+            break;
+        case 'comisiones':
+            await this.loadReporteComisiones();
+            break;
+        case 'pagos':
+            await this.loadReportePagos();
+            break;
+        case 'digecam-armas':
+            await this.loadReporteDigecamArmas();
+            break;
+        case 'digecam-municiones':
+            await this.loadReporteDigecamMuniciones();
+            break;
     }
+}
 
     /**
      * Actualizar KPIs en el dashboard
@@ -478,57 +488,355 @@ class ReportesManager {
         }
     }
 
+
+/**
+ * Cargar reporte DIGECAM de armas
+ */
+async loadReporteDigecamArmas(filtros = {}) {
+    try {
+        this.showLoading('digecam-armas');
+        
+        const mes = filtros.mes || new Date().getMonth() + 1;
+        const anio = filtros.anio || new Date().getFullYear();
+        
+        const mesSelect = document.getElementById('filtro-mes-digecam-armas');
+        const anioSelect = document.getElementById('filtro-anio-digecam-armas');
+        
+        if (mesSelect && !filtros.mes) mesSelect.value = mes;
+        if (anioSelect && !filtros.anio) anioSelect.value = anio;
+        
+        const params = new URLSearchParams({ mes, anio });
+        const response = await fetch(`/reportes/digecam/armas?${params}`);
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                this.renderTablaDigecamArmas(result.data);
+                this.updateDigecamArmasInfo(result);
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando reporte DIGECAM armas:', error);
+        this.showAlert('error', 'Error', 'No se pudo cargar el reporte de armas');
+    } finally {
+        this.hideLoading('digecam-armas');
+    }
+}
+
+/**
+ * Cargar reporte DIGECAM de municiones
+ */
+async loadReporteDigecamMuniciones(filtros = {}) {
+    try {
+        this.showLoading('digecam-municiones');
+        
+        const params = new URLSearchParams({
+            fecha_inicio: filtros.fecha_inicio || this.filtros.fecha_inicio,
+            fecha_fin: filtros.fecha_fin || this.filtros.fecha_fin
+        });
+        
+        const response = await fetch(`/reportes/digecam/municiones?${params}`);
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                this.renderTablaDigecamMuniciones(result.data);
+                this.updateDigecamMunicionesInfo(result);
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando reporte DIGECAM municiones:', error);
+        this.showAlert('error', 'Error', 'No se pudo cargar el reporte de municiones');
+    } finally {
+        this.hideLoading('digecam-municiones');
+    }
+}
+
+/**
+ * Renderizar tabla de armas DIGECAM
+ */
+renderTablaDigecamArmas(armas) {
+    const tbody = document.getElementById('tbody-digecam-armas');
+    if (!tbody) return;
+    
+    if (armas.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="12" class="px-6 py-4 text-center text-gray-500">
+                    No se encontraron ventas de armas en este período
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = armas.map((arma, index) => `
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+            <td class="px-2 py-2 text-center text-xs">${index + 1}</td>
+            <td class="px-2 py-2 text-center text-xs">${arma.pro_tenencia_anterior || ''}</td>
+            <td class="px-2 py-2 text-center text-xs bg-yellow-100">${arma.pro_tenencia_nueva || ''}</td>
+            <td class="px-2 py-2 text-center text-xs">${arma.tipo}</td>
+            <td class="px-2 py-2 text-center text-xs bg-yellow-100 font-semibold">${arma.serie}</td>
+            <td class="px-2 py-2 text-center text-xs">${arma.marca || 'N/A'}</td>
+            <td class="px-2 py-2 text-center text-xs">${arma.modelo || 'N/A'}</td>
+            <td class="px-2 py-2 text-center text-xs">${arma.calibre || 'N/A'}</td>
+            <td class="px-2 py-2 text-xs">${arma.comprador.toUpperCase()}</td>
+            <td class="px-2 py-2 text-center text-xs">${arma.autorizacion}</td>
+            <td class="px-2 py-2 text-center text-xs">${this.formatearFechaDisplay(arma.fecha)}</td>
+            <td class="px-2 py-2 text-center text-xs bg-yellow-100">${arma.factura || ''}</td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Renderizar tabla de municiones DIGECAM
+ */
+renderTablaDigecamMuniciones(municiones) {
+    const tbody = document.getElementById('tbody-digecam-municiones');
+    if (!tbody) return;
+    
+    if (municiones.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="11" class="px-6 py-4 text-center text-gray-500">
+                    No se encontraron ventas de municiones en este período
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let totalMuniciones = 0;
+    
+    tbody.innerHTML = municiones.map((municion, index) => {
+        totalMuniciones += parseInt(municion.cantidad) || 0;
+        return `
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+            <td class="px-2 py-2 text-center text-xs">${index + 1}</td>
+            <td class="px-2 py-2 text-center text-xs">${municion.autorizacion}</td>
+            <td class="px-2 py-2 text-center text-xs">${municion.documento}</td>
+            <td class="px-2 py-2 text-xs">${municion.nombre.toUpperCase()}</td>
+            <td class="px-2 py-2 text-center text-xs bg-yellow-100">${municion.factura || ''}</td>
+            <td class="px-2 py-2 text-center text-xs">${this.formatearFechaDisplay(municion.fecha)}</td>
+            <td class="px-2 py-2 text-center text-xs">${municion.serie_arma || 'N/A'}</td>
+            <td class="px-2 py-2 text-center text-xs">${municion.clase_arma || 'N/A'}</td>
+            <td class="px-2 py-2 text-center text-xs">${municion.calibre_arma || 'N/A'}</td>
+            <td class="px-2 py-2 text-center text-xs">${municion.calibre_vendido || 'N/A'}</td>
+            <td class="px-2 py-2 text-center text-xs bg-yellow-100 font-bold">${municion.cantidad}</td>
+        </tr>
+    `}).join('');
+    
+    const totalEl = document.getElementById('total-municiones-vendidas');
+    if (totalEl) {
+        totalEl.textContent = this.formatNumber(totalMuniciones);
+    }
+}
+
+/**
+ * Actualizar información del reporte de armas
+ */
+updateDigecamArmasInfo(data) {
+    const mesEl = document.getElementById('digecam-armas-mes');
+    const anioEl = document.getElementById('digecam-armas-anio');
+    const totalEl = document.getElementById('digecam-armas-total');
+    
+    if (mesEl) mesEl.textContent = data.mes_nombre;
+    if (anioEl) anioEl.textContent = data.anio;
+    if (totalEl) totalEl.textContent = data.data.length;
+}
+
+/**
+ * Actualizar información del reporte de municiones
+ */
+updateDigecamMunicionesInfo(data) {
+    const fechaInicioEl = document.getElementById('digecam-municiones-fecha-inicio');
+    const fechaFinEl = document.getElementById('digecam-municiones-fecha-fin');
+    const totalEl = document.getElementById('digecam-municiones-total');
+    
+    if (fechaInicioEl) fechaInicioEl.textContent = this.formatearFechaDisplay(data.fecha_inicio);
+    if (fechaFinEl) fechaFinEl.textContent = this.formatearFechaDisplay(data.fecha_fin);
+    if (totalEl) totalEl.textContent = data.data.length;
+}
+
+/**
+ * Exportar reporte DIGECAM
+ */
+async exportarReporteDigecam(tipo) {
+    try {
+        let params = new URLSearchParams({ tipo });
+        
+        if (tipo === 'armas') {
+            const mes = document.getElementById('filtro-mes-digecam-armas')?.value || new Date().getMonth() + 1;
+            const anio = document.getElementById('filtro-anio-digecam-armas')?.value || new Date().getFullYear();
+            params.append('mes', mes);
+            params.append('anio', anio);
+        } else {
+            params.append('fecha_inicio', this.filtros.fecha_inicio);
+            params.append('fecha_fin', this.filtros.fecha_fin);
+        }
+
+        const url = `/reportes/digecam/exportar-pdf?${params}`;
+        window.open(url, '_blank');
+        
+        this.showAlert('success', 'Exportación exitosa', `Reporte DIGECAM de ${tipo} generado correctamente`);
+    } catch (error) {
+        console.error('Error exportando reporte DIGECAM:', error);
+        this.showAlert('error', 'Error', 'No se pudo exportar el reporte');
+    }
+}
+
+/**
+ * Aplicar filtros de armas DIGECAM
+ */
+aplicarFiltrosDigecamArmas() {
+    const mes = document.getElementById('filtro-mes-digecam-armas')?.value;
+    const anio = document.getElementById('filtro-anio-digecam-armas')?.value;
+    
+    if (!mes || !anio) {
+        this.showAlert('warning', 'Filtros incompletos', 'Debe seleccionar mes y año');
+        return;
+    }
+    
+    this.loadReporteDigecamArmas({ mes, anio });
+}
+
+/**
+ * Aplicar filtros de municiones DIGECAM
+ */
+aplicarFiltrosDigecamMuniciones() {
+    const fechaInicio = document.getElementById('filtro-fecha-inicio-municiones')?.value;
+    const fechaFin = document.getElementById('filtro-fecha-fin-municiones')?.value;
+    
+    if (!fechaInicio || !fechaFin) {
+        this.showAlert('warning', 'Filtros incompletos', 'Debe seleccionar ambas fechas');
+        return;
+    }
+    
+    this.loadReporteDigecamMuniciones({ fecha_inicio: fechaInicio, fecha_fin: fechaFin });
+}
+
+
+
+
+
     /**
      * Renderizar tabla de ventas
      */
-    renderTablaVentas(ventas) {
-        const tbody = document.getElementById('tbody-ventas');
-        if (!tbody) return;
-        
-        if (ventas.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                        No se encontraron ventas en el período seleccionado
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        tbody.innerHTML = ventas.map(venta => `
-            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    ${this.formatearFecha(venta.ven_fecha)}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    ${venta.cliente?.cliente_nombre1 || 'Cliente general'} ${venta.cliente?.cliente_apellido1 || ''}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    ${venta.vendedor?.user_primer_nombre || ''} ${venta.vendedor?.user_primer_apellido || ''}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    ${venta.detalle_ventas?.length || 0} productos
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                    ${this.formatCurrency(venta.ven_total_vendido)}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    ${this.renderEstadoPago(venta.estado_pago || 'SIN_CONTROL')}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})" 
-                            class="text-blue-600 hover:text-blue-900 mr-3">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button onclick="reportesManager.imprimirVenta(${venta.ven_id})" 
-                            class="text-green-600 hover:text-green-900">
-                        <i class="fas fa-print"></i>
-                    </button>
+/**
+ * Renderizar tabla de ventas - CORREGIDO
+ */
+renderTablaVentas(ventas) {
+    const tbody = document.getElementById('tbody-ventas');
+    if (!tbody) return;
+    
+    if (ventas.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    No se encontraron ventas en el período seleccionado
                 </td>
             </tr>
-        `).join('');
+        `;
+        return;
     }
+
+    tbody.innerHTML = ventas.map(venta => `
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                <div class="font-medium">#${venta.ven_id}</div>
+                <div class="text-gray-500">${this.formatearFechaDisplay(venta.ven_fecha)}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                ${venta.cliente_nombre_completo}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                ${venta.vendedor_nombre_completo}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                ${venta.total_productos} unidades<br>
+                <span class="text-xs">(${venta.cantidad_items} items)</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    ${this.formatCurrency(venta.ven_total_vendido)}
+                </div>
+                <div class="text-xs text-green-600">
+                    Pagado: ${this.formatCurrency(venta.total_pagado)}
+                </div>
+                ${venta.saldo_pendiente > 0 ? `
+                    <div class="text-xs text-red-600">
+                        Pendiente: ${this.formatCurrency(venta.saldo_pendiente)}
+                    </div>
+                ` : ''}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                ${this.renderEstadoPago(venta.estado_pago)}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                ${venta.ven_situacion == 1 
+                    ? '<span class="text-green-600 font-medium">Activa</span>' 
+                    : '<span class="text-red-600 font-medium">Anulada</span>'}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})" 
+                        class="text-blue-600 hover:text-blue-900 mr-2" title="Ver detalle">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button onclick="reportesManager.imprimirVenta(${venta.ven_id})" 
+                        class="text-green-600 hover:text-green-900" title="Imprimir">
+                    <i class="fas fa-print"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Aplicar filtros de ventas - CORREGIDO
+ */
+aplicarFiltrosVentas() {
+    const filtros = {};
+    
+    const vendedorEl = document.getElementById('filtro-vendedor-ventas');
+    const clienteBuscarEl = document.getElementById('filtro-cliente-ventas');
+    const estadoEl = document.getElementById('filtro-estado-ventas');
+    
+    if (vendedorEl?.value) filtros.vendedor_id = vendedorEl.value;
+    if (clienteBuscarEl?.value) filtros.cliente_buscar = clienteBuscarEl.value;
+    if (estadoEl?.value) filtros.estado = estadoEl.value;
+
+    this.loadReporteVentas(filtros);
+}
+
+/**
+ * Inicializar Select2 para clientes
+ */
+initClienteSelect() {
+    const clienteSelect = $('#filtro-cliente-ventas');
+    if (clienteSelect.length && typeof $.fn.select2 !== 'undefined') {
+        clienteSelect.select2({
+            ajax: {
+                url: '/reportes/buscar-clientes',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        q: params.term
+                    };
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.results
+                    };
+                },
+                cache: true
+            },
+            placeholder: 'Buscar cliente por nombre o DPI...',
+            minimumInputLength: 2,
+            allowClear: true
+        });
+    }
+}
 
     /**
      * Renderizar tabla de productos

@@ -37,88 +37,74 @@ class ReportesExport implements FromArray, WithHeadings, WithStyles, ShouldAutoS
     /**
      * @return array
      */
-    public function array(): array
-    {
-        switch ($this->tipoReporte) {
-            case 'ventas':
-                return $this->getVentasData();
-            case 'productos':
-                return $this->getProductosData();
-            case 'comisiones':
-                return $this->getComisionesData();
-            case 'pagos':
-                return $this->getPagosData();
-            case 'dashboard':
-                return $this->getDashboardData();
-            default:
-                return $this->getVentasData();
-        }
+public function array(): array
+{
+    switch ($this->tipoReporte) {
+        case 'ventas':
+            return $this->getVentasData();
+        case 'productos':
+            return $this->getProductosData();
+        case 'comisiones':
+            return $this->getComisionesData();
+        case 'pagos':
+            return $this->getPagosData();
+        case 'dashboard':
+            return $this->getDashboardData();
+        case 'digecam-armas':
+            return $this->getDigecamArmasData();
+        case 'digecam-municiones':
+            return $this->getDigecamMunicionesData();
+        default:
+            return $this->getVentasData();
     }
+}
 
     /**
      * @return array
      */
-    public function headings(): array
-    {
-        switch ($this->tipoReporte) {
-            case 'ventas':
-                return [
-                    'ID Venta',
-                    'Fecha',
-                    'Cliente',
-                    'Vendedor',
-                    'Total Vendido',
-                    'Estado',
-                    'Productos',
-                    'Método Pago'
-                ];
-            case 'productos':
-                return [
-                    'ID Producto',
-                    'Código SKU',
-                    'Nombre Producto',
-                    'Categoría',
-                    'Marca',
-                    'Cantidad Vendida',
-                    'Precio Promedio',
-                    'Total Ingresos',
-                    'Transacciones'
-                ];
-            case 'comisiones':
-                return [
-                    'ID Comisión',
-                    'Vendedor',
-                    'ID Venta',
-                    'Fecha Venta',
-                    'Total Venta',
-                    'Porcentaje',
-                    'Comisión',
-                    'Estado',
-                    'Fecha Asignación'
-                ];
-            case 'pagos':
-                return [
-                    'ID Pago',
-                    'ID Venta',
-                    'Cliente',
-                    'Vendedor',
-                    'Total Venta',
-                    'Fecha Inicio',
-                    'Tipo Pago',
-                    'Estado',
-                    'Métodos Pago',
-                    'Monto Total Pagado'
-                ];
-            case 'dashboard':
-                return [
-                    'Métrica',
-                    'Valor',
-                    'Período'
-                ];
-            default:
-                return [];
-        }
+public function headings(): array
+{
+    switch ($this->tipoReporte) {
+        case 'ventas':
+            return [
+                'ID Venta', 'Fecha', 'Cliente', 'Vendedor',
+                'Total Vendido', 'Estado', 'Productos', 'Método Pago'
+            ];
+        case 'productos':
+            return [
+                'ID Producto', 'Código SKU', 'Nombre Producto', 'Categoría',
+                'Marca', 'Cantidad Vendida', 'Precio Promedio',
+                'Total Ingresos', 'Transacciones'
+            ];
+        case 'comisiones':
+            return [
+                'ID Comisión', 'Vendedor', 'ID Venta', 'Fecha Venta',
+                'Total Venta', 'Porcentaje', 'Comisión', 'Estado', 'Fecha Asignación'
+            ];
+        case 'pagos':
+            return [
+                'ID Pago', 'ID Venta', 'Cliente', 'Vendedor',
+                'Total Venta', 'Fecha Inicio', 'Tipo Pago', 'Estado',
+                'Métodos Pago', 'Monto Total Pagado'
+            ];
+        case 'dashboard':
+            return ['Métrica', 'Valor', 'Período'];
+        case 'digecam-armas':
+            return [
+                'Tenencia Anterior', 'Tenencia Nueva', 'Tipo', 'Serie',
+                'Marca', 'Modelo', 'Calibre', 'Comprador',
+                'Autorización', 'Fecha', 'Factura'
+            ];
+        case 'digecam-municiones':
+            return [
+                'Autorización', 'Documento', 'Nombre', 'Factura', 'Fecha',
+                'Serie Arma', 'Clase Arma', 'Calibre Arma',
+                'Calibre Vendido', 'Cantidad'
+            ];
+        default:
+            return [];
     }
+}
 
     /**
      * @return string
@@ -448,4 +434,120 @@ class ReportesExport implements FromArray, WithHeadings, WithStyles, ShouldAutoS
             ['Comisiones Pendientes', number_format($comisionesPendientes ?? 0, 2), $periodo]
         ];
     }
+
+
+
+    /**
+ * Obtener datos para reporte DIGECAM de armas
+ */
+private function getDigecamArmasData()
+{
+    $mes = $this->filters['mes'] ?? now()->month;
+    $anio = $this->filters['anio'] ?? now()->year;
+
+    $ventas = DB::table('pro_detalle_ventas as dv')
+        ->join('pro_ventas as v', 'dv.det_ven_id', '=', 'v.ven_id')
+        ->join('pro_productos as p', 'dv.det_producto_id', '=', 'p.producto_id')
+        ->leftJoin('pro_marcas as m', 'p.producto_marca_id', '=', 'm.marca_id')
+        ->leftJoin('pro_clientes as c', 'v.ven_cliente', '=', 'c.cliente_id')
+        ->select([
+            'p.pro_tenencia_anterior',
+            'p.pro_tenencia_nueva',
+            'p.producto_nombre as tipo',
+            'p.pro_numero_serie as serie',
+            'm.marca_descripcion as marca',
+            'p.producto_modelo as modelo',
+            'p.producto_calibre as calibre',
+            DB::raw('CONCAT(c.cliente_nombre1, " ", c.cliente_apellido1) as comprador'),
+            'v.ven_id as autorizacion',
+            'v.ven_fecha as fecha',
+            'dv.det_factura as factura'
+        ])
+        ->whereYear('v.ven_fecha', $anio)
+        ->whereMonth('v.ven_fecha', $mes)
+        ->where('v.ven_situacion', 1)
+        ->where('dv.det_situacion', 'ACTIVO')
+        ->whereIn('p.producto_categoria_id', function($query) {
+            $query->select('categoria_id')
+                  ->from('pro_categorias')
+                  ->where('categoria_nombre', 'LIKE', '%ARMA%')
+                  ->orWhere('categoria_nombre', 'LIKE', '%CARABINA%')
+                  ->orWhere('categoria_nombre', 'LIKE', '%PISTOLA%');
+        })
+        ->orderBy('v.ven_fecha')
+        ->get();
+
+    return $ventas->map(function ($venta) {
+        return [
+            $venta->pro_tenencia_anterior ?? '',
+            $venta->pro_tenencia_nueva ?? '',
+            $venta->tipo,
+            $venta->serie,
+            $venta->marca ?? 'N/A',
+            $venta->modelo ?? 'N/A',
+            $venta->calibre ?? 'N/A',
+            strtoupper($venta->comprador),
+            $venta->autorizacion,
+            $venta->fecha ? Carbon::parse($venta->fecha)->format('Y-m-d') : '',
+            $venta->factura ?? ''
+        ];
+    })->toArray();
+}
+
+/**
+ * Obtener datos para reporte DIGECAM de municiones
+ */
+private function getDigecamMunicionesData()
+{
+    $fechaInicio = $this->filters['fecha_inicio'] ?? now()->startOfMonth();
+    $fechaFin = $this->filters['fecha_fin'] ?? now()->endOfMonth();
+
+    $ventas = DB::table('pro_detalle_ventas as dv')
+        ->join('pro_ventas as v', 'dv.det_ven_id', '=', 'v.ven_id')
+        ->join('pro_productos as p', 'dv.det_producto_id', '=', 'p.producto_id')
+        ->leftJoin('pro_clientes as c', 'v.ven_cliente', '=', 'c.cliente_id')
+        ->select([
+            'v.ven_id as autorizacion',
+            DB::raw('CASE 
+                WHEN c.cliente_licencia IS NOT NULL THEN "LICENCIA"
+                WHEN c.cliente_tenencia IS NOT NULL THEN "TENENCIA"
+                ELSE "DOCUMENTO"
+            END as documento'),
+            DB::raw('CONCAT(c.cliente_nombre1, " ", COALESCE(c.cliente_nombre2, ""), " ", c.cliente_apellido1, " ", COALESCE(c.cliente_apellido2, "")) as nombre'),
+            'dv.det_factura as factura',
+            'v.ven_fecha as fecha',
+            'p.pro_numero_serie as serie_arma',
+            'p.producto_nombre as clase_arma',
+            'p.producto_calibre as calibre_arma',
+            'p.producto_calibre as calibre_vendido',
+            'dv.det_cantidad as cantidad'
+        ])
+        ->whereBetween('v.ven_fecha', [$fechaInicio, $fechaFin])
+        ->where('v.ven_situacion', 1)
+        ->where('dv.det_situacion', 'ACTIVO')
+        ->whereIn('p.producto_categoria_id', function($query) {
+            $query->select('categoria_id')
+                  ->from('pro_categorias')
+                  ->where('categoria_nombre', 'LIKE', '%MUNICION%')
+                  ->orWhere('categoria_nombre', 'LIKE', '%CARTUCHO%')
+                  ->orWhere('categoria_nombre', 'LIKE', '%BALA%');
+        })
+        ->orderBy('v.ven_fecha')
+        ->get();
+
+    return $ventas->map(function ($venta) {
+        return [
+            $venta->autorizacion,
+            $venta->documento,
+            strtoupper($venta->nombre),
+            $venta->factura ?? '',
+            $venta->fecha ? Carbon::parse($venta->fecha)->format('Y-m-d') : '',
+            $venta->serie_arma ?? 'N/A',
+            $venta->clase_arma ?? 'N/A',
+            $venta->calibre_arma ?? 'N/A',
+            $venta->calibre_vendido ?? 'N/A',
+            $venta->cantidad
+        ];
+    })->toArray();
+}
 }

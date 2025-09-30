@@ -471,6 +471,13 @@ Route::middleware('auth')->group(function () {
       Route::get('/reportes/estadisticas-avanzadas', [ReportesController::class, 'getEstadisticasAvanzadas'])->name('reportes.estadisticas.avanzadas');
       // Comparación entre períodos
       Route::get('/reportes/comparacion-periodos', [ReportesController::class, 'getComparacionPeriodos'])->name('reportes.comparacion.periodos');
+      // Búsqueda de clientes para autocomplete
+      Route::get('/reportes/buscar-clientes', [ReportesController::class, 'buscarClientes'])->name('reportes.buscar.clientes');
+
+      Route::get('/reportes/digecam/armas', [ReportesController::class, 'getReporteDigecamArmas'])->name('reportes.digecam.armas');
+      Route::get('/reportes/digecam/municiones', [ReportesController::class, 'getReporteDigecamMuniciones'])->name('reportes.digecam.municiones');
+      Route::get('/reportes/digecam/exportar-pdf', [ReportesController::class, 'exportarDigecamPDF'])->name('reportes.digecam.exportar.pdf');
+      
       
 });
 

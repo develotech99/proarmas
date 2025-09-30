@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProLicenciaParaImportacion as Licencia;
+use Throwable;
+use App\Models\ProModelo;
+use Illuminate\Http\Request; 
+use Illuminate\Support\Facades\DB;
 use App\Models\ProArmaLicenciada as Arma;
-use App\Models\ProModelo; 
-use App\Models\ProDocumentacionLicImport;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
-use Illuminate\Support\Facades\DB;
-use Throwable;
+use App\Models\ProDocumentacionLicImport;
+use App\Models\ProLicenciaParaImportacion as Licencia;
 
 class ProLicenciaParaImportacionController extends Controller
 {

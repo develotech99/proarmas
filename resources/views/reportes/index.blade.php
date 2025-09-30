@@ -20,13 +20,13 @@
         <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
             <div class="flex items-center space-x-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600">
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Período:</label>
-                <input type="date" id="fecha_inicio" 
-                       class="border-0 focus:ring-0 text-sm dark:bg-gray-800 dark:text-gray-100">
+                <input type="date" id="fecha_inicio"
+                    class="border-0 focus:ring-0 text-sm dark:bg-gray-800 dark:text-gray-100">
                 <span class="text-gray-500">—</span>
-                <input type="date" id="fecha_fin" 
-                       class="border-0 focus:ring-0 text-sm dark:bg-gray-800 dark:text-gray-100">
+                <input type="date" id="fecha_fin"
+                    class="border-0 focus:ring-0 text-sm dark:bg-gray-800 dark:text-gray-100">
                 <button onclick="reportesManager.aplicarFiltroFecha()"
-                        class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700">
+                    class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700">
                     <i class="fas fa-filter mr-1"></i>
                     Aplicar
                 </button>
@@ -113,52 +113,67 @@
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
         <div class="border-b border-gray-200 dark:border-gray-700">
             <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
-                <button onclick="reportesManager.cambiarTab('dashboard')" 
-                        class="tab-button active border-blue-500 text-blue-600 dark:text-blue-400 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                <button onclick="reportesManager.cambiarTab('dashboard')"
+                    class="tab-button active border-blue-500 text-blue-600 dark:text-blue-400 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-tachometer-alt mr-2"></i>
                     Dashboard
                 </button>
-                <button onclick="reportesManager.cambiarTab('ventas')" 
-                        class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                <button onclick="reportesManager.cambiarTab('ventas')"
+                    class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-shopping-cart mr-2"></i>
                     Reporte de Ventas
                 </button>
-                <button onclick="reportesManager.cambiarTab('productos')" 
-                        class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                <button onclick="reportesManager.cambiarTab('productos')"
+                    class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-boxes mr-2"></i>
                     Productos Más Vendidos
                 </button>
-                <button onclick="reportesManager.cambiarTab('comisiones')" 
-                        class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                <!-- <button onclick="reportesManager.cambiarTab('comisiones')"
+                    class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-percent mr-2"></i>
                     Comisiones
-                </button>
-                <button onclick="reportesManager.cambiarTab('pagos')" 
-                        class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                </button> -->
+                <button onclick="reportesManager.cambiarTab('pagos')"
+                    class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-credit-card mr-2"></i>
                     Estado de Pagos
                 </button>
+<button onclick="reportesManager.cambiarTab('digecam-armas')"
+    class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+    <i class="fas fa-gun mr-2"></i>
+    DIGECAM - Armas
+</button>
+
+<button onclick="reportesManager.cambiarTab('digecam-municiones')"
+    class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+    <i class="fas fa-circle mr-2"></i>
+    DIGECAM - Municiones
+</button>
+
+
+                
             </nav>
         </div>
     </div>
 
+
     <!-- Contenido de los Tabs -->
-    
+
     <!-- Tab Dashboard -->
     <div id="tab-dashboard" class="tab-content">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
+
             <!-- Gráfico de Ventas por Día -->
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Ventas por Día</h3>
                     <div class="flex space-x-2">
-                        <button onclick="reportesManager.cambiarTipoGrafico('ventas', 'line')" 
-                                class="grafico-tipo-btn active p-1 rounded" data-tipo="line" title="Líneas">
+                        <button onclick="reportesManager.cambiarTipoGrafico('ventas', 'line')"
+                            class="grafico-tipo-btn active p-1 rounded" data-tipo="line" title="Líneas">
                             <i class="fas fa-chart-line text-sm"></i>
                         </button>
-                        <button onclick="reportesManager.cambiarTipoGrafico('ventas', 'bar')" 
-                                class="grafico-tipo-btn p-1 rounded" data-tipo="bar" title="Barras">
+                        <button onclick="reportesManager.cambiarTipoGrafico('ventas', 'bar')"
+                            class="grafico-tipo-btn p-1 rounded" data-tipo="bar" title="Barras">
                             <i class="fas fa-chart-bar text-sm"></i>
                         </button>
                     </div>
@@ -172,8 +187,8 @@
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Top 10 Productos</h3>
-                    <button onclick="reportesManager.verDetalleProductos()" 
-                            class="text-blue-600 hover:text-blue-800 text-sm">
+                    <button onclick="reportesManager.verDetalleProductos()"
+                        class="text-blue-600 hover:text-blue-800 text-sm">
                         Ver todos
                     </button>
                 </div>
@@ -187,12 +202,12 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Ventas por Vendedor</h3>
                     <div class="flex space-x-2">
-                        <button onclick="reportesManager.cambiarTipoGrafico('vendedor', 'doughnut')" 
-                                class="grafico-tipo-btn active p-1 rounded" data-tipo="doughnut" title="Dona">
+                        <button onclick="reportesManager.cambiarTipoGrafico('vendedor', 'doughnut')"
+                            class="grafico-tipo-btn active p-1 rounded" data-tipo="doughnut" title="Dona">
                             <i class="fas fa-chart-pie text-sm"></i>
                         </button>
-                        <button onclick="reportesManager.cambiarTipoGrafico('vendedor', 'bar')" 
-                                class="grafico-tipo-btn p-1 rounded" data-tipo="bar" title="Barras">
+                        <button onclick="reportesManager.cambiarTipoGrafico('vendedor', 'bar')"
+                            class="grafico-tipo-btn p-1 rounded" data-tipo="bar" title="Barras">
                             <i class="fas fa-chart-bar text-sm"></i>
                         </button>
                     </div>
@@ -223,12 +238,12 @@
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Reporte Detallado de Ventas</h3>
                     <div class="flex space-x-3">
                         <button onclick="reportesManager.exportarReporte('ventas', 'excel')"
-                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                             <i class="fas fa-file-excel mr-2"></i>
                             Excel
                         </button>
                         <button onclick="reportesManager.exportarReporte('ventas', 'pdf')"
-                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
                             <i class="fas fa-file-pdf mr-2"></i>
                             PDF
                         </button>
@@ -241,28 +256,31 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Vendedor</label>
-                        <select id="filtro-vendedor-ventas" 
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <select id="filtro-vendedor-ventas"
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="">Todos los vendedores</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
-                        <input type="text" id="filtro-cliente-ventas" placeholder="Buscar cliente..."
-                               class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <select id="filtro-cliente-ventas"
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            style="width: 100%;">
+                            <option value="">Todos los clientes</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
                         <select id="filtro-estado-ventas"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="">Todos los estados</option>
                             <option value="1">Activas</option>
                             <option value="0">Anuladas</option>
                         </select>
                     </div>
                     <div class="flex items-end">
-                        <button onclick="reportesManager.aplicarFiltrosVentas()" 
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        <button onclick="reportesManager.aplicarFiltrosVentas()"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
                             <i class="fas fa-search mr-2"></i>
                             Filtrar
                         </button>
@@ -307,7 +325,7 @@
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Productos Más Vendidos</h3>
                     <div class="flex space-x-3">
                         <button onclick="reportesManager.exportarReporte('productos', 'excel')"
-                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                             <i class="fas fa-file-excel mr-2"></i>
                             Excel
                         </button>
@@ -321,29 +339,29 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoría</label>
                         <select id="filtro-categoria-productos"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="">Todas las categorías</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Marca</label>
                         <select id="filtro-marca-productos"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="">Todas las marcas</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Límite</label>
                         <select id="filtro-limite-productos"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="25">Top 25</option>
                             <option value="50">Top 50</option>
                             <option value="100">Top 100</option>
                         </select>
                     </div>
                     <div class="flex items-end">
-                        <button onclick="reportesManager.aplicarFiltrosProductos()" 
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        <button onclick="reportesManager.aplicarFiltrosProductos()"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
                             <i class="fas fa-search mr-2"></i>
                             Filtrar
                         </button>
@@ -382,7 +400,7 @@
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Reporte de Comisiones</h3>
                     <div class="flex space-x-3">
                         <button onclick="reportesManager.exportarReporte('comisiones', 'excel')"
-                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                             <i class="fas fa-file-excel mr-2"></i>
                             Excel
                         </button>
@@ -418,14 +436,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Vendedor</label>
                         <select id="filtro-vendedor-comisiones"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="">Todos los vendedores</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
                         <select id="filtro-estado-comisiones"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="">Todos los estados</option>
                             <option value="PENDIENTE">Pendientes</option>
                             <option value="PAGADO">Pagadas</option>
@@ -434,8 +452,8 @@
                     </div>
                     <div></div>
                     <div class="flex items-end">
-                        <button onclick="reportesManager.aplicarFiltrosComisiones()" 
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        <button onclick="reportesManager.aplicarFiltrosComisiones()"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
                             <i class="fas fa-search mr-2"></i>
                             Filtrar
                         </button>
@@ -479,7 +497,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado de Pago</label>
                         <select id="filtro-estado-pagos"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="">Todos los estados</option>
                             <option value="PENDIENTE">Pendientes</option>
                             <option value="PARCIAL">Parciales</option>
@@ -490,7 +508,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de Pago</label>
                         <select id="filtro-tipo-pagos"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option value="">Todos los tipos</option>
                             <option value="UNICO">Pago único</option>
                             <option value="CUOTAS">Cuotas</option>
@@ -498,8 +516,8 @@
                     </div>
                     <div></div>
                     <div class="flex items-end">
-                        <button onclick="reportesManager.aplicarFiltrosPagos()" 
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        <button onclick="reportesManager.aplicarFiltrosPagos()"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
                             <i class="fas fa-search mr-2"></i>
                             Filtrar
                         </button>
@@ -530,6 +548,212 @@
         </div>
     </div>
 
+<!-- ========================================== -->
+<!-- TAB: REPORTE DIGECAM - ARMAS DE FUEGO -->
+<!-- ========================================== -->
+
+<div id="tab-digecam-armas" class="tab-content hidden">
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Reporte Mensual de Venta de Armas de Fuego</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Formato oficial DIGECAM - Ministerio de la Defensa Nacional</p>
+                </div>
+                <button onclick="reportesManager.exportarReporteDigecam('armas')"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                    <i class="fas fa-file-pdf mr-2"></i>
+                    Exportar PDF Oficial
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros específicos -->
+        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Mes</label>
+                    <select id="filtro-mes-digecam-armas"
+                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="1">ENERO</option>
+                        <option value="2">FEBRERO</option>
+                        <option value="3">MARZO</option>
+                        <option value="4">ABRIL</option>
+                        <option value="5">MAYO</option>
+                        <option value="6">JUNIO</option>
+                        <option value="7">JULIO</option>
+                        <option value="8">AGOSTO</option>
+                        <option value="9">SEPTIEMBRE</option>
+                        <option value="10">OCTUBRE</option>
+                        <option value="11">NOVIEMBRE</option>
+                        <option value="12">DICIEMBRE</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Año</label>
+                    <select id="filtro-anio-digecam-armas"
+                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                    </select>
+                </div>
+                <div></div>
+                <div class="flex items-end">
+                    <button onclick="reportesManager.aplicarFiltrosDigecamArmas()"
+                        class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        <i class="fas fa-search mr-2"></i>
+                        Generar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información del reporte -->
+        <div class="px-6 py-3 bg-blue-50 dark:bg-blue-900 border-y border-blue-200 dark:border-blue-800">
+            <div class="grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">MES:</div>
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100" id="digecam-armas-mes">-</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">AÑO:</div>
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100" id="digecam-armas-anio">-</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">TOTAL REGISTROS:</div>
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100" id="digecam-armas-total">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de armas -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                <thead class="bg-gray-800 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">No.</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Tenencia<br>Anterior</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Tenencia<br>Nueva</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Tipo</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Serie</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Marca</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Modelo</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Calibre</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Comprador</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Autorización</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Fecha</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Factura</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-digecam-armas" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                    <tr>
+                        <td colspan="12" class="px-6 py-8 text-center text-gray-500">
+                            Seleccione un mes y año para generar el reporte
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- TAB: REPORTE DIGECAM - MUNICIONES -->
+<!-- ========================================== -->
+
+<div id="tab-digecam-municiones" class="tab-content hidden">
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Reporte Mensual de Venta de Munición</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Formato oficial DIGECAM - Ministerio de la Defensa Nacional</p>
+                </div>
+                <button onclick="reportesManager.exportarReporteDigecam('municiones')"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                    <i class="fas fa-file-pdf mr-2"></i>
+                    Exportar PDF Oficial
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros específicos -->
+        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha Inicio</label>
+                    <input type="date" id="filtro-fecha-inicio-municiones"
+                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha Fin</label>
+                    <input type="date" id="filtro-fecha-fin-municiones"
+                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div></div>
+                <div class="flex items-end">
+                    <button onclick="reportesManager.aplicarFiltrosDigecamMuniciones()"
+                        class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        <i class="fas fa-search mr-2"></i>
+                        Generar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información del reporte -->
+        <div class="px-6 py-3 bg-green-50 dark:bg-green-900 border-y border-green-200 dark:border-green-800">
+            <div class="grid grid-cols-4 gap-4 text-center">
+                <div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">FECHA INICIO:</div>
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100" id="digecam-municiones-fecha-inicio">-</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">FECHA FIN:</div>
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100" id="digecam-municiones-fecha-fin">-</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">TOTAL REGISTROS:</div>
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100" id="digecam-municiones-total">0</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">MUNICIONES VENDIDAS:</div>
+                    <div class="text-sm font-bold text-green-600 dark:text-green-400" id="total-municiones-vendidas">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de municiones -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                <thead class="bg-gray-800 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">No.</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Autorización</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Documento</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Nombre</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Factura</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Fecha</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Serie Arma</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Clase<br>Arma</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Calibre<br>Arma</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Calibre<br>Vendido</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium text-white uppercase">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-digecam-municiones" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                    <tr>
+                        <td colspan="11" class="px-6 py-8 text-center text-gray-500">
+                            Seleccione un rango de fechas para generar el reporte
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+    
 </div>
 
 @endsection
