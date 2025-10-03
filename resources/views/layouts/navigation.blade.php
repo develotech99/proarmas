@@ -126,6 +126,7 @@
                     </svg>
                     <span>Comision vendedor</span>
                 </a>
+                
             </div>
         </div>
 

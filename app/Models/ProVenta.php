@@ -1,10 +1,12 @@
 <?php
 
-namespace App\Models;  // Asegúrate de que el namespace sea el correcto
+namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model; // Importa la clase Model
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ProVenta extends Model
+class ProVenta extends Model 
 {
     protected $table = 'pro_ventas';
     protected $primaryKey = 'ven_id';
@@ -26,17 +28,33 @@ class ProVenta extends Model
         'ven_descuento' => 'decimal:2',
     ];
 
+    // *** RELACIÓN CON CLIENTE (ESTA ES LA QUE FALTABA) ***
+    public function cliente(): BelongsTo
+    {
+        return $this->belongsTo(ProCliente::class, 'ven_cliente', 'cliente_id');
+    }
+
     // Relación con el vendedor
-    public function vendedor()
+    public function vendedor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'ven_user', 'user_id');
     }
 
     // Relación con comisiones
-    public function comisiones()
+    public function comisiones(): HasMany
     {
         return $this->hasMany(ProPorcentajeVendedor::class, 'porc_vend_ven_id', 'ven_id');
     }
 
-    
+    // Scope para ventas activas
+    public function scopeActivas($query)
+    {
+        return $query->where('ven_situacion', 1);
+    }
+
+    // Accessor para total con descuento aplicado
+    public function getTotalFinalAttribute()
+    {
+        return $this->ven_total_vendido - $this->ven_descuento;
+    }
 }
