@@ -35,7 +35,7 @@ Route::middleware('auth')->group(function () {
       Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
       Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
-      Route::redirect('/dashboard', '/prolicencias')->name('dashboard');
+      Route::redirect('/prolicencias')->name('dashboard');
       Route::get('/dashboard', function () {
             return view('dashboard');
       })->name('dashboard');
