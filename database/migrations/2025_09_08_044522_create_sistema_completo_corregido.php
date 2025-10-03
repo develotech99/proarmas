@@ -564,7 +564,7 @@ return new class extends Migration {
         Schema::create('pro_alertas_roles', function (Blueprint $table) {
             $table->id('alerta_rol_id');
             $table->unsignedBigInteger('alerta_id');
-            $table->unsignedBigInteger('rol_id');
+            $table->unsignedInteger('rol_id');
             
             $table->foreign('alerta_id')->references('alerta_id')->on('pro_alertas')->onDelete('cascade');
             
