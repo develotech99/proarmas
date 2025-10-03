@@ -17,6 +17,11 @@ class InventarioManager {
         this.licenciaSeleccionada = null;
         this.licenciaSeleccionadaRegistro = null;
         this.lotePreview = '';
+        this.excelData = [];
+        this.excelFilteredData = [];
+        this.excelCurrentPage = 1;
+        this.excelRecordsPerPage = 50;
+        this.excelIsExpanded = false;
         this.currentProductoId = null;
         this.stats = {
             totalProductos: 0,
@@ -199,6 +204,12 @@ class InventarioManager {
                 this.buscarLotesExistentes(e.target.value);
             });
         }
+
+       // Event listener para búsqueda Excel
+            const excelSearchInput = document.getElementById('excel-search');
+            if (excelSearchInput) {
+                excelSearchInput.addEventListener('input', () => this.buscarEnExcel());
+            }
     }
 
     /**
@@ -1163,6 +1174,9 @@ async seleccionarLicenciaRegistro(licenciaId) {
     }
 }
 
+
+
+
 /**
  * Limpiar licencia seleccionada en ingreso
  */
@@ -1987,12 +2001,85 @@ calcularTamañoTotal(fotos) {
     // ================================
 // 4. NUEVO MÉTODO: setupPreciosHandling()
 // ================================
+/**
+ * Configurar manejo de precios en formulario de registro - VERSIÓN ACTUALIZADA
+ */
 setupPreciosHandling() {
-    // Cálculo automático de margen
-    ['precio_costo', 'precio_venta'].forEach(id => {
+    // Función para calcular margenes tanto individual como empresa
+    const calcularMargenRegistro = () => {
+        const costInput = document.getElementById('precio_costo');
+        const ventaInput = document.getElementById('precio_venta');
+        const ventaEmpresaInput = document.getElementById('precio_venta_empresa');
+        const margenElement = document.getElementById('margen_calculado');
+        const gananciaElement = document.getElementById('ganancia_calculada');
+        const margenElementEmpresa = document.getElementById('margen_calculado_empresa');
+        const gananciaElementEmpresa = document.getElementById('ganancia_calculada_empresa');
+
+        if (!costInput || !ventaInput || !ventaEmpresaInput) return;
+
+        const costo = parseFloat(costInput.value) || 0;
+        const venta = parseFloat(ventaInput.value) || 0;
+        const ventaEmpresa = parseFloat(ventaEmpresaInput.value) || 0;
+
+        // CÁLCULO PARA PRECIO INDIVIDUAL
+        if (margenElement && gananciaElement && costo > 0 && venta > 0) {
+            const ganancia = venta - costo;
+            const margen = ((ganancia / costo) * 100);
+            
+            margenElement.textContent = `${margen.toFixed(1)}%`;
+            gananciaElement.textContent = `Q${ganancia.toFixed(2)}`;
+            
+            // Colorear según el margen
+            if (margen < 10) {
+                margenElement.className = 'text-red-600 font-bold';
+            } else if (margen < 25) {
+                margenElement.className = 'text-yellow-600 font-bold';
+            } else {
+                margenElement.className = 'text-green-600 font-bold';
+            }
+        } else if (margenElement && gananciaElement) {
+            margenElement.textContent = '0%';
+            gananciaElement.textContent = 'Q0.00';
+            margenElement.className = 'text-gray-400 font-bold';
+        }
+
+        // CÁLCULO PARA PRECIO EMPRESA
+        if (margenElementEmpresa && gananciaElementEmpresa && costo > 0 && ventaEmpresa > 0) {
+            const gananciaEmpresa = ventaEmpresa - costo;
+            const margenEmpresa = ((gananciaEmpresa / costo) * 100);
+            
+            margenElementEmpresa.textContent = `${margenEmpresa.toFixed(1)}%`;
+            gananciaElementEmpresa.textContent = `Q${gananciaEmpresa.toFixed(2)}`;
+            
+            // Colorear según el margen empresa
+            if (margenEmpresa < 10) {
+                margenElementEmpresa.className = 'text-red-600 font-bold';
+            } else if (margenEmpresa < 25) {
+                margenElementEmpresa.className = 'text-yellow-600 font-bold';
+            } else {
+                margenElementEmpresa.className = 'text-green-600 font-bold';
+            }
+        } else if (margenElementEmpresa && gananciaElementEmpresa) {
+            margenElementEmpresa.textContent = '0%';
+            gananciaElementEmpresa.textContent = 'Q0.00';
+            margenElementEmpresa.className = 'text-gray-400 font-bold';
+        }
+    };
+
+    // Agregar event listeners a todos los campos de precio
+    const camposPrecios = ['precio_costo', 'precio_venta', 'precio_venta_empresa'];
+    
+    camposPrecios.forEach(id => {
         const input = document.getElementById(id);
         if (input) {
-            input.addEventListener('input', () => this.calcularMargen());
+            // Remover listener anterior si existe
+            if (input._calcularMargenRegistroHandler) {
+                input.removeEventListener('input', input._calcularMargenRegistroHandler);
+            }
+            
+            // Crear y almacenar nueva función handler
+            input._calcularMargenRegistroHandler = calcularMargenRegistro;
+            input.addEventListener('input', input._calcularMargenRegistroHandler);
         }
     });
 }
@@ -2224,13 +2311,18 @@ contarSeries(texto) {
 calcularMargen() {
     const costInput = document.getElementById('precio_costo');
     const ventaInput = document.getElementById('precio_venta');
+    const ventaInputEmpresa = document.getElementById('precio_venta_empresa');
     const margenElement = document.getElementById('margen_calculado');
     const gananciaElement = document.getElementById('ganancia_calculada');
+    const margenElementEmpresa = document.getElementById('margen_calculado_empresa');
+    const gananciaElementEmpresa = document.getElementById('ganancia_calculada_empresa');
     
     if (!costInput || !ventaInput || !margenElement || !gananciaElement) return;
     
     const costo = parseFloat(costInput.value) || 0;
     const venta = parseFloat(ventaInput.value) || 0;
+    const ventaEmpresa = parseFloat(ventaInputEmpresa.value) || 0;
+
     
     if (costo > 0 && venta > 0) {
         const ganancia = venta - costo;
@@ -2251,6 +2343,28 @@ calcularMargen() {
         margenElement.textContent = '0%';
         gananciaElement.textContent = 'Q0.00';
         margenElement.className = 'text-gray-400 font-bold';
+    }
+
+
+    if (costo > 0 && ventaEmpresa > 0) {
+        const ganancia = ventaEmpresa - costo;
+        const margen = ((ganancia / costo) * 100);
+        
+        margenElementEmpresa.textContent = `${margen.toFixed(1)}%`;
+        gananciaElementEmpresa.textContent = `Q${ganancia.toFixed(2)}`;
+        
+        // Colorear según el margen
+        if (margen < 10) {
+            margenElementEmpresa.className = 'text-red-600 font-bold';
+        } else if (margen < 25) {
+            margenElementEmpresa.className = 'text-yellow-600 font-bold';
+        } else {
+            margenElementEmpresa.className = 'text-green-600 font-bold';
+        }
+    } else {
+        margenElementEmpresa.textContent = '0%';
+        gananciaElementEmpresa.textContent = 'Q0.00';
+        margenElementEmpresa.className = 'text-gray-400 font-bold';
     }
 }
 
@@ -2277,7 +2391,8 @@ async seleccionarProducto(productoId) {
             // Obtener elementos del DOM
             const cantidadSection = document.getElementById('cantidad_section');
             const seriesSection = document.getElementById('series_section');
-            const loteSection = document.getElementById('lote_section'); // SIEMPRE MOSTRAR SECCIÓN DE LOTES
+            const loteSection = document.getElementById('lote_section');
+            const importadoSection = document.getElementById('contenedor_importacion'); 
             const movCantidadInput = document.getElementById('mov_cantidad');
             const numerosSeriesTextarea = document.getElementById('numeros_series');
             
@@ -2289,7 +2404,7 @@ async seleccionarProducto(productoId) {
                 // Mostrar sección de series, ocultar cantidad
                 if (seriesSection) seriesSection.classList.remove('hidden');
                 if (cantidadSection) cantidadSection.classList.add('hidden');
-                
+             
                 // Configurar atributos required
                 if (movCantidadInput) {
                     movCantidadInput.removeAttribute('required');
@@ -2306,7 +2421,7 @@ async seleccionarProducto(productoId) {
                 // Mostrar sección de cantidad, ocultar series
                 if (cantidadSection) cantidadSection.classList.remove('hidden');
                 if (seriesSection) seriesSection.classList.add('hidden');
-                
+  
                 // Configurar atributos required
                 if (movCantidadInput) {
                     movCantidadInput.setAttribute('required', 'required');
@@ -2315,6 +2430,18 @@ async seleccionarProducto(productoId) {
                 if (numerosSeriesTextarea) {
                     numerosSeriesTextarea.removeAttribute('required');
                     numerosSeriesTextarea.value = '';
+                }
+            }
+            
+            // GESTIÓN DE SECCIÓN DE IMPORTACIÓN
+            // Solo mostrar si el producto ES importado
+            if (importadoSection) {
+                if (this.productoSeleccionado.producto_es_importado) {
+                    importadoSection.classList.remove('hidden');
+                    console.log('Producto importado - mostrando sección de importación');
+                } else {
+                    importadoSection.classList.add('hidden');
+                    console.log('Producto NO importado - ocultando sección de importación');
                 }
             }
             
@@ -2786,7 +2913,6 @@ renderProductoCard(producto) {
      * Abrir modal de ingreso a inventario
      */
     openIngresoModal() {
-        this.resetIngresoForm();
         this.showModal('ingreso');
     }
 
@@ -3153,61 +3279,74 @@ async verificarRequiereLicencia(productoId) {
     /**
      * Validar formulario de registro
      */
-    validateRegistroForm() {
-        const nombre = document.getElementById('producto_nombre').value.trim();
-        const categoria = document.getElementById('producto_categoria').value;
-        const subcategoria = document.getElementById('producto_subcategoria').value;
-        const marca = document.getElementById('producto_marca').value;
-        
-        this.clearErrors('registro');
-        
-        let isValid = true;
-        
-        if (!nombre) {
-            this.showFieldError('producto_nombre', 'El nombre del producto es obligatorio');
-            isValid = false;
-        }
-        
-        if (!categoria) {
-            this.showFieldError('producto_categoria_id', 'La categoría es obligatoria');
-            isValid = false;
-        }
-        
-        if (!subcategoria) {
-            this.showFieldError('producto_subcategoria_id', 'La subcategoría es obligatoria');
-            isValid = false;
-        }
-        
-        if (!marca) {
-            this.showFieldError('producto_marca_id', 'La marca es obligatoria');
-            isValid = false;
-        }
+    /**
+ * Validar formulario de registro - VERSIÓN ACTUALIZADA para dos precios
+ */
+validateRegistroForm() {
+    const nombre = document.getElementById('producto_nombre').value.trim();
+    const categoria = document.getElementById('producto_categoria').value;
+    const subcategoria = document.getElementById('producto_subcategoria').value;
+    const marca = document.getElementById('producto_marca').value;
     
-        // MANTENER: Validaciones de precios en registro
-        const agregaPrecios = document.getElementById('agregar_precios')?.checked;
-        if (agregaPrecios) {
-            const precioCosto = document.getElementById('precio_costo').value;
-            const precioVenta = document.getElementById('precio_venta').value;
-            
-            if (!precioCosto || parseFloat(precioCosto) <= 0) {
-                this.showFieldError('precio_costo', 'El precio de costo es obligatorio');
-                isValid = false;
-            }
-            
-            if (!precioVenta || parseFloat(precioVenta) <= 0) {
-                this.showFieldError('precio_venta', 'El precio de venta es obligatorio');
-                isValid = false;
-            }
+    this.clearErrors('registro');
     
-            if (parseFloat(precioVenta) <= parseFloat(precioCosto)) {
-                this.showFieldError('precio_venta', 'El precio de venta debe ser mayor al costo');
-                isValid = false;
-            }
-        }
-        
-        return isValid;
+    let isValid = true;
+    
+    // Validaciones básicas del producto
+    if (!nombre) {
+        this.showFieldError('producto_nombre', 'El nombre del producto es obligatorio');
+        isValid = false;
     }
     
+    if (!categoria) {
+        this.showFieldError('producto_categoria_id', 'La categoría es obligatoria');
+        isValid = false;
+    }
+    
+    if (!subcategoria) {
+        this.showFieldError('producto_subcategoria_id', 'La subcategoría es obligatoria');
+        isValid = false;
+    }
+    
+    if (!marca) {
+        this.showFieldError('producto_marca_id', 'La marca es obligatoria');
+        isValid = false;
+    }
+
+    // VALIDACIONES DE PRECIOS ACTUALIZADAS
+    const agregaPrecios = document.getElementById('agregar_precios')?.checked;
+    if (agregaPrecios) {
+        const precioCosto = parseFloat(document.getElementById('precio_costo').value) || 0;
+        const precioVenta = parseFloat(document.getElementById('precio_venta').value) || 0;
+        const precioVentaEmpresa = parseFloat(document.getElementById('precio_venta_empresa').value) || 0;
+        
+        // Validación precio de costo
+        if (precioCosto <= 0) {
+            this.showFieldError('precio_costo', 'El precio de costo debe ser mayor a 0');
+            isValid = false;
+        }
+        
+        // Validación precio de venta individual
+        if (precioVenta <= 0) {
+            this.showFieldError('precio_venta', 'El precio de venta individual debe ser mayor a 0');
+            isValid = false;
+        } else if (precioVenta <= precioCosto) {
+            this.showFieldError('precio_venta', 'El precio de venta individual debe ser mayor al costo');
+            isValid = false;
+        }
+        
+        // Validación precio de venta empresa
+        if (precioVentaEmpresa <= 0) {
+            this.showFieldError('precio_venta_empresa', 'El precio de venta empresa debe ser mayor a 0');
+            isValid = false;
+        } else if (precioVentaEmpresa <= precioCosto) {
+            this.showFieldError('precio_venta_empresa', 'El precio de venta empresa debe ser mayor al costo');
+            isValid = false;
+        }
+    }
+    
+    return isValid;
+}
 
     /**
      * Validar formulario de ingreso
@@ -3376,14 +3515,62 @@ async verificarRequiereLicencia(productoId) {
     /**
      * Resetear formulario de registro
      */
-    resetRegistroForm() {
-        document.getElementById('registro-form').reset();
-        this.clearErrors('registro');
-        
-        // Resetear selects a su estado inicial
-        document.getElementById('producto_subcategoria').innerHTML = '<option value="">Seleccionar subcategoría</option>';
-        document.getElementById('producto_modelo').innerHTML = '<option value="">Seleccionar modelo</option>';
+/**
+ * Resetear formulario de registro - VERSIÓN ACTUALIZADA
+ */
+resetRegistroForm() {
+    document.getElementById('registro-form').reset();
+    this.clearErrors('registro');
+    
+    // Resetear selects a su estado inicial
+    document.getElementById('producto_subcategoria').innerHTML = '<option value="">Seleccionar subcategoría</option>';
+    document.getElementById('producto_modelo').innerHTML = '<option value="">Seleccionar modelo</option>';
+    
+    // Limpiar secciones opcionales
+    const seccionFotos = document.getElementById('seccion_fotos');
+    const seccionPrecios = document.getElementById('seccion_precios');
+    
+    if (seccionFotos) {
+        seccionFotos.classList.add('hidden');
     }
+    
+    if (seccionPrecios) {
+        seccionPrecios.classList.add('hidden');
+    }
+    
+    // Resetear checkboxes
+    const checkboxFotos = document.getElementById('agregar_fotos');
+    const checkboxPrecios = document.getElementById('agregar_precios');
+    
+    if (checkboxFotos) {
+        checkboxFotos.checked = false;
+    }
+    
+    if (checkboxPrecios) {
+        checkboxPrecios.checked = false;
+    }
+    
+    // Limpiar preview de fotos
+    this.limpiarPreviewFotos();
+    
+    // Limpiar displays de precios de manera segura
+    const preciosDisplays = [
+        { id: 'margen_calculado', defaultText: '0%', className: 'text-gray-400 font-bold' },
+        { id: 'ganancia_calculada', defaultText: 'Q0.00' },
+        { id: 'margen_calculado_empresa', defaultText: '0%', className: 'text-gray-400 font-bold' },
+        { id: 'ganancia_calculada_empresa', defaultText: 'Q0.00' }
+    ];
+    
+    preciosDisplays.forEach(({ id, defaultText, className }) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = defaultText;
+            if (className) {
+                element.className = className;
+            }
+        }
+    });
+}
 
     /**
      * Resetear formulario de ingreso
@@ -3404,11 +3591,13 @@ async verificarRequiereLicencia(productoId) {
         const cantidadSection = document.getElementById('cantidad_section');
         const seriesSection = document.getElementById('series_section');
         const loteSection = document.getElementById('lote_section');
+        const importadoSection = document.getElementById('contenedor_importacion');
         
-        // Estado inicial: mostrar cantidad, ocultar series y lotes
+        // Estado inicial: mostrar cantidad, ocultar series, lotes e importación
         if (cantidadSection) cantidadSection.classList.remove('hidden');
         if (seriesSection) seriesSection.classList.add('hidden');
         if (loteSection) loteSection.classList.remove('hidden');
+        if (importadoSection) importadoSection.classList.add('hidden'); // 👈 OCULTAR POR DEFECTO
         
         // Estado inicial de required attributes
         if (movCantidadInput) {
@@ -3419,7 +3608,7 @@ async verificarRequiereLicencia(productoId) {
             numerosSeriesTextarea.removeAttribute('required');
             numerosSeriesTextarea.value = '';
         }
-    
+        
         // Resetear todas las secciones opcionales
         const seccionLicenciaRegistro = document.getElementById('seccion_licencia_registro');
         const seccionPrecios = document.getElementById('seccion_precios');
@@ -3428,7 +3617,7 @@ async verificarRequiereLicencia(productoId) {
         if (seccionLicenciaRegistro) seccionLicenciaRegistro.classList.add('hidden');
         if (seccionPrecios) seccionPrecios.classList.add('hidden');
         if (opcionesLote) opcionesLote.classList.add('hidden');
-    
+        
         // Resetear checkboxes
         const checkboxImportado = document.getElementById('producto_es_importado');
         const checkboxPrecios = document.getElementById('agregar_precios');
@@ -3437,14 +3626,14 @@ async verificarRequiereLicencia(productoId) {
         if (checkboxImportado) checkboxImportado.checked = false;
         if (checkboxPrecios) checkboxPrecios.checked = false;
         if (checkboxUsarLotes) checkboxUsarLotes.checked = false;
-    
+        
         // Limpiar configuración de lotes
         this.limpiarConfiguracionLotes();
-    
+        
         // Resetear licencias seleccionadas
         this.limpiarLicenciaSeleccionada();
         this.limpiarLicenciaSeleccionadaRegistro();
-    
+        
         // Resetear estado interno
         this.productoSeleccionado = null;
         this.licenciaSeleccionada = null;
@@ -3453,7 +3642,6 @@ async verificarRequiereLicencia(productoId) {
         
         console.log('Formulario de ingreso reseteado correctamente');
     }
-
 
     
 // ================================
@@ -4153,6 +4341,9 @@ async gestionarPrecios(productoId) {
 /**
  * Preparar modal de gestión de precios
  */
+/**
+ * Preparar modal de gestión de precios - VERSIÓN CORREGIDA
+ */
 prepararGestionPrecios(producto) {
     // Actualizar título
     document.getElementById('precios_producto_nombre').textContent = 
@@ -4162,17 +4353,25 @@ prepararGestionPrecios(producto) {
     document.getElementById('precio-form').reset();
     this.clearErrors('precios');
 
-    const margenElement = document.getElementById('nuevo_margen_calculado');
-    const gananciaElement = document.getElementById('nueva_ganancia_calculada');
+    // Limpiar los displays de margen y ganancia de forma segura
+    const elementos = [
+        'nuevo_margen_calculado',
+        'nueva_ganancia_calculada',
+        'nuevo_margen_calculado_empresa',
+        'nueva_ganancia_calculada_empresa'
+    ];
     
-    if (margenElement) {
-        margenElement.textContent = '0%';
-        margenElement.className = 'font-medium text-gray-600';
-    }
-    
-    if (gananciaElement) {
-        gananciaElement.textContent = 'Q0.00';
-    }
+    elementos.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (id.includes('margen')) {
+                element.textContent = '0%';
+                element.className = 'font-medium text-gray-600';
+            } else {
+                element.textContent = 'Q0.00';
+            }
+        }
+    });
     
     // Configurar cálculo automático de margen
     this.setupCalculoMargenPrecios();
@@ -4184,18 +4383,26 @@ prepararGestionPrecios(producto) {
 /**
  * Configurar cálculo automático de margen en precios
  */
+/**
+ * Configurar cálculo automático de margen en precios - VERSIÓN CORREGIDA
+ */
 setupCalculoMargenPrecios() {
     const costInput = document.getElementById('nuevo_precio_costo');
     const ventaInput = document.getElementById('nuevo_precio_venta');
+    const ventaInputEmpresa = document.getElementById('nuevo_precio_venta_empresa');
     
     const calcularMargen = () => {
-        const costo = parseFloat(costInput.value) || 0;
-        const venta = parseFloat(ventaInput.value) || 0;
+        const costo = parseFloat(costInput?.value) || 0;
+        const venta = parseFloat(ventaInput?.value) || 0;
+        const ventaEmpresa = parseFloat(ventaInputEmpresa?.value) || 0;
         
         const margenElement = document.getElementById('nuevo_margen_calculado');
         const gananciaElement = document.getElementById('nueva_ganancia_calculada');
+        const margenElementEmpresa = document.getElementById('nuevo_margen_calculado_empresa');
+        const gananciaElementEmpresa = document.getElementById('nueva_ganancia_calculada_empresa');
         
-        if (costo > 0 && venta > 0) {
+        // CÁLCULO PARA PRECIO INDIVIDUAL
+        if (margenElement && gananciaElement && costo > 0 && venta > 0) {
             const ganancia = venta - costo;
             const margen = ((ganancia / costo) * 100);
             
@@ -4210,18 +4417,63 @@ setupCalculoMargenPrecios() {
             } else {
                 margenElement.className = 'font-medium text-green-600';
             }
-        } else {
+        } else if (margenElement && gananciaElement) {
             margenElement.textContent = '0%';
             gananciaElement.textContent = 'Q0.00';
             margenElement.className = 'font-medium text-gray-600';
         }
+        
+        // CÁLCULO PARA PRECIO EMPRESA
+        if (margenElementEmpresa && gananciaElementEmpresa && costo > 0 && ventaEmpresa > 0) {
+            const gananciaEmpresa = ventaEmpresa - costo;
+            const margenEmpresa = ((gananciaEmpresa / costo) * 100);
+            
+            margenElementEmpresa.textContent = `${margenEmpresa.toFixed(1)}%`;
+            gananciaElementEmpresa.textContent = `Q${gananciaEmpresa.toFixed(2)}`;
+            
+            // Colorear según el margen empresa
+            if (margenEmpresa < 10) {
+                margenElementEmpresa.className = 'font-medium text-red-600';
+            } else if (margenEmpresa < 25) {
+                margenElementEmpresa.className = 'font-medium text-yellow-600';
+            } else {
+                margenElementEmpresa.className = 'font-medium text-green-600';
+            }
+        } else if (margenElementEmpresa && gananciaElementEmpresa) {
+            margenElementEmpresa.textContent = '0%';
+            gananciaElementEmpresa.textContent = 'Q0.00';
+            margenElementEmpresa.className = 'font-medium text-gray-600';
+        }
     };
     
-    // Remover listeners anteriores y agregar nuevos
-    costInput.removeEventListener('input', calcularMargen);
-    ventaInput.removeEventListener('input', calcularMargen);
-    costInput.addEventListener('input', calcularMargen);
-    ventaInput.addEventListener('input', calcularMargen);
+    // Remover listeners anteriores SOLO si los elementos existen
+    if (costInput) {
+        // Crear función bound para poder removerla después
+        if (!costInput._calcularMargenHandler) {
+            costInput._calcularMargenHandler = calcularMargen;
+        } else {
+            costInput.removeEventListener('input', costInput._calcularMargenHandler);
+        }
+        costInput.addEventListener('input', costInput._calcularMargenHandler);
+    }
+    
+    if (ventaInput) {
+        if (!ventaInput._calcularMargenHandler) {
+            ventaInput._calcularMargenHandler = calcularMargen;
+        } else {
+            ventaInput.removeEventListener('input', ventaInput._calcularMargenHandler);
+        }
+        ventaInput.addEventListener('input', ventaInput._calcularMargenHandler);
+    }
+    
+    if (ventaInputEmpresa) {
+        if (!ventaInputEmpresa._calcularMargenHandler) {
+            ventaInputEmpresa._calcularMargenHandler = calcularMargen;
+        } else {
+            ventaInputEmpresa.removeEventListener('input', ventaInputEmpresa._calcularMargenHandler);
+        }
+        ventaInputEmpresa.addEventListener('input', ventaInputEmpresa._calcularMargenHandler);
+    }
 }
 
 /**
@@ -4243,6 +4495,9 @@ setupPreciosFormSubmit() {
 /**
  * Manejar envío del formulario de precios
  */
+/**
+ * Manejar envío del formulario de precios - VERSIÓN CORREGIDA
+ */
 async handlePreciosSubmit() {
     if (!this.validatePreciosForm()) {
         return;
@@ -4251,6 +4506,7 @@ async handlePreciosSubmit() {
     const formData = new URLSearchParams();
     formData.append('precio_costo', document.getElementById('nuevo_precio_costo').value);
     formData.append('precio_venta', document.getElementById('nuevo_precio_venta').value);
+    formData.append('precio_venta_empresa', document.getElementById('nuevo_precio_venta_empresa').value);
     formData.append('precio_especial', document.getElementById('nuevo_precio_especial').value || '');
     formData.append('precio_justificacion', document.getElementById('nuevo_precio_justificacion').value);
     formData.append('precio_moneda', document.getElementById('nuevo_precio_moneda').value);
@@ -4276,10 +4532,26 @@ async handlePreciosSubmit() {
             // Recargar historial de precios
             this.loadHistorialPrecios(this.currentProductoId);
             
-            // Limpiar formulario
+            // Limpiar formulario y displays
             document.getElementById('precio-form').reset();
-            document.getElementById('nuevo_margen_calculado').textContent = '0%';
-            document.getElementById('nueva_ganancia_calculada').textContent = 'Q0.00';
+            
+            // Limpiar displays de manera segura
+            const displayElements = [
+                { id: 'nuevo_margen_calculado', defaultText: '0%' },
+                { id: 'nueva_ganancia_calculada', defaultText: 'Q0.00' },
+                { id: 'nuevo_margen_calculado_empresa', defaultText: '0%' },
+                { id: 'nueva_ganancia_calculada_empresa', defaultText: 'Q0.00' }
+            ];
+            
+            displayElements.forEach(({ id, defaultText }) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = defaultText;
+                    if (id.includes('margen')) {
+                        element.className = 'font-medium text-gray-600';
+                    }
+                }
+            });
             
         } else {
             if (data.errors) {
@@ -4295,34 +4567,47 @@ async handlePreciosSubmit() {
         this.setLoading('precios', false);
     }
 }
-
 /**
  * Validar formulario de precios
+ */
+/**
+ * Validar formulario de precios - VERSIÓN CORREGIDA
  */
 validatePreciosForm() {
     const costo = parseFloat(document.getElementById('nuevo_precio_costo').value) || 0;
     const venta = parseFloat(document.getElementById('nuevo_precio_venta').value) || 0;
+    const ventaEmpresa = parseFloat(document.getElementById('nuevo_precio_venta_empresa').value) || 0;
     const justificacion = document.getElementById('nuevo_precio_justificacion').value.trim();
     
     this.clearErrors('precios');
     
     let isValid = true;
     
+    // Validación precio de costo
     if (costo <= 0) {
         this.showFieldError('nuevo_precio_costo', 'El precio de costo debe ser mayor a 0');
         isValid = false;
     }
     
+    // Validación precio de venta individual
     if (venta <= 0) {
         this.showFieldError('nuevo_precio_venta', 'El precio de venta debe ser mayor a 0');
         isValid = false;
-    }
-    
-    if (venta <= costo) {
+    } else if (venta <= costo) {
         this.showFieldError('nuevo_precio_venta', 'El precio de venta debe ser mayor al costo');
         isValid = false;
     }
     
+    // Validación precio de venta empresa
+    if (ventaEmpresa <= 0) {
+        this.showFieldError('nuevo_precio_venta_empresa', 'El precio de venta empresa debe ser mayor a 0');
+        isValid = false;
+    } else if (ventaEmpresa <= costo) {
+        this.showFieldError('nuevo_precio_venta_empresa', 'El precio de venta empresa debe ser mayor al costo');
+        isValid = false;
+    }
+    
+    // Validación justificación
     if (!justificacion) {
         this.showFieldError('nuevo_precio_justificacion', 'Debe indicar el motivo del cambio de precio');
         isValid = false;
@@ -4719,6 +5004,253 @@ initHistorialDataTable() {
 
 
 ///aquí terminarán los vergazos de las acciones 
+
+
+
+
+/// aqui otro purrum que pidio el cliente 
+
+
+// ================================
+// VISTA EXCEL - NUEVAS FUNCIONES
+// ================================
+
+/**
+ * Alternar vista Excel
+ */
+toggleExcelView() {
+    const content = document.getElementById('excel-content');
+    const chevron = document.getElementById('excel-chevron');
+    
+    this.excelIsExpanded = !this.excelIsExpanded;
+    
+    if (this.excelIsExpanded) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+        
+        // Cargar datos si no están cargados
+        if (this.excelData.length === 0) {
+            this.cargarDatosExcel();
+        }
+    } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+    }
+}
+
+/**
+ * Cargar datos para vista Excel
+ */
+async cargarDatosExcel() {
+    try {
+        this.showToast('Cargando vista detallada...', 'info');
+        
+        const response = await fetch('/inventario/productos-excel');
+        const data = await response.json();
+        
+        if (data.success) {
+            this.excelData = data.data;
+            this.excelFilteredData = [...this.excelData];
+            this.actualizarContadorExcel();
+            this.mostrarDatosExcel();
+            this.showToast('Vista detallada cargada', 'success');
+        } else {
+            this.showAlert('error', 'Error', 'Error al cargar datos: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Mostrar datos en la tabla Excel
+ *//**
+ * Mostrar datos en la tabla Excel - VERSIÓN ACTUALIZADA
+ */
+mostrarDatosExcel() {
+    const tbody = document.getElementById('excel-tbody');
+    
+    // Calcular registros para la página actual
+    const startIndex = (this.excelCurrentPage - 1) * this.excelRecordsPerPage;
+    const endIndex = startIndex + this.excelRecordsPerPage;
+    const pageData = this.excelFilteredData.slice(startIndex, endIndex);
+    
+    // Generar HTML de las filas
+    let html = '';
+    pageData.forEach((item, index) => {
+        const globalIndex = startIndex + index + 1;
+        const simboloMoneda = item.precio_moneda === 'USD' ? '$' : 'Q';
+        
+        html += `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+                <td class="px-3 py-3 text-sm text-gray-900 dark:text-gray-100">${globalIndex}</td>
+                <td class="px-3 py-3 text-sm text-gray-900 dark:text-gray-100 font-mono">${item.codigo || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-900 dark:text-gray-100 font-medium">${item.producto_nombre}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.categoria_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.subcategoria_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.marca_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.modelo_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.calibre_nombre || '-'}</td>
+                <td class="px-3 py-3 text-sm font-mono ${item.numero_serie ? 'text-blue-600' : 'text-gray-400'} dark:${item.numero_serie ? 'text-blue-400' : 'text-gray-500'}">
+                    ${item.numero_serie || 'Sin serie'}
+                </td>
+                <td class="px-3 py-3 text-sm">
+                    <span class="px-2 py-1 text-xs rounded-full ${this.getEstadoBadgeClass(item.estado)}">
+                        ${item.estado || 'disponible'}
+                    </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.licencia_codigo || '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${item.lote_codigo || '-'}</td>
+                <td class="px-3 py-3 text-sm text-center font-medium dark:text-gray-100">${item.stock || 0}</td>
+                <td class="px-3 py-3 text-sm text-gray-900 dark:text-gray-100">${simboloMoneda}${parseFloat(item.precio_costo || 0).toFixed(2)}</td>
+                <td class="px-3 py-3 text-sm text-green-600 dark:text-green-400">${simboloMoneda}${parseFloat(item.precio_venta || 0).toFixed(2)}</td>
+                <td class="px-3 py-3 text-sm text-blue-600 dark:text-blue-400">${simboloMoneda}${parseFloat(item.precio_venta_empresa || 0).toFixed(2)}</td>
+                <td class="px-3 py-3 text-sm text-purple-600 dark:text-purple-400">${item.precio_especial ? simboloMoneda + parseFloat(item.precio_especial).toFixed(2) : '-'}</td>
+                <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">${this.formatearFecha(item.fecha_ingreso)}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    this.actualizarPaginacionExcel();
+}
+
+/**
+ * Buscar en vista Excel
+ */
+buscarEnExcel() {
+    const searchTerm = document.getElementById('excel-search').value.toLowerCase();
+    
+    if (searchTerm.trim() === '') {
+        this.excelFilteredData = [...this.excelData];
+    } else {
+        this.excelFilteredData = this.excelData.filter(item => 
+            (item.producto_nombre?.toLowerCase().includes(searchTerm)) ||
+            (item.codigo?.toLowerCase().includes(searchTerm)) ||
+            (item.marca_nombre?.toLowerCase().includes(searchTerm)) ||
+            (item.modelo_nombre?.toLowerCase().includes(searchTerm)) ||
+            (item.numero_serie?.toLowerCase().includes(searchTerm)) ||
+            (item.categoria_nombre?.toLowerCase().includes(searchTerm)) ||
+            (item.calibre_nombre?.toLowerCase().includes(searchTerm))
+        );
+    }
+    
+    this.excelCurrentPage = 1;
+    this.mostrarDatosExcel();
+    this.actualizarContadorExcel();
+}
+
+/**
+ * Limpiar búsqueda Excel
+ */
+limpiarBusquedaExcel() {
+    document.getElementById('excel-search').value = '';
+    this.buscarEnExcel();
+}
+
+/**
+ * Cambiar página Excel
+ */
+cambiarPaginaExcel(direction) {
+    const totalPages = Math.ceil(this.excelFilteredData.length / this.excelRecordsPerPage);
+    
+    if (direction === 'prev' && this.excelCurrentPage > 1) {
+        this.excelCurrentPage--;
+    } else if (direction === 'next' && this.excelCurrentPage < totalPages) {
+        this.excelCurrentPage++;
+    } else if (typeof direction === 'number') {
+        this.excelCurrentPage = direction;
+    }
+    
+    this.mostrarDatosExcel();
+}
+
+/**
+ * Actualizar contador Excel
+ */
+actualizarContadorExcel() {
+    const countElement = document.getElementById('excel-count');
+    if (countElement) {
+        countElement.textContent = `${this.excelFilteredData.length} registros`;
+    }
+}
+
+/**
+ * Actualizar paginación Excel
+ */
+actualizarPaginacionExcel() {
+    const total = this.excelFilteredData.length;
+    const totalPages = Math.ceil(total / this.excelRecordsPerPage);
+    const start = Math.min((this.excelCurrentPage - 1) * this.excelRecordsPerPage + 1, total);
+    const end = Math.min(this.excelCurrentPage * this.excelRecordsPerPage, total);
+    
+    // Actualizar información de registros mostrados
+    const startElement = document.getElementById('excel-showing-start');
+    const endElement = document.getElementById('excel-showing-end');
+    const totalElement = document.getElementById('excel-total-records');
+    
+    if (startElement) startElement.textContent = start;
+    if (endElement) endElement.textContent = end;
+    if (totalElement) totalElement.textContent = total;
+    
+    // Actualizar botones de navegación
+    const prevButton = document.getElementById('excel-btn-prev');
+    const nextButton = document.getElementById('excel-btn-next');
+    
+    if (prevButton) prevButton.disabled = this.excelCurrentPage === 1;
+    if (nextButton) nextButton.disabled = this.excelCurrentPage === totalPages;
+    
+    // Generar números de página
+    const pageNumbers = document.getElementById('excel-page-numbers');
+    if (pageNumbers) {
+        let html = '';
+        
+        const startPage = Math.max(1, this.excelCurrentPage - 2);
+        const endPage = Math.min(totalPages, this.excelCurrentPage + 2);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const isActive = i === this.excelCurrentPage;
+            html += `
+                <button onclick="inventarioManager.cambiarPaginaExcel(${i})" 
+                        class="px-3 py-1 text-sm border rounded-md ${isActive ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-100'}">
+                    ${i}
+                </button>
+            `;
+        }
+        
+        pageNumbers.innerHTML = html;
+    }
+}
+
+/**
+ * Obtener clase CSS para badge de estado
+ */
+getEstadoBadgeClass(estado) {
+    switch(estado) {
+        case 'disponible':
+            return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        case 'reservado':
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+        case 'vendido':
+            return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        case 'baja':
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+        default:
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+}
+
+/**
+ * Formatear fecha
+ */
+formatearFecha(fecha) {
+    if (!fecha) return '-';
+    return new Date(fecha).toLocaleDateString('es-GT');
+}
+
+
+//termina purrum que pidio el cliente ver en texto plano 
 
     /**
      * Establecer estado de carga

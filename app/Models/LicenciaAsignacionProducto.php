@@ -23,6 +23,8 @@ class LicenciaAsignacionProducto extends Model
         'asignacion_producto_id',
         'asignacion_licencia_id',
         'asignacion_cantidad',
+        'asignacion_serie_id',        // AGREGAR ESTE
+        'asignacion_observaciones',
         'asignacion_situacion'
     ];
 
@@ -61,6 +63,14 @@ class LicenciaAsignacionProducto extends Model
     }
 
     /**
+ * Relación con la serie específica asignada
+ */
+public function serie(): BelongsTo
+{
+    return $this->belongsTo(SerieProducto::class, 'asignacion_serie_id', 'serie_id');
+}
+
+    /**
      * Series disponibles de esta asignación
      */
     public function seriesDisponibles(): HasMany
@@ -88,6 +98,27 @@ class LicenciaAsignacionProducto extends Model
         return $query->where('asignacion_situacion', 1);
     }
 
+
+    /**
+ * Asignar series específicas a una licencia - VERSIÓN SIMPLIFICADA
+ */
+public static function asignarSeries($productoId, $licenciaId, $seriesIds, $observaciones = null)
+{
+    $asignaciones = [];
+    
+    foreach ($seriesIds as $serieId) {
+        $asignaciones[] = static::create([
+            'asignacion_producto_id' => $productoId,
+            'asignacion_licencia_id' => $licenciaId,
+            'asignacion_cantidad' => 1, // Cada serie es 1 unidad
+            'asignacion_serie_id' => $serieId,        // NUEVO CAMPO
+            'asignacion_observaciones' => $observaciones,  // NUEVO CAMPO
+            'asignacion_situacion' => 1
+        ]);
+    }
+    
+    return $asignaciones;
+}
     /**
      * Scope por producto específico
      */

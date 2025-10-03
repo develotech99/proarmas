@@ -224,16 +224,121 @@
                             <i class="fas fa-history mr-2"></i>
                             Ver Historial
                         </button>
-                        <button onclick="inventarioManager.generarReporte()"
+                        <!-- <button onclick="inventarioManager.generarReporte()"
                             class="w-full inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                             <i class="fas fa-chart-bar mr-2"></i>
                             Generar Reporte
-                        </button>
+                        </button> -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+
+<!-- ==================================================== -->
+<!-- div tipo excel que pidio cliente -->
+<!-- ==================================================== -->
+
+<!-- Vista Excel Expandible -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+    <!-- Header del div expandible -->
+    <div class="px-6 py-4 border-b border-gray-200 cursor-pointer" 
+         onclick="inventarioManager.toggleExcelView()" 
+         id="excel-header">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-table text-green-600"></i>
+                <h3 class="text-lg font-semibold text-gray-800">Vista Detallada (Modo Excel)</h3>
+                <span class="text-sm text-gray-500">- Ver todos los productos con series individuales</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-sm text-gray-500" id="excel-count">0 registros</span>
+                <i class="fas fa-chevron-down transition-transform duration-200" id="excel-chevron"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido expandible -->
+    <div id="excel-content" class="hidden">
+        <!-- Buscador interno -->
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <div class="flex items-center space-x-4">
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" 
+                           id="excel-search" 
+                           placeholder="Buscar en vista detallada..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <button onclick="inventarioManager.limpiarBusquedaExcel()" 
+                        class="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50">
+                    <i class="fas fa-times"></i> Limpiar
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabla Excel -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <!-- Actualizar el thead de la tabla -->
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategoría</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marca</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calibre</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serie</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Licencia</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lote</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Costo</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Individual</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Empresa</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Especial</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Ingreso</th>
+                    </tr>
+                </thead>
+                <tbody id="excel-tbody" class="bg-white divide-y divide-gray-200">
+                    <!-- Los datos se llenan con JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        <div class="px-6 py-3 bg-gray-50 border-t border-gray-200">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                    Mostrando <span id="excel-showing-start">0</span> a <span id="excel-showing-end">0</span> 
+                    de <span id="excel-total-records">0</span> registros
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="inventarioManager.cambiarPaginaExcel('prev')" 
+                            id="excel-btn-prev"
+                            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <div id="excel-page-numbers" class="flex space-x-1">
+                        <!-- Los números de página se generan con JavaScript -->
+                    </div>
+                    <button onclick="inventarioManager.cambiarPaginaExcel('next')" 
+                            id="excel-btn-next"
+                            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    
 
     <!-- Modal Registrar Producto -->
     <div id="registro-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
@@ -426,6 +531,7 @@
                                 </div>
 
                                 <!-- Sección de precios (oculta por defecto) -->
+                            
                                 <div id="seccion_precios" class="hidden">
                                     <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-3">
                                         <p class="text-sm text-blue-700 dark:text-blue-300">
@@ -435,55 +541,59 @@
                                     </div>
 
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <!-- Precio de Costo -->
                                         <div>
-                                            <label
-                                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
-                                                de costo *</label>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio de costo *</label>
                                             <input type="number" id="precio_costo" name="precio_costo" step="0.01"
                                                 min="0" placeholder="0.00"
                                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                             <div id="precio_costo_error" class="mt-1 text-sm text-red-600 hidden"></div>
-                                            <small class="text-xs text-gray-500 dark:text-gray-400">Costo real de
-                                                compra/importación</small>
+                                            <small class="text-xs text-gray-500 dark:text-gray-400">Costo real de compra/importación</small>
                                         </div>
 
+                                        <!-- Precio de Venta Individual -->
                                         <div>
-                                            <label
-                                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
-                                                de venta *</label>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio venta (Individual) *</label>
                                             <input type="number" id="precio_venta" name="precio_venta" step="0.01"
                                                 min="0" placeholder="0.00"
                                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                             <div id="precio_venta_error" class="mt-1 text-sm text-red-600 hidden"></div>
-                                            <small class="text-xs text-gray-500 dark:text-gray-400">Precio de venta al
-                                                público</small>
+                                            <small class="text-xs text-gray-500 dark:text-gray-400">Precio de venta al público</small>
                                         </div>
 
+                                        <!-- Precio de Venta Empresa -->
                                         <div>
-                                            <label
-                                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
-                                                especial</label>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio venta (Empresa) *</label>
+                                            <input type="number" id="precio_venta_empresa" name="precio_venta_empresa" step="0.01"
+                                                min="0" placeholder="0.00"
+                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                            <div id="precio_venta_empresa_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                                            <small class="text-xs text-gray-500 dark:text-gray-400">Precio de venta a empresas</small>
+                                        </div>
+
+                                        <!-- Precio Especial -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio especial</label>
                                             <input type="number" id="precio_especial" name="precio_especial" step="0.01"
                                                 min="0" placeholder="0.00"
                                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                            <small class="text-xs text-gray-500 dark:text-gray-400">Precio promocional
-                                                (opcional)</small>
+                                            <small class="text-xs text-gray-500 dark:text-gray-400">Precio promocional (opcional)</small>
                                         </div>
                                     </div>
 
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                        <!-- Moneda -->
                                         <div>
-                                            <label
-                                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Moneda</label>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Moneda</label>
                                             <select id="precio_moneda" name="precio_moneda"
                                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                                 <option value="GTQ">Quetzales (GTQ)</option>
                                             </select>
                                         </div>
 
+                                        <!-- Justificación -->
                                         <div>
-                                            <label
-                                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Justificación</label>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Justificación</label>
                                             <input type="text" id="precio_justificacion" name="precio_justificacion"
                                                 placeholder="Ej: Precio inicial, Precio de lanzamiento"
                                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
@@ -492,11 +602,36 @@
 
                                     <!-- Cálculo automático de margen -->
                                     <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                        <div class="text-sm text-gray-600 dark:text-gray-400">
-                                            <span class="font-medium">Margen calculado:</span>
-                                            <span id="margen_calculado" class="text-green-600 font-bold">0%</span>
-                                            <span class="ml-4 font-medium">Ganancia por unidad:</span>
-                                            <span id="ganancia_calculada" class="text-blue-600 font-bold">Q0.00</span>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <!-- Cálculos Individual -->
+                                            <div class="border-r border-gray-200 dark:border-gray-600 pr-4">
+                                                <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Precio Individual</h5>
+                                                <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                                    <div class="flex justify-between">
+                                                        <span>Margen:</span>
+                                                        <span id="margen_calculado" class="text-green-600 font-bold">0%</span>
+                                                    </div>
+                                                    <div class="flex justify-between">
+                                                        <span>Ganancia:</span>
+                                                        <span id="ganancia_calculada" class="text-blue-600 font-bold">Q0.00</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Cálculos Empresa -->
+                                            <div class="pl-4">
+                                                <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Precio Empresa</h5>
+                                                <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                                    <div class="flex justify-between">
+                                                        <span>Margen:</span>
+                                                        <span id="margen_calculado_empresa" class="text-green-600 font-bold">0%</span>
+                                                    </div>
+                                                    <div class="flex justify-between">
+                                                        <span>Ganancia:</span>
+                                                        <span id="ganancia_calculada_empresa" class="text-blue-600 font-bold">Q0.00</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1226,7 +1361,7 @@
                         </div>
 
                         <!-- Producto Importado y Licencias -->
-                        <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
+                        <div class="border-gray-200 dark:border-gray-700 pt-4 mb-4" id="contenedor_importacion">
                             <div class="flex items-center mb-3">
                                 <input type="checkbox" id="producto_es_importado" name="producto_es_importado" value="1"
                                     class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
@@ -1537,98 +1672,109 @@
                                 Actualizar Precios
                             </h4>
 
-                            <form id="precio-form">
-                                <div class="space-y-4">
-                                    <!-- Precio de Costo -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
-                                            de costo *</label>
-                                        <input type="number" id="nuevo_precio_costo" name="precio_costo" step="0.01"
-                                            min="0" placeholder="0.00" required
-                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                        <div id="nuevo_precio_costo_error" class="mt-1 text-sm text-red-600 hidden">
+                          <!-- Formulario de precios corregido - reemplazar la sección existente -->
+                                <form id="precio-form">
+                                    <div class="space-y-4">
+                                        <!-- Precio de Costo -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio de costo *</label>
+                                            <input type="number" id="nuevo_precio_costo" name="precio_costo" step="0.01"
+                                                min="0" placeholder="0.00" required
+                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                            <div id="nuevo_precio_costo_error" class="mt-1 text-sm text-red-600 hidden"></div>
                                         </div>
-                                    </div>
 
-                                    <!-- Precio de Venta -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
-                                            de venta *</label>
-                                        <input type="number" id="nuevo_precio_venta" name="precio_venta" step="0.01"
-                                            min="0" placeholder="0.00" required
-                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                        <div id="nuevo_precio_venta_error" class="mt-1 text-sm text-red-600 hidden">
+                                        <!-- Precio de Venta Individual -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio de venta (Individual) *</label>
+                                            <input type="number" id="nuevo_precio_venta" name="precio_venta" step="0.01"
+                                                min="0" placeholder="0.00" required
+                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                            <div id="nuevo_precio_venta_error" class="mt-1 text-sm text-red-600 hidden"></div>
                                         </div>
-                                    </div>
 
-                                    <!-- Precio Especial -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio
-                                            especial</label>
-                                        <input type="number" id="nuevo_precio_especial" name="precio_especial"
-                                            step="0.01" min="0" placeholder="0.00"
-                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                        <small class="text-xs text-gray-500 dark:text-gray-400">Precio promocional
-                                            (opcional)</small>
-                                    </div>
+                                        <!-- Precio de Venta Empresa -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio de venta (Empresa) *</label>
+                                            <input type="number" id="nuevo_precio_venta_empresa" name="precio_venta_empresa" step="0.01"
+                                                min="0" placeholder="0.00" required
+                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                            <div id="nuevo_precio_venta_empresa_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                                        </div>
 
-                                    <!-- Justificación -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Motivo
-                                            del cambio *</label>
-                                        <input type="text" id="nuevo_precio_justificacion" name="precio_justificacion"
-                                            placeholder="Ej: Actualización por inflación, Promoción especial..."
-                                            required
-                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                        <div id="nuevo_precio_justificacion_error"
-                                            class="mt-1 text-sm text-red-600 hidden"></div>
-                                    </div>
+                                        <!-- Precio Especial -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Precio especial</label>
+                                            <input type="number" id="nuevo_precio_especial" name="precio_especial"
+                                                step="0.01" min="0" placeholder="0.00"
+                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                            <small class="text-xs text-gray-500 dark:text-gray-400">Precio promocional (opcional)</small>
+                                        </div>
 
-                                    <!-- Moneda -->
-                                    <div>
-                                        <label
-                                            class="block text-sm font-medium text-gray-700 dark:text-gray-300">Moneda</label>
-                                        <select id="nuevo_precio_moneda" name="precio_moneda"
-                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                            <option value="GTQ">Quetzales (GTQ)</option>
-                                        </select>
-                                    </div>
+                                        <!-- Justificación -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Motivo del cambio *</label>
+                                            <input type="text" id="nuevo_precio_justificacion" name="precio_justificacion"
+                                                placeholder="Ej: Actualización por inflación, Promoción especial..."
+                                                required
+                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                            <div id="nuevo_precio_justificacion_error" class="mt-1 text-sm text-red-600 hidden"></div>
+                                        </div>
 
-                                    <!-- Cálculo automático -->
-                                    <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
-                                        <div class="text-sm">
-                                            <div class="flex justify-between mb-2">
-                                                <span class="text-gray-600 dark:text-gray-400">Margen calculado:</span>
-                                                <span id="nuevo_margen_calculado"
-                                                    class="font-medium text-green-600">0%</span>
+                                        <!-- Moneda -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Moneda</label>
+                                            <select id="nuevo_precio_moneda" name="precio_moneda"
+                                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                                <option value="GTQ">Quetzales (GTQ)</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Cálculo automático - VERSIÓN CORREGIDA -->
+                                        <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                                            <div class="text-sm space-y-2">
+                                                <!-- Cálculos para precio individual -->
+                                                <div class="border-b border-gray-200 dark:border-gray-600 pb-2">
+                                                    <h5 class="font-medium text-gray-700 dark:text-gray-300 mb-2">Precio Individual</h5>
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-600 dark:text-gray-400">Margen:</span>
+                                                        <span id="nuevo_margen_calculado" class="font-medium text-green-600">0%</span>
+                                                    </div>
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-600 dark:text-gray-400">Ganancia por unidad:</span>
+                                                        <span id="nueva_ganancia_calculada" class="font-medium text-blue-600">Q0.00</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Cálculos para precio empresa -->
+                                                <div class="pt-2">
+                                                    <h5 class="font-medium text-gray-700 dark:text-gray-300 mb-2">Precio Empresa</h5>
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-600 dark:text-gray-400">Margen:</span>
+                                                        <span id="nuevo_margen_calculado_empresa" class="font-medium text-green-600">0%</span>
+                                                    </div>
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-600 dark:text-gray-400">Ganancia por unidad:</span>
+                                                        <span id="nueva_ganancia_calculada_empresa" class="font-medium text-blue-600">Q0.00</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="flex justify-between">
-                                                <span class="text-gray-600 dark:text-gray-400">Ganancia por
-                                                    unidad:</span>
-                                                <span id="nueva_ganancia_calculada"
-                                                    class="font-medium text-blue-600">Q0.00</span>
-                                            </div>
                                         </div>
-                                    </div>
 
-                                    <!-- Botón Guardar -->
-                                    <button type="submit" id="precios-submit-btn"
-                                        class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                        <span id="precios-submit-text">Actualizar Precios</span>
-                                        <span id="precios-loading" class="hidden flex items-center">
-                                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none"
-                                                viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                                    stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor"
-                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                                </path>
-                                            </svg>
-                                            Guardando...
-                                        </span>
-                                    </button>
-                                </div>
-                            </form>
+                                        <!-- Botón Guardar -->
+                                        <button type="submit" id="precios-submit-btn"
+                                            class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <span id="precios-submit-text">Actualizar Precios</span>
+                                            <span id="precios-loading" class="hidden flex items-center">
+                                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Guardando...
+                                            </span>
+                                        </button>
+                                    </div>
+                                </form>
                         </div>
                     </div>
                 </div>
