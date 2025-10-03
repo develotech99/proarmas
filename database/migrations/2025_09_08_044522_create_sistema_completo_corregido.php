@@ -426,6 +426,7 @@ Schema::create('pro_licencias_total_pagado', function (Blueprint $table) {
             $table->integer('producto_stock_minimo')->default(0)->comment('Alerta de stock mínimo');
             $table->integer('producto_stock_maximo')->default(0)->comment('Stock máximo recomendado');
             $table->integer('producto_situacion')->default(1)->comment('1 = activo, 0 = inactivo');
+            $table->integer('producto_requiere_stock')->default(1)->comment('1 = activo, 0 = inactivo');
             $table->timestamps();
 
             // Índices para optimizar consultas
