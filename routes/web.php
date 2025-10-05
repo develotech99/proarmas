@@ -26,6 +26,10 @@ Route::get('/', function () {
       return redirect()->route('login');
 });
 
+
+Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
+Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
+
 Route::middleware('auth')->group(function () {
 
       Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
@@ -61,8 +65,7 @@ Route::middleware('auth')->group(function () {
       Route::put('prolicencias/{id}/estado', [ProLicenciaParaImportacionController::class, 'updateEstado'])->name('prolicencias.updateEstado');
       
       // APIs de usuarios
-      Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
-      Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
+
       Route::put('/api/usuarios/{id}', [UserController::class, 'update']);
       Route::post('/api/usuarios', [UserController::class, 'registroAPI'])->name('usuarios.store.api');
       // Profile
