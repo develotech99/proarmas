@@ -63,7 +63,8 @@ Route::middleware('auth')->group(function () {
       // APIs de usuarios
       Route::get('/api/usuarios/verificar', [UserController::class, 'verificarCorreoAPI'])->name('usuarios.verificar');
       Route::get('/confirmemail-register', [UserController::class, 'confirmEmailSucess'])->name('confirmemail.success');
-
+      Route::put('/api/usuarios/{id}', [UserController::class, 'update']);
+      Route::post('/api/usuarios', [UserController::class, 'registroAPI'])->name('usuarios.store.api');
       // Profile
       Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
       Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
