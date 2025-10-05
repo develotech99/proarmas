@@ -11,7 +11,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('alertas:enviar-stock')
-                 ->dailyAt('08:00')
+                 ->dailyAt('23:47')
                  ->timezone('America/Guatemala');
     }
 
