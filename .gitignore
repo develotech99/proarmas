@@ -1,28 +1,47 @@
-# Ignorar archivos y directorios de dependencias
+# ==========================================
+# 🧱 Dependencias
+# ==========================================
 /node_modules
 /vendor
 
-# Archivos de configuración y otros archivos de sistema
+# ==========================================
+# ⚙️ Archivos de configuración y sistema
+# ==========================================
 *.log
 .DS_Store
-.env
-.env.backup
-.env.production
+Thumbs.db
 /.idea
 /.vscode
+
+# ==========================================
+# 🔐 Archivos de entorno (variables y claves)
+# ==========================================
+.env
+.env.*
+*.key
+*.pem
+
+# ==========================================
+# 🗂️ Archivos y carpetas públicas generadas
+# ==========================================
 /public/storage
 /public/build
 /public/hot
+
+# ==========================================
+# 💾 Archivos de almacenamiento interno
+# ==========================================
 /storage/*.key
 /storage/pail
+
+# ==========================================
+# 🏠 Archivos de Homestead (entorno local)
+# ==========================================
 Homestead.json
 Homestead.yaml
-Thumbs.db
 
-# Archivos de composer y npm
+# ==========================================
+# 📦 Archivos de bloqueo de dependencias
+# ==========================================
 composer.lock
 package-lock.json
-
-# Otros archivos específicos de entorno
-*.key
-*.pem
