@@ -19,6 +19,8 @@ class ProLicencia extends Model {
     }
 }
 
+
+///
 // app/Models/ProPagoLicencia.php
 class ProPagoLicencia extends Model {
     protected $table = 'pro_pagos_licencias';

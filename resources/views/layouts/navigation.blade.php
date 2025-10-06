@@ -106,7 +106,7 @@
                 </a>
 
                 <!-- Detalle Venta -->
-                <a href="#"
+                <a href="{{ route('reportes.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -126,6 +126,7 @@
                     </svg>
                     <span>Comision vendedor</span>
                 </a>
+                
             </div>
         </div>
 
@@ -193,7 +194,7 @@
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform -translate-y-2" class="mt-2 space-y-1 ml-2">
                 <!-- Licencias -->
-                <a href="prolicencias"
+                <a href="{{ route('prolicencias.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -204,7 +205,7 @@
                 </a>
 
                 <!-- Documentos -->
-                <a href="licencias"
+                <!-- <a href="{{ route('prolicencias.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -212,10 +213,10 @@
                         </path>
                     </svg>
                     <span>Documentación Legal</span>
-                </a>
+                </a> -->
 
                 <!-- DIGECAM -->
-                <a href="#"
+                <!-- <a href="#"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -223,7 +224,7 @@
                         </path>
                     </svg>
                     <span>DIGECAM</span>
-                </a>
+                </a> -->
             </div>
         </div>
 

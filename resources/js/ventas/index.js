@@ -350,7 +350,6 @@ async function buscarProductos() {
 
 let productosGlobales = [];
 let resultadosBusquedaData = [];
-
 function mostrarProductos(productosData) {
     productosGlobales = productosData;
 
@@ -375,6 +374,15 @@ function mostrarProductos(productosData) {
         .map((producto) => {
             const stock = Number(producto.stock_cantidad_total ?? 0);
             const necesitaStock = Number(producto.producto_requiere_stock ?? 1) === 1;
+            
+            // Manejo de imagen con fallback
+            let imagenSrc = producto.foto_url;
+
+            // Si existe la imagen y NO empieza con /storage/, agregarla
+            if (imagenSrc && !imagenSrc.startsWith('/storage/') && !imagenSrc.startsWith('http')) {
+                imagenSrc = '/storage/' + imagenSrc;
+            }
+            const iniciales = producto.producto_nombre.substring(0, 2).toUpperCase();
 
             // Badge de stock por color - SOLO si el producto necesita stock
             let stockBadgeHtml = "";
@@ -402,9 +410,23 @@ function mostrarProductos(productosData) {
             return `
         <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
           <div class="relative h-48 bg-gray-100">
-            <img src="images/standar.webp"
-                 alt="${producto.producto_nombre}"
-                 class="w-full h-full object-cover">
+            ${imagenSrc ? 
+                `<img src="${imagenSrc}" 
+                      alt="${producto.producto_nombre}"
+                      class="w-full h-full object-cover"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
+                    ${iniciales}
+                 </div>` 
+                :
+                `<img src="images/standar.webp"
+                      alt="${producto.producto_nombre}"
+                      class="w-full h-full object-cover"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
+                    ${iniciales}
+                 </div>`
+            }
             <!-- Badge de stock -->
             <div class="absolute top-2 right-2">
               ${stockBadgeHtml}

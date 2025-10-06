@@ -22,6 +22,8 @@ export default defineConfig({
             'resources/js/comisiones/index.js',
             'resources/js/pagos/mispagos.js',
             'resources/js/pagos/administrar.js',
+            'resources/js/reportes/index.js',
+
         ],
             refresh: true,
         }),

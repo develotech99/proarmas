@@ -76,4 +76,20 @@ class ProPorcentajeVendedor extends Model
         }
         return $query;
     }
+
+      // Scopes
+        public function scopePendientes($query)
+        {
+            return $query->where('porc_vend_estado', 'PENDIENTE');
+        }
+
+        public function scopePagados($query)
+        {
+            return $query->where('porc_vend_estado', 'PAGADO');
+        }
+
+        public function scopeActivos($query)
+        {
+            return $query->where('porc_vend_situacion', 'ACTIVO');
+        }
 }

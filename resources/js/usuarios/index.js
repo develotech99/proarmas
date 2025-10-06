@@ -217,9 +217,8 @@ const limpiarFormulario = () => {
     }
 };
 
-
 const cargarDatosEdicion = (usuario) => {
-    document.getElementById('user_id').value = usuario.id;
+    document.getElementById('user_id').value = usuario.id || '';
     document.getElementById('user_dpi_dni').value = usuario.dpi_dni || '';
     document.getElementById('email').value = usuario.email || '';
     document.getElementById('user_primer_nombre').value = usuario.primer_nombre || '';
@@ -227,6 +226,11 @@ const cargarDatosEdicion = (usuario) => {
     document.getElementById('user_primer_apellido').value = usuario.primer_apellido || '';
     document.getElementById('user_segundo_apellido').value = usuario.segundo_apellido || '';
     document.getElementById('user_rol').value = usuario.rol_id || '';
+    
+    const empresaInput = document.getElementById('user_empresa');
+    if (empresaInput) {
+        empresaInput.value = usuario.empresa || '';
+    }
 
     document.getElementById('password').value = '';
     document.getElementById('password_confirmation').value = '';
@@ -239,7 +243,6 @@ const cargarDatosEdicion = (usuario) => {
     document.getElementById('modalUsuarioTitle').textContent = 'Editar usuario';
     document.getElementById('btnSubmitUsuarioText').textContent = 'Actualizar';
 };
-
 // Mostrar datos en modal de ver
 const mostrarDatosUsuario = (usuario) => {
     const nombreCompleto = `${usuario.primer_nombre || ''} ${usuario.segundo_nombre || ''} ${usuario.primer_apellido || ''} ${usuario.segundo_apellido || ''}`.trim();

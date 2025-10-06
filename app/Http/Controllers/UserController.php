@@ -70,7 +70,7 @@ class UserController extends Controller
         try {
             $search = $request->get('search');
             $rol = $request->get('rol');
-
+    
             $usuarios = User::with('rol')
                 ->where('user_situacion', 1)
                 ->when($search, function ($query) use ($search) {
@@ -85,8 +85,23 @@ class UserController extends Controller
                     });
                 })
                 ->orderBy('user_primer_nombre')
-                ->get();
-
+                ->get()
+                ->map(function($user) {
+                    return [
+                        'id' => $user->user_id,
+                        'primer_nombre' => $user->user_primer_nombre,
+                        'segundo_nombre' => $user->user_segundo_nombre,
+                        'primer_apellido' => $user->user_primer_apellido,
+                        'segundo_apellido' => $user->user_segundo_apellido,
+                        'dpi_dni' => $user->user_dpi_dni,
+                        'email' => $user->email,
+                        'empresa' => $user->user_empresa,
+                        'rol_id' => $user->user_rol,
+                        'rol' => $user->rol,
+                        'created_at' => $user->user_fecha_creacion
+                    ];
+                });
+    
             return response()->json([
                 'codigo' => 1,
                 'mensaje' => 'Usuarios encontrados',
@@ -100,7 +115,6 @@ class UserController extends Controller
             ], 500);
         }
     }
-
     public function registroAPI(Request $request)
     {
 
@@ -253,4 +267,69 @@ class UserController extends Controller
             return response()->json(['codigo' => 0, 'mensaje' => 'Error reenviando verificación'], 500);
         }
     }
+
+    public function update(Request $request, $id)
+{
+    try {
+        $user = User::find($id);
+        
+        if (!$user) {
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => 'Usuario no encontrado'
+            ], 404);
+        }
+
+        // Validación
+        $rules = [
+            'user_primer_nombre' => 'required|string|max:100',
+            'user_primer_apellido' => 'required|string|max:100',
+            'email' => 'required|email|unique:users,email,' . $id . ',user_id',
+            'user_dpi_dni' => 'nullable|string|max:20|unique:users,user_dpi_dni,' . $id . ',user_id',
+            'user_rol' => 'required|exists:roles,id',
+            'password' => 'nullable|min:8',
+            'password_confirmation' => 'nullable|same:password'
+        ];
+
+        $validator = validator($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'codigo' => 2,
+                'mensaje' => 'Errores de validación',
+                'datos' => $validator->errors()
+            ], 422);
+        }
+
+        // Actualizar campos
+        $user->user_primer_nombre = $request->user_primer_nombre;
+        $user->user_segundo_nombre = $request->user_segundo_nombre;
+        $user->user_primer_apellido = $request->user_primer_apellido;
+        $user->user_segundo_apellido = $request->user_segundo_apellido;
+        $user->email = $request->email;
+        $user->user_dpi_dni = $request->user_dpi_dni;
+        $user->user_rol = $request->user_rol;
+        $user->user_empresa = $request->user_empresa;
+
+        // Solo actualizar contraseña si se proporciona
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->password);
+            $user->user_fecha_contrasena = now();
+        }
+
+        $user->save();
+
+        return response()->json([
+            'codigo' => 1,
+            'mensaje' => 'Usuario actualizado exitosamente'
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'codigo' => 0,
+            'mensaje' => 'Error actualizando usuario',
+            'detalle' => $e->getMessage()
+        ], 500);
+    }
+}
 }
