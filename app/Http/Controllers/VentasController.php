@@ -247,28 +247,62 @@ class VentasController extends Controller
      * Store a newly created resource in storage.
      */
     public function guardarCliente(Request $request)
-    {
-        // Validación de los datos
+{
+    try {
         $data = $request->validate([
-            'cliente_nombre1'   => ['required', 'string', 'max:50'],
-            'cliente_nombre2'   => ['nullable', 'string', 'max:50'],
-            'cliente_apellido1' => ['required', 'string', 'max:50'],
-            'cliente_apellido2' => ['nullable', 'string', 'max:50'],
-            'cliente_dpi'       => ['nullable', 'string', 'max:20'],
-            'cliente_nit'       => ['nullable', 'string', 'max:20'],
-            'cliente_direccion' => ['nullable', 'string', 'max:255'],
-            'cliente_telefono'  => ['nullable', 'string', 'max:30'],
-            'cliente_correo'    => ['nullable', 'string', 'max:150'],
-            'cliente_tipo'      => ['nullable', 'integer', 'in:0,1,2'],
-            'cliente_user_id' => ['nullable', 'integer'],
-
+            'cliente_nombre1'      => ['required', 'string', 'max:50'],
+            'cliente_nombre2'      => ['nullable', 'string', 'max:50'],
+            'cliente_apellido1'    => ['required', 'string', 'max:50'],
+            'cliente_apellido2'    => ['nullable', 'string', 'max:50'],
+            'cliente_dpi'          => ['nullable', 'string', 'max:20'],
+            'cliente_nit'          => ['nullable', 'string', 'max:20'],
+            'cliente_direccion'    => ['nullable', 'string', 'max:255'],
+            'cliente_telefono'     => ['nullable', 'string', 'max:30'],
+            'cliente_correo'       => ['nullable', 'email', 'max:150'],
+            'cliente_tipo'         => ['required', 'integer', 'in:1,2,3'], // 👈 REQUIRED
+            'cliente_user_id'      => ['nullable', 'integer'],
+            'cliente_nom_empresa'  => ['nullable', 'string', 'max:255'],
+            'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
+            'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
+            'cliente_ubicacion'    => ['nullable', 'string', 'max:255'],
         ]);
-        //  echo json_encode($data);
-        // exit;
+
+        // 👇 Asegurar que cliente_situacion tenga valor por defecto
+        if (!isset($data['cliente_situacion'])) {
+            $data['cliente_situacion'] = 1; // Activo por defecto
+        }
 
         $cliente = Clientes::create($data);
-        return response()->json($cliente, 201);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $cliente,
+            'message' => 'Cliente guardado correctamente'
+        ], 201);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('Error de validación:', ['errors' => $e->errors()]);
+        return response()->json([
+            'success' => false,
+            'message' => 'Error de validación',
+            'errors' => $e->errors()
+        ], 422);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error al guardar cliente:', [
+            'message' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile(),
+            'data' => $request->all()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno del servidor',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
 
 
@@ -326,7 +360,8 @@ class VentasController extends Controller
                 'ven_cliente' => $request->cliente_id,
                 'ven_total_vendido' => $request->total,
                 'ven_descuento' => $request->descuento_monto ?? 0,
-                'ven_observaciones' => 'Venta procesada desde sistema',
+                'ven_observaciones' => 'Venta Pendiente de autorizar por digecam',
+                'ven_situacion' => 'PENDIENTE'
             ]);
 
             $totalPagado = 0;
@@ -342,15 +377,6 @@ class VentasController extends Controller
                         'message' => "Producto con ID {$productoData['producto_id']} no encontrado"
                     ], 422);
                 }
-
-                // // Validar stock disponible
-                // $stockActual = DB::table('pro_stock_actual')->where('stock_producto_id', $producto->producto_id)->first();
-                // if (!$stockActual || $stockActual->stock_cantidad_disponible < $productoData['cantidad']) {
-                //     return response()->json([
-                //         'success' => false,
-                //         'message' => "Stock insuficiente para el producto: {$producto->producto_nombre}"
-                //     ], 422);
-                // }
 
                 // Validar stock disponible SOLO si el producto lo necesita
                 if ($productoData['producto_requiere_stock'] == 1) {
@@ -370,6 +396,7 @@ class VentasController extends Controller
                     'det_cantidad' => $productoData['cantidad'],
                     'det_precio' => $productoData['precio_unitario'],
                     'det_descuento' => 0,
+                    'det_situacion' => 'PENDIENTE',
                 ]);
 
                 if ($productoData['producto_requiere_stock'] == 1) {
@@ -414,8 +441,8 @@ class VentasController extends Controller
                         DB::table('pro_series_productos')
                             ->whereIn('serie_id', $seriesIds)
                             ->update([
-                                'serie_estado' => 'vendido',
-                                'serie_situacion' => 0,
+                                'serie_estado' => 'pendiente',
+                                'serie_situacion' => 0, //situacion 0 y esta pendiente cuando autoriza la venta cambiar a estado vendido
                             ]);
 
                         // Registrar movimiento por cada serie
@@ -433,7 +460,7 @@ class VentasController extends Controller
                                 'mov_serie_id' => $serieInfo->serie_id,
                                 'mov_documento_referencia' => "VENTA-{$ventaId}",
                                 'mov_observaciones' => "Venta - Serie: {$serieInfo->serie_numero_serie}",
-                                'mov_situacion' => 1,
+                                'mov_situacion' => 3, //situacion 3 pendiente de validar, situacion 1 autorizado 0 eliminado o cancelado
                                 'created_at' => now(),
                                 'updated_at' => now()
                             ]);
@@ -442,11 +469,7 @@ class VentasController extends Controller
                         // Actualizar stock
                         DB::table('pro_stock_actual')
                             ->where('stock_producto_id', $producto->producto_id)
-                            ->decrement('stock_cantidad_disponible', count($seriesSeleccionadas));
-
-                        DB::table('pro_stock_actual')
-                            ->where('stock_producto_id', $producto->producto_id)
-                            ->decrement('stock_cantidad_total', count($seriesSeleccionadas));
+                            ->increment('stock_cantidad_reservada', count($seriesSeleccionadas));
                     } else {
                         // ===============================
                         // PRODUCTO SIN SERIES (CON O SIN LOTES)
@@ -474,7 +497,7 @@ class VentasController extends Controller
                                     ], 422);
                                 }
 
-                                // Actualizar cantidad disponible en el lote
+                                // Actualizar cantidad disponible en el lote // quedó igual si se cansela se regresa la cantidad a pro_lotes
                                 DB::table('pro_lotes')
                                     ->where('lote_id', $loteData['lote_id'])
                                     ->decrement('lote_cantidad_disponible', $loteData['cantidad']);
@@ -498,12 +521,12 @@ class VentasController extends Controller
                                     'mov_lote_id' => $loteData['lote_id'],
                                     'mov_documento_referencia' => "VENTA-{$ventaId}",
                                     'mov_observaciones' => "Venta - Lote: {$lote->lote_codigo}",
-                                    'mov_situacion' => 1,
+                                    'mov_situacion' => 1, 
                                     'created_at' => now(),
                                     'updated_at' => now()
                                 ]);
 
-                                // Si el lote se agotó, cambiar situación
+                                // Si el lote se agotó, cambiar situación   /// si cancela y el lote estan en situacion cero se debe de cambiar a uno
                                 $loteActualizado = DB::table('pro_lotes')->where('lote_id', $loteData['lote_id'])->first();
                                 if ($loteActualizado->lote_cantidad_disponible <= 0) {
                                     DB::table('pro_lotes')
@@ -533,13 +556,12 @@ class VentasController extends Controller
                         }
 
                         // Actualizar stock total (común para ambos casos)
-                        DB::table('pro_stock_actual')
-                            ->where('stock_producto_id', $producto->producto_id)
-                            ->decrement('stock_cantidad_disponible', $productoData['cantidad']);
 
+                                  // Actualizar stock
                         DB::table('pro_stock_actual')
                             ->where('stock_producto_id', $producto->producto_id)
-                            ->decrement('stock_cantidad_total', $productoData['cantidad']);
+                            ->increment('stock_cantidad_reservada',  $productoData['cantidad']);
+
                     }
                 } else {
                     DB::table('pro_movimientos')->insert([
@@ -583,7 +605,7 @@ class VentasController extends Controller
                     'pago_tipo_pago' => 'CUOTAS',  // Tipo de pago: cuotas
                     'pago_cantidad_cuotas' => $request->pago['cantidad_cuotas'],  // Acceder a cantidad de cuotas
                     'pago_abono_inicial' => $abonoInicial,
-                    'pago_estado' => $abonoInicial >= $totalVenta ? 'COMPLETADO' : ($abonoInicial > 0 ? 'PARCIAL' : 'PENDIENTE'),
+                    'pago_estado' => 'PENDIENTE',
                     'pago_fecha_inicio' => now(),  // Fecha de inicio del pago
                     'pago_fecha_completado' => $abonoInicial >= $totalVenta ? now() : null,  // Fecha de completado si ya pagó el total
                     'created_at' => now(),
@@ -648,7 +670,7 @@ class VentasController extends Controller
                     'pago_tipo_pago' => 'UNICO',
                     'pago_cantidad_cuotas' => 1,
                     'pago_abono_inicial' => $totalVenta,
-                    'pago_estado' => 'COMPLETADO',
+                    'pago_estado' => 'PENDIENTE',
                     'pago_fecha_inicio' => now(),
                     'pago_fecha_completado' => now(),
                     'created_at' => now(),
@@ -696,6 +718,19 @@ class VentasController extends Controller
 
             ]);
 
+            // 6. REGISTRAR EN HISTORIAL DE CAJA
+            DB::table('cja_historial')->insert([
+                'cja_tipo' => 'VENTA',
+                'cja_id_venta' => $ventaId,
+                'cja_usuario' => auth()->id(),
+                'cja_monto' => $totalPagado,
+                'cja_fecha' => now(),
+                'cja_metodo_pago' => $request->metodo_pago,
+                'cja_no_referencia' => "VENTA-{$ventaId}",
+                'cja_situacion' => 'PENDIENTE',
+                'cja_observaciones' => 'Venta registrada',
+                'created_at' => now()
+            ]);
 
             // Si todo va bien, confirmamos la transacción
             DB::commit();
