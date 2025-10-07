@@ -186,6 +186,7 @@ class VentasController extends Controller
                 'precio_venta_empresa',
                 'foto_url',
                 'stock_cantidad_total',
+                'stock_cantidad_reservada',
                 'producto_requiere_stock'
             )
             ->orderBy('producto_nombre')
@@ -194,6 +195,16 @@ class VentasController extends Controller
         // Series + LOTES (igual que series, pero para pro_lotes)
         $productos = $productos->map(function ($producto) {
             $productoArray = (array) $producto;
+
+
+        // 👇 Calcular stock real
+        $stockTotal = $producto->stock_cantidad_total ?? 0;
+        $stockReservado = $producto->stock_cantidad_reservada ?? 0;
+        
+        // 👇 IMPORTANTE: Sobrescribir stock_cantidad_total con el stock real disponible
+        $productoArray['stock_cantidad_total'] = max(0, $stockTotal - $stockReservado);
+        
+
 
             // SERIES
             if ($producto->producto_requiere_serie == 1) {
