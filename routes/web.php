@@ -37,7 +37,7 @@ Route::middleware('auth')->group(function () {
       Route::get('/dashboard', function () {
             return view('dashboard');
       })->name('dashboard');
-      
+
       Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
       // Rutas para pagos de licencias
@@ -63,7 +63,7 @@ Route::middleware('auth')->group(function () {
             ->where('path', '.*');
 
       Route::put('prolicencias/{id}/estado', [ProLicenciaParaImportacionController::class, 'updateEstado'])->name('prolicencias.updateEstado');
-      
+
       // APIs de usuarios
 
       Route::put('/api/usuarios/{id}', [UserController::class, 'update']);
@@ -232,6 +232,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [UsersUbicacionController::class, 'getDatos'])->name('ubi.getDatos');
             Route::get('/{user}/detalle', [UsersUbicacionController::class, 'detalle'])->name('ubi.detalle');
             Route::delete('/{id}', [UsersUbicacionController::class, 'eliminarUbicacion'])->name('ubi.delete');
+            Route::post('/visita', [UsersUbicacionController::class, 'agregarVisita']);
       });
 
       // Mapa de usuarios
@@ -267,18 +268,18 @@ Route::middleware('auth')->group(function () {
       // REPORTES ESPECÍFICOS
       // ================================    
       // Reporte detallado de ventas
-      Route::get('/reportes/ventas', [ReportesController::class, 'getReporteVentas'])->name('reportes.ventas');   
+      Route::get('/reportes/ventas', [ReportesController::class, 'getReporteVentas'])->name('reportes.ventas');
       // Reporte de productos más vendidos
-      Route::get('/reportes/productos', [ReportesController::class, 'getReporteProductos'])->name('reportes.productos');   
+      Route::get('/reportes/productos', [ReportesController::class, 'getReporteProductos'])->name('reportes.productos');
       // Reporte de comisiones de vendedores
-      Route::get('/reportes/comisiones', [ReportesController::class, 'getReporteComisiones'])->name('reportes.comisiones');   
+      Route::get('/reportes/comisiones', [ReportesController::class, 'getReporteComisiones'])->name('reportes.comisiones');
       // Reporte de pagos y cuotas
       Route::get('/reportes/pagos', [ReportesController::class, 'getReportePagos'])->name('reportes.pagos');
       // ================================
       // EXPORTACIÓN DE REPORTES
       // ================================ 
       // Exportar a PDF
-      Route::get('/reportes/exportar-pdf', [ReportesController::class, 'exportarPDF'])->name('reportes.exportar.pdf'); 
+      Route::get('/reportes/exportar-pdf', [ReportesController::class, 'exportarPDF'])->name('reportes.exportar.pdf');
       // Exportar a Excel
       Route::get('/reportes/exportar-excel', [ReportesController::class, 'exportarExcel'])->name('reportes.exportar.excel');
 
@@ -288,7 +289,7 @@ Route::middleware('auth')->group(function () {
       // Detalle específico de una venta
       Route::get('/reportes/ventas/{id}/detalle', [ReportesController::class, 'getDetalleVenta'])->name('reportes.venta.detalle');
       // Imprimir comprobante de venta
-      Route::get('/reportes/ventas/{id}/imprimir', [ReportesController::class, 'imprimirVenta'])->name('reportes.venta.imprimir'); 
+      Route::get('/reportes/ventas/{id}/imprimir', [ReportesController::class, 'imprimirVenta'])->name('reportes.venta.imprimir');
       // Estadísticas avanzadas por período
       Route::get('/reportes/estadisticas-avanzadas', [ReportesController::class, 'getEstadisticasAvanzadas'])->name('reportes.estadisticas.avanzadas');
       // Comparación entre períodos
@@ -299,8 +300,8 @@ Route::middleware('auth')->group(function () {
       Route::get('/reportes/digecam/armas', [ReportesController::class, 'getReporteDigecamArmas'])->name('reportes.digecam.armas');
       Route::get('/reportes/digecam/municiones', [ReportesController::class, 'getReporteDigecamMuniciones'])->name('reportes.digecam.municiones');
       Route::get('/reportes/digecam/exportar-pdf', [ReportesController::class, 'exportarDigecamPDF'])->name('reportes.digecam.exportar.pdf');
-      
-     
+
+
       // Admin pagos
       Route::prefix('admin/pagos')->group(function () {
             Route::get('dashboard-stats', [AdminPagosController::class, 'stats']);
@@ -313,7 +314,6 @@ Route::middleware('auth')->group(function () {
             Route::post('egresos', [AdminPagosController::class, 'registrarEgreso']);
             Route::post('conciliar', [AdminPagosController::class, 'conciliarAutomatico']);
       });
-
 });
 
 require __DIR__ . '/auth.php';

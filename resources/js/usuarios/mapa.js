@@ -75,23 +75,38 @@ let datos = [];                   // cache tabla
    UTILES
 ========================= */
 const toastLoading = (title = "Procesando…", text = "Por favor espere") => {
-  Swal.fire({ title, text, icon: "info", allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+  Swal.fire({
+    title,
+    text,
+    icon: "info",
+    allowOutsideClick: false,
+    showConfirmButton: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
 };
+
 const toastClose = () => Swal.close();
-const setStatus = (msg) => { if (el.status) el.status.textContent = msg; };
+const setStatus = (msg) => {
+  if (el.status) el.status.textContent = msg;
+};
+
 
 const setEditMode = (on = false) => {
-  // Cambia texto/color del botón principal
+
   if (el.btnGuardarTexto) el.btnGuardarTexto.textContent = on ? "Modificar" : "Guardar";
+
   if (el.btnGuardar) {
     el.btnGuardar.classList.toggle("bg-emerald-600", !on);
     el.btnGuardar.classList.toggle("bg-indigo-600", on);
     el.btnGuardar.classList.toggle("hover:bg-emerald-500", !on);
     el.btnGuardar.classList.toggle("hover:bg-indigo-500", on);
   }
-  // Marcar el formulario con un flag
+
   if (el.form) el.form.dataset.editing = on ? "1" : "0";
 };
+
 
 /* =========================
    MAPA
@@ -164,8 +179,13 @@ const clearMarkerEdicion = () => {
 };
 
 const miUbicacion = () => {
-  if (!navigator.geolocation) { setStatus("Tu navegador no soporta geolocalización."); return; }
+  if (!navigator.geolocation) {
+    setStatus("Tu navegador no soporta geolocalización.");
+    return;
+  }
+
   toastLoading("Obteniendo tu ubicación…", "Usando geolocalización del navegador");
+
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => {
       const { latitude, longitude, accuracy } = coords;
@@ -173,14 +193,16 @@ const miUbicacion = () => {
       const lat = precise ? latitude : DEFAULT_CENTER[0];
       const lng = precise ? longitude : DEFAULT_CENTER[1];
       setMarkerEdicion(lat, lng, "Mi ubicación");
-      el.lat.value = lat; el.lng.value = lng;
+      el.lat.value = lat;
+      el.lng.value = lng;
       flyTo(lat, lng, 16);
       setStatus(precise ? `Ubicación precisa (~${Math.round(accuracy)}m).` : "Ubicación poco precisa; usando centro por defecto.");
       toastClose();
     },
     () => {
       setMarkerEdicion(DEFAULT_CENTER[0], DEFAULT_CENTER[1], "Ubicación predeterminada");
-      el.lat.value = DEFAULT_CENTER[0]; el.lng.value = DEFAULT_CENTER[1];
+      el.lat.value = DEFAULT_CENTER[0];
+      el.lng.value = DEFAULT_CENTER[1];
       flyTo(DEFAULT_CENTER[0], DEFAULT_CENTER[1], DEFAULT_ZOOM);
       setStatus("No se pudo obtener la ubicación. Usando ubicación predeterminada.");
       toastClose();
@@ -189,21 +211,32 @@ const miUbicacion = () => {
   );
 };
 
+
 const buscarLugar = async () => {
   const q = (el.inputBusqueda?.value || "").trim();
   if (!q) { setStatus("Ingresa un lugar para buscar."); return; }
+
   toastLoading("Buscando lugar…", "Consultando geocodificador");
+
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=geojson&limit=5&accept-language=es&q=${encodeURIComponent(q)}`;
     const res = await fetch(url, { headers: { "Accept-Language": "es" } });
+
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
     const data = await res.json();
-    if (!data.features?.length) { setStatus("Sin resultados."); return; }
+    if (!data.features?.length) {
+      setStatus("Sin resultados.");
+      return;
+    }
+
     const f = data.features[0];
     const [lng, lat] = f.geometry.coordinates;
-    const nombre = (f.properties?.display_name || "Ubicación");
+    const nombre = f.properties?.display_name || "Ubicación";
+
     setMarkerEdicion(lat, lng, nombre);
-    el.lat.value = lat; el.lng.value = lng;
+    el.lat.value = lat;
+    el.lng.value = lng;
     flyTo(lat, lng, 17);
     setStatus(`Resultado: ${nombre}`);
   } catch (e) {
@@ -213,6 +246,7 @@ const buscarLugar = async () => {
     toastClose();
   }
 };
+
 
 const plotearDesdeInputs = () => {
   const lat = parseFloat(el.lat?.value || "");
@@ -230,6 +264,7 @@ const toggleClickMode = () => {
   clickEnabled = !clickEnabled;
   setStatus(clickEnabled ? "Modo selección activado: haz clic en el mapa para marcar." : "Modo selección desactivado.");
 };
+
 
 /* =========================
    FULLSCREEN
@@ -310,18 +345,12 @@ const guardarRegistro = async (e) => {
   }
 
   const fd = new FormData(el.form);
-  const id = (fd.get("ubi_id") || "").toString().trim();
-
-  // *** CONVERTIR FormData a objeto normal ***
   const formDataObj = {};
   for (let [key, value] of fd.entries()) {
     formDataObj[key] = value;
   }
 
-  console.log("=== DEBUGGING FORM DATA ===");
-  console.log("ID encontrado:", id);
-  console.log("Datos a enviar:", formDataObj);
-
+  const id = formDataObj["ubi_id"] || "";
   let url = "/api/ubicaciones";
   let method = "POST";
   if (id) {
@@ -333,7 +362,6 @@ const guardarRegistro = async (e) => {
 
   try {
     toastLoading(id ? "Actualizando información…" : "Guardando información…");
-
     const resp = await fetch(url, {
       method,
       headers: {
@@ -344,20 +372,15 @@ const guardarRegistro = async (e) => {
       body: JSON.stringify(formDataObj)
     });
 
-    const data = await resp.json().catch(() => ({}));
-    console.log("Respuesta del servidor:", data);
-
-    const { codigo, mensaje, detalle } = data || {};
-
-    if (codigo === 1) {
-      await Swal.fire("Éxito", mensaje || "Operación realizada correctamente", "success");
+    const data = await resp.json();
+    if (data?.codigo === 1) {
+      await Swal.fire("Éxito", data?.mensaje || "Operación realizada correctamente", "success");
       el.form.reset();
       toggleVentaInfo(); toggleFechaVisita();
       setEditMode(false);
       await obtenerDatos();
     } else {
-      const msg = detalle ? `${mensaje || "Error"}` : (mensaje || "Error al procesar la información");
-      await Swal.fire("Error", msg, "error");
+      await Swal.fire("Error", data?.detalle ? `${data?.mensaje || "Error"}` : (data?.mensaje || "Error al procesar la información"), "error");
     }
   } catch (error) {
     console.error("Error completo:", error);
@@ -366,8 +389,11 @@ const guardarRegistro = async (e) => {
     toastClose();
   }
 };
+
+
 const eliminarRegistro = async (ubiId) => {
   if (!ubiId) return;
+
   const ok = await Swal.fire({
     title: "¿Eliminar cliente?",
     text: "Esta acción no se puede deshacer.",
@@ -377,6 +403,7 @@ const eliminarRegistro = async (ubiId) => {
     cancelButtonText: "Cancelar",
     confirmButtonColor: "#dc2626",
   });
+
   if (!ok.isConfirmed) return;
 
   const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
@@ -387,10 +414,10 @@ const eliminarRegistro = async (ubiId) => {
       method: "DELETE",
       headers: { "X-CSRF-TOKEN": token, Accept: "application/json" },
     });
-    const data = await resp.json().catch(() => ({}));
+    const data = await resp.json();
     if (data?.codigo === 1) {
       await Swal.fire("Listo", data?.mensaje || "Registro eliminado", "success");
-      await obtenerDatos(); // repinta tabla y mapa sin el cliente
+      await obtenerDatos();
     } else {
       await Swal.fire("Error", data?.mensaje || "No se pudo eliminar", "error");
     }
@@ -401,6 +428,7 @@ const eliminarRegistro = async (ubiId) => {
     toastClose();
   }
 };
+
 
 /* =========================
    MODAL: helpers + refs + abrir
@@ -475,6 +503,9 @@ const abrirModalCliente = async (userId) => {
     const d = j.data;
     modal.nombre.textContent = d.name || `Cliente #${userId}`;
     modal.sub.textContent = `Última visita: ${d.ult_visita_fecha ?? '—'}`;
+
+    // ⚠️ AGREGA ESTA LÍNEA CRÍTICA:
+    modal.nombre.dataset.userId = userId;
 
     modal.stat.visitas.textContent = d.total_visitas ?? 0;
     modal.stat.compras.textContent = d.total_compras ?? 0;
@@ -791,6 +822,19 @@ const onClickGlobal = (e) => {
 };
 
 /* =========================
+   MODAL NUEVA VISITA
+========================= */
+const modalNuevaVisita = {
+  wrap: document.getElementById('nueva_visita_modal'),
+  form: document.getElementById('form_nueva_visita'),
+  userId: document.getElementById('nv_user_id'),
+  estado: document.getElementById('nv_estado'),
+  grupoFecha: document.getElementById('nv_grupo_fecha'),
+  grupoVenta: document.getElementById('nv_grupo_venta'),
+  cancelar: document.getElementById('nv_cancelar'),
+};
+
+/* =========================
    LISTENERS (al final)
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
@@ -818,7 +862,6 @@ document.addEventListener("DOMContentLoaded", () => {
     el.form?.reset();
     toggleVentaInfo(); toggleFechaVisita();
     setEditMode(false);
-    // clearMarkerEdicion(); // si quieres, descomenta para quitar el pin de edición
   });
 
   // Fullscreen
@@ -828,7 +871,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("mozfullscreenchange", onFullscreenChange);
   document.addEventListener("MSFullscreenChange", onFullscreenChange);
 
-  // Formulario
+  // Formulario principal
   el.visitado?.addEventListener("change", () => { toggleVentaInfo(); toggleFechaVisita(); });
   toggleFechaVisita();
   el.form?.addEventListener("submit", guardarRegistro);
@@ -839,17 +882,151 @@ document.addEventListener("DOMContentLoaded", () => {
   // Export
   el.btnExportar?.addEventListener("click", exportarCSV);
 
-  // Modal: listeners
+  // ========================================
+  // MODAL DETALLES: listeners
+  // ========================================
   modal.btnVerModal?.addEventListener('click', () => {
     const first = (Array.isArray(datos) && datos[0]) ? datos[0].user_id : null;
     if (first) abrirModalCliente(first);
   });
+
   modal.close?.addEventListener('click', () => modal.wrap.classList.add('hidden'));
-  modal.wrap?.addEventListener('click', (e) => { if (e.target === modal.wrap) modal.wrap.classList.add('hidden'); });
-  modal.tabV?.addEventListener('click', () => { modal.vPane.classList.remove('hidden'); modal.hPane.classList.add('hidden'); });
-  modal.tabH?.addEventListener('click', () => { modal.hPane.classList.remove('hidden'); modal.vPane.classList.add('hidden'); });
+
+  modal.wrap?.addEventListener('click', (e) => {
+    if (e.target === modal.wrap) modal.wrap.classList.add('hidden');
+  });
+
+  modal.tabV?.addEventListener('click', () => {
+    modal.vPane.classList.remove('hidden');
+    modal.hPane.classList.add('hidden');
+    modal.tabV.classList.add('bg-slate-200');
+    modal.tabH.classList.remove('bg-slate-200');
+  });
+
+  modal.tabH?.addEventListener('click', () => {
+    modal.hPane.classList.remove('hidden');
+    modal.vPane.classList.add('hidden');
+    modal.tabH.classList.add('bg-slate-200');
+    modal.tabV.classList.remove('bg-slate-200');
+  });
+
+
+  // ========================================
+  // MODAL NUEVA VISITA: listeners
+  // ========================================
+
+  // Abrir modal de nueva visita
   modal.addVis?.addEventListener('click', () => {
-    document.getElementById('FormRegistroUbicaciones')?.scrollIntoView({ behavior: 'smooth' });
+    const userId = modal.nombre.dataset.userId || '';
+    if (!userId) {
+      Swal.fire('Error', 'No se pudo identificar el cliente', 'error');
+      return;
+    }
+
+    modalNuevaVisita.userId.value = userId;
+    modalNuevaVisita.form.reset();
+    modalNuevaVisita.wrap.classList.remove('hidden');
     modal.wrap.classList.add('hidden');
   });
+
+  // Después de los otros listeners de modalNuevaVisita, agrega:
+  modalNuevaVisita.wrap?.addEventListener('click', (e) => {
+    if (e.target === modalNuevaVisita.wrap) {
+      modalNuevaVisita.wrap.classList.add('hidden');
+      modal.wrap.classList.remove('hidden');
+    }
+  });
+
+  // Cerrar modal nueva visita
+  modalNuevaVisita.cancelar?.addEventListener('click', () => {
+    modalNuevaVisita.wrap.classList.add('hidden');
+    modal.wrap.classList.remove('hidden');
+  });
+
+  // Lógica de mostrar/ocultar campos según estado
+  modalNuevaVisita.estado?.addEventListener('change', () => {
+    const v = modalNuevaVisita.estado.value;
+    modalNuevaVisita.grupoFecha.classList.toggle('hidden', v === '3');
+    modalNuevaVisita.grupoVenta.classList.toggle('hidden', v !== '2');
+  });
+
+  // Enviar nueva visita
+  modalNuevaVisita.form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const fd = new FormData(modalNuevaVisita.form);
+    const formObj = Object.fromEntries(fd);
+
+    // Validación básica
+    if (!formObj.user_id || !formObj.estado) {
+      await Swal.fire({
+        title: 'Error',
+        text: 'Faltan datos requeridos',
+        icon: 'error',
+        customClass: {
+          container: 'swal-nueva-visita'
+        }
+      });
+      return;
+    }
+
+    // Deshabilitar botón de submit para evitar doble envío
+    const submitBtn = modalNuevaVisita.form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      toastLoading('Registrando visita...');
+
+      const resp = await fetch('/api/ubicaciones/visita', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formObj)
+      });
+
+      const data = await resp.json();
+
+      if (data.codigo === 1) {
+        toastClose();
+        await Swal.fire({
+          title: 'Éxito',
+          text: 'Visita registrada correctamente',
+          icon: 'success',
+          customClass: {
+            container: 'swal-nueva-visita'
+          }
+        });
+        modalNuevaVisita.wrap.classList.add('hidden');
+        modal.wrap.classList.remove('hidden');
+        await obtenerDatos();
+        await abrirModalCliente(formObj.user_id);
+      } else {
+        toastClose();
+        await Swal.fire({
+          title: 'Error',
+          text: data.mensaje || 'Error al registrar',
+          icon: 'error',
+          customClass: {
+            container: 'swal-nueva-visita'
+          }
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      toastClose();
+      await Swal.fire({
+        title: 'Error',
+        text: 'Error de conexión',
+        icon: 'error',
+        customClass: {
+          container: 'swal-nueva-visita'
+        }
+      });
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+
 });
