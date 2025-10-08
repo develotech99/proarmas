@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Clientes extends Model
 {
-        use HasFactory;
+    use HasFactory;
     protected $table = 'pro_clientes';
     protected $primaryKey = 'cliente_id';
     public $timestamps = true;
@@ -26,7 +26,13 @@ class Clientes extends Model
         'cliente_tipo',
         'cliente_situacion',
         'cliente_user_id',
+        'cliente_nom_empresa',
+        'cliente_nom_vendedor',
+        'cliente_cel_vendedor',
+        'cliente_ubicacion',
     ];
+
+
 
 
     public function scopeActivos($query)

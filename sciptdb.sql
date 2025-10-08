@@ -695,6 +695,7 @@ CREATE TABLE pro_ventas (
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_ven_user FOREIGN KEY (ven_user) REFERENCES users(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_ven_cliente FOREIGN KEY (ven_cliente) REFERENCES pro_clientes(cliente_id) ON DELETE RESTRICT ON UPDATE RESTRICT
+
 ) CREATE TABLE pro_clientes (
     cliente_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     cliente_nombre1 VARCHAR(50) NOT NULL,
@@ -727,3 +728,29 @@ ALTER TABLE pro_pagos_subidos
 ALTER TABLE cja_historial
   MODIFY cja_tipo ENUM('VENTA','IMPORTACION','EGRESO','DEPOSITO','AJUSTE_POS') NOT NULL
   COMMENT 'Tipo de movimiento';
+
+
+
+
+
+
+
+
+
+ALTER TABLE pro_ventas 
+MODIFY COLUMN ven_situacion ENUM('ACTIVA', 'ANULADA', 'PENDIENTE') DEFAULT 'ACTIVA';
+
+ALTER TABLE pro_detalle_ventas 
+MODIFY COLUMN det_situacion ENUM('ACTIVO', 'ANULADA', 'PENDIENTE') DEFAULT 'ACTIVO';
+
+
+ALTER TABLE cja_historial 
+MODIFY COLUMN cja_situacion ENUM('ACTIVO', 'ANULADA', 'PENDIENTE') DEFAULT 'ACTIVO';
+
+-- se agregaron estos campos a la tabla pro_clientes
+
+ALTER TABLE pro_clientes
+  ADD COLUMN cliente_nom_empresa VARCHAR(255) NULL,
+  ADD COLUMN cliente_nom_vendedor VARCHAR(255) NULL,
+  ADD COLUMN cliente_cel_vendedor VARCHAR(255) NULL,
+  ADD COLUMN cliente_ubicacion VARCHAR(255) NULL;
