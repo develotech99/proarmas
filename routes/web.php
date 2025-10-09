@@ -38,6 +38,8 @@ Route::middleware('auth')->group(function () {
             return view('dashboard');
       })->name('dashboard');
 
+
+
       Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
       // Rutas para pagos de licencias
@@ -202,6 +204,10 @@ Route::middleware('auth')->group(function () {
       Route::get('/ventas/search', [VentasController::class, 'search'])->name('ventas.search');
       Route::post('/ventas', [VentasController::class, 'store'])->name('ventas.store');
       Route::put('/ventas/{id}', [VentasController::class, 'update'])->name('ventas.update');
+
+      //ventas batz
+      Route::get('/ventas/pendientes', [VentasController::class, 'obtenerVentasPendientes'])->name('ventas.pendientes');
+      ///
 
       // APIs de ventas
       Route::get('/api/ventas/subcategorias/{categoriaId}', [VentasController::class, 'getSubcategorias'])->name('ventas.api.subcategorias');

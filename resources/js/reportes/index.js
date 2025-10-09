@@ -397,26 +397,144 @@ async loadTabData(tab) {
     /**
      * Cargar reporte de ventas
      */
-    async loadReporteVentas(filtros = {}) {
-        try {
-            this.showLoading('ventas');
-            
-            const params = { ...this.filtros, ...filtros };
-            const response = await fetch('/reportes/ventas?' + new URLSearchParams(params));
-            
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.data.data) {
-                    this.renderTablaVentas(result.data.data);
-                    this.renderPaginacionVentas(result.data);
-                }
+
+
+async loadReporteVentas(filtros = {}) {
+    try {
+        this.showLoading('ventas');
+        
+        console.log('🔄 Cargando ventas pendientes...');
+        
+        // Construir query params si hay filtros
+        const params = new URLSearchParams();
+        if (filtros.fecha_desde) params.append('fecha_desde', filtros.fecha_desde);
+        if (filtros.fecha_hasta) params.append('fecha_hasta', filtros.fecha_hasta);
+        if (filtros.vendedor_id) params.append('vendedor_id', filtros.vendedor_id);
+        if (filtros.cliente_id) params.append('cliente_id', filtros.cliente_id);
+        
+        const url = `/ventas/pendientes${params.toString() ? '?' + params.toString() : ''}`;
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             }
-        } catch (error) {
-            console.error('Error cargando reporte de ventas:', error);
-        } finally {
-            this.hideLoading('ventas');
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            console.log('✅ Datos recibidos:', result);
+            
+            if (result.success && result.data) {
+                this.renderTablaVentas(result.data);
+                
+                // Mostrar resumen
+                console.log(`📊 Total de ventas pendientes: ${result.total}`);
+            } else {
+                console.warn('⚠️ No hay datos:', result);
+                this.renderTablaVentas([]);
+            }
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
+    } catch (error) {
+        console.error('❌ Error cargando reporte de ventas:', error);
+        Swal.fire('Error', 'No se pudieron cargar las ventas pendientes', 'error');
+        this.renderTablaVentas([]);
+    } finally {
+        this.hideLoading('ventas');
     }
+}
+
+renderTablaVentas(ventas) {
+    const tbody = document.getElementById('tbody-ventas');
+    if (!tbody) {
+        console.error('❌ No se encontró #tbody-ventas');
+        return;
+    }
+    
+    if (!ventas || ventas.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    <i class="fas fa-inbox text-4xl mb-2"></i>
+                    <p>No se encontraron ventas pendientes</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = ventas.map(venta => `
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+            <!-- Fecha -->
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+              
+                <div class="text-gray-500">${this.formatearFechaDisplay(venta.ven_fecha)}</div>
+            </td>
+            
+            <!-- Cliente -->
+            <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                ${venta.cliente || 'N/A'}
+            </td>
+            
+            <!-- Empresa -->
+            <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                ${venta.empresa || 'N/A'}
+            </td>
+            
+            <!-- Vendedor -->
+            <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                ${venta.vendedor || 'N/A'}
+            </td>
+            
+            <!-- Productos -->
+            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                <div class="max-w-xs truncate" title="${venta.productos || 'Sin productos'}">
+                    ${venta.productos || 'Sin productos'}
+                </div>
+            </td>
+            
+            <!-- Total -->
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    ${this.formatCurrency(venta.ven_total_vendido)}
+                </div>
+            </td>
+            
+            <!-- Estado -->
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                    <i class="fas fa-clock mr-1"></i>
+                    ${venta.ven_situacion || 'PENDIENTE'}
+                </span>
+            </td>
+            
+            <!-- Acciones -->
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})"
+                        class="text-blue-600 hover:text-blue-900 mr-2" 
+                        title="Ver detalle">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button onclick="reportesManager.autorizarVenta(${venta.det_ven_id})"
+                        class="text-green-600 hover:text-green-900 mr-2" 
+                        title="Autorizar">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button onclick="reportesManager.rechazarVenta(${venta.ven_id})"
+                        class="text-red-600 hover:text-red-900" 
+                        title="Rechazar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
 
     /**
      * Cargar reporte de productos
@@ -725,71 +843,7 @@ aplicarFiltrosDigecamMuniciones() {
 /**
  * Renderizar tabla de ventas - CORREGIDO
  */
-renderTablaVentas(ventas) {
-    const tbody = document.getElementById('tbody-ventas');
-    if (!tbody) return;
-    
-    if (ventas.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    No se encontraron ventas en el período seleccionado
-                </td>
-            </tr>
-        `;
-        return;
-    }
 
-    tbody.innerHTML = ventas.map(venta => `
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                <div class="font-medium">#${venta.ven_id}</div>
-                <div class="text-gray-500">${this.formatearFechaDisplay(venta.ven_fecha)}</div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                ${venta.cliente_nombre_completo}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                ${venta.vendedor_nombre_completo}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                ${venta.total_productos} unidades<br>
-                <span class="text-xs">(${venta.cantidad_items} items)</span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-bold text-gray-900 dark:text-gray-100">
-                    ${this.formatCurrency(venta.ven_total_vendido)}
-                </div>
-                <div class="text-xs text-green-600">
-                    Pagado: ${this.formatCurrency(venta.total_pagado)}
-                </div>
-                ${venta.saldo_pendiente > 0 ? `
-                    <div class="text-xs text-red-600">
-                        Pendiente: ${this.formatCurrency(venta.saldo_pendiente)}
-                    </div>
-                ` : ''}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-                ${this.renderEstadoPago(venta.estado_pago)}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                ${venta.ven_situacion == 1 
-                    ? '<span class="text-green-600 font-medium">Activa</span>' 
-                    : '<span class="text-red-600 font-medium">Anulada</span>'}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})" 
-                        class="text-blue-600 hover:text-blue-900 mr-2" title="Ver detalle">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button onclick="reportesManager.imprimirVenta(${venta.ven_id})" 
-                        class="text-green-600 hover:text-green-900" title="Imprimir">
-                    <i class="fas fa-print"></i>
-                </button>
-            </td>
-        </tr>
-    `).join('');
-}
 
 /**
  * Aplicar filtros de ventas - CORREGIDO
@@ -1104,11 +1158,6 @@ initClienteSelect() {
     /**
      * Ver detalle de venta
      */
-    verDetalleVenta(ventaId) {
-        // Implementar modal o redirección para ver detalle
-        console.log('Ver detalle de venta:', ventaId);
-        this.showAlert('info', 'Información', 'Función de detalle de venta en desarrollo');
-    }
 
     /**
      * Imprimir venta
