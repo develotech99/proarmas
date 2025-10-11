@@ -34,6 +34,7 @@ class ReportesManager {
         console.log('🚀 ReportesManager inicializado');
         this.setupEventListeners();
         this.setupFechasIniciales();
+        this.initClienteSelect();
         this.loadInitialData();
     }
 
@@ -812,29 +813,52 @@ aplicarFiltrosVentas() {
  * Inicializar Select2 para clientes
  */
 initClienteSelect() {
-    const clienteSelect = $('#filtro-cliente-ventas');
-    if (clienteSelect.length && typeof $.fn.select2 !== 'undefined') {
-        clienteSelect.select2({
-            ajax: {
-                url: '/reportes/buscar-clientes',
-                dataType: 'json',
-                delay: 250,
-                data: function (params) {
-                    return {
-                        q: params.term
-                    };
+    // Esperar a que jQuery y Select2 estén disponibles
+    const initSelect2 = () => {
+        const clienteSelect = $('#filtro-cliente-ventas');
+        if (clienteSelect.length && typeof $.fn.select2 !== 'undefined') {
+            clienteSelect.select2({
+                ajax: {
+                    url: '/reportes/buscar-clientes',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return { q: params.term };
+                    },
+                    processResults: function (data) {
+                        if (data.success) {
+                            return { results: data.results };
+                        }
+                        return { results: [] };
+                    },
+                    cache: true
                 },
-                processResults: function (data) {
-                    return {
-                        results: data.results
-                    };
-                },
-                cache: true
-            },
-            placeholder: 'Buscar cliente por nombre o DPI...',
-            minimumInputLength: 2,
-            allowClear: true
-        });
+                placeholder: 'Buscar cliente por nombre o DPI...',
+                minimumInputLength: 2,
+                allowClear: true,
+                language: {
+                    inputTooShort: function () {
+                        return 'Escriba al menos 2 caracteres';
+                    },
+                    noResults: function () {
+                        return 'No se encontraron clientes';
+                    },
+                    searching: function () {
+                        return 'Buscando...';
+                    }
+                }
+            });
+            console.log('✅ Select2 de clientes inicializado');
+        } else {
+            console.warn('⚠️ Select2 no disponible, reintentando...');
+            setTimeout(initSelect2, 500);
+        }
+    };
+
+    if (typeof $ !== 'undefined') {
+        initSelect2();
+    } else {
+        setTimeout(initSelect2, 1000);
     }
 }
 
