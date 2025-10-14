@@ -420,8 +420,54 @@ cleanupBlobUrls() {
   });
 },
 
+// En tu return { ... } de Alpine.js
 
-
+openComprobante(comp) {
+  let filePath = '';
+  
+  // 1. Intentar obtener la ruta completa desde _remoteUrl (que ya normalizaste)
+  if (comp._remoteUrl) {
+    filePath = comp._remoteUrl;
+  } 
+  // 2. Si no existe, usar comprob_url o comprob_ruta del backend
+  else if (comp.comprob_url) {
+    filePath = comp.comprob_url;
+  }
+  else if (comp.comprob_ruta) {
+    filePath = comp.comprob_ruta;
+  }
+  // 3. Si es un archivo nuevo (aún no guardado)
+  else if (comp.file && comp._url) {
+    // Abrir preview temporal
+    window.open(comp._url, '_blank');
+    return;
+  }
+  
+  if (!filePath) {
+    console.error('No se pudo determinar la ruta del archivo:', comp);
+    alert('Error: No se puede abrir el archivo');
+    return;
+  }
+  
+  console.log('Abriendo ruta:', filePath);
+  
+  // Si ya es una URL completa de tu controlador, usarla directamente
+  if (filePath.startsWith('/prolicencias/')) {
+    window.open(filePath, '_blank');
+  } 
+  // Si es una ruta relativa, construir URL
+  else {
+    // Extraer solo la parte después de storage/
+    let relativePath = filePath;
+    if (filePath.includes('/storage/')) {
+      relativePath = filePath.split('/storage/')[1];
+    }
+    
+    const url = `/prolicencias/file/${encodeURIComponent(relativePath)}`;
+    console.log('URL construida:', url);
+    window.open(url, '_blank');
+  }
+},
 // Limpia blobs al cerrar/cambiar
 cleanupPreviews() {
   (this.pagoData?.metodos || []).forEach(m => {
