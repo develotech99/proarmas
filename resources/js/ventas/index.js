@@ -543,6 +543,23 @@ function mostrarProductos(productosData) {
                     ${iniciales}
                  </div>`
             }
+            ${imagenSrc ? 
+                `<img src="${imagenSrc}" 
+                      alt="${producto.producto_nombre}"
+                      class="w-full h-full object-cover"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
+                    ${iniciales}
+                 </div>` 
+                :
+                `<img src="images/standar.webp"
+                      alt="${producto.producto_nombre}"
+                      class="w-full h-full object-cover"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
+                    ${iniciales}
+                 </div>`
+            }
             <!-- Badge de stock -->
             <div class="absolute top-2 right-2">
               ${stockBadgeHtml}
@@ -591,6 +608,66 @@ function mostrarProductos(productosData) {
         </div>`;
         })
         .join("");
+}
+
+// 🎯 FUNCIÓN AUXILIAR: Renderizar card individual (opcional)
+function renderProductoCard(producto) {
+    const stock = producto.stock_cantidad_disponible || 0;
+    const minimo = producto.producto_stock_minimo || 0;
+    
+    let stockClass = 'bg-green-100 text-green-800';
+    let stockText = 'En stock';
+    let stockIcon = 'fa-check-circle';
+    
+    if (stock <= 0) {
+        stockClass = 'bg-red-100 text-red-800';
+        stockText = 'Agotado';
+        stockIcon = 'fa-times-circle';
+    } else if (stock <= minimo) {
+        stockClass = 'bg-yellow-100 text-yellow-800';
+        stockText = 'Stock bajo';
+        stockIcon = 'fa-exclamation-triangle';
+    }
+
+    // Determinar imagen a mostrar
+    const imagenSrc = producto.foto_principal;
+    const iniciales = producto.producto_nombre.substring(0, 2).toUpperCase();
+
+    return `
+        <div class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600">
+            <!-- Foto o Avatar -->
+            <div class="flex-shrink-0">
+                ${imagenSrc ? 
+                    `<img src="${imagenSrc}" 
+                          alt="${producto.producto_nombre}"
+                          class="w-20 h-20 rounded-full object-cover border-2 border-blue-200"
+                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     <div class="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium text-sm" style="display:none;">
+                        ${iniciales}
+                     </div>` 
+                    :
+                    `<div class="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium text-sm">
+                        ${iniciales}
+                     </div>`
+                }
+            </div>
+            
+            <!-- Información del producto -->
+            <div class="flex-grow">
+                <h4 class="font-medium text-gray-900 dark:text-white">${producto.producto_nombre}</h4>
+                <p class="text-sm text-gray-500 dark:text-gray-400">${producto.marca_nombre || 'N/A'}</p>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${stockClass} mt-1">
+                    <i class="fas ${stockIcon} mr-1"></i>${stockText}
+                </span>
+            </div>
+            
+            <!-- Stock -->
+            <div class="text-right">
+                <p class="text-lg font-bold text-gray-900 dark:text-white">${stock}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">unidades</p>
+            </div>
+        </div>
+    `;
 }
 
 const grid = document.getElementById("gridProductos");

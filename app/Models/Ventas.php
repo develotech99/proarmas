@@ -8,3 +8,4 @@ class Ventas extends Model
 {
     //
 }
+    
