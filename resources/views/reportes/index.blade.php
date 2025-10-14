@@ -132,7 +132,7 @@
                     <button onclick="reportesManager.cambiarTab('ventas')"
                         class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                         <i class="fas fa-shopping-cart mr-2"></i>
-                        Reporte de Ventas
+                        Reporte de Ventas Pendientes
                     </button>
                     <button onclick="reportesManager.cambiarTab('productos')"
                         class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
@@ -246,8 +246,8 @@
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Reporte Detallado de Ventas</h3>
-                        <div class="flex space-x-3">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Ventas Pendientes</h3>
+                        <!-- <div class="flex space-x-3">
                             <button onclick="reportesManager.exportarReporte('ventas', 'excel')"
                                 class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                                 <i class="fas fa-file-excel mr-2"></i>
@@ -258,7 +258,7 @@
                                 <i class="fas fa-file-pdf mr-2"></i>
                                 PDF
                             </button>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
 
@@ -629,6 +629,7 @@
                         </tbody>
                     </table>
                 </div>
+                
             </div>
         </div>
 

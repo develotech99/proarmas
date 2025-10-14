@@ -294,6 +294,12 @@ Route::middleware('auth')->group(function () {
       // ================================
       // Detalle específico de una venta
       Route::get('/reportes/ventas/{id}/detalle', [ReportesController::class, 'getDetalleVenta'])->name('reportes.venta.detalle');
+
+      Route::post('/ventas/autorizar', [VentasController::class, 'autorizarVenta']);
+      Route::get('/ventas/pendientes', [VentasController::class, 'obtenerVentasPendientes']);
+      Route::post('/ventas/actualizar-licencias', [VentasController::class, 'actualizarLicencias']);
+
+
       // Imprimir comprobante de venta
       Route::get('/reportes/ventas/{id}/imprimir', [ReportesController::class, 'imprimirVenta'])->name('reportes.venta.imprimir');
       // Estadísticas avanzadas por período

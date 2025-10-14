@@ -16,7 +16,7 @@ use App\Models\StockActual;
 use App\Models\Alerta;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;    
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -198,29 +198,29 @@ class VentasController extends Controller
             $productoArray = (array) $producto;
 
 
-        // 👇 Calcular stock real
-        $stockTotal = $producto->stock_cantidad_total ?? 0;
-        $stockReservado = $producto->stock_cantidad_reservada ?? 0;
-        
-        // 👇 IMPORTANTE: Sobrescribir stock_cantidad_total con el stock real disponible
-        $productoArray['stock_cantidad_total'] = max(0, $stockTotal - $stockReservado);
-        
+            // 👇 Calcular stock real
+            $stockTotal = $producto->stock_cantidad_total ?? 0;
+            $stockReservado = $producto->stock_cantidad_reservada ?? 0;
+
+            // 👇 IMPORTANTE: Sobrescribir stock_cantidad_total con el stock real disponible
+            $productoArray['stock_cantidad_total'] = max(0, $stockTotal - $stockReservado);
+
 
 
             // SERIES
             if ($producto->producto_requiere_serie == 1) {
                 $seriesDisponibles = DB::table('pro_series_productos')
                     ->where('serie_producto_id', $producto->producto_id)
-                    ->where('serie_situacion', 1)
+                    ->where('serie_estado', 'disponible')
                     ->select('serie_producto_id', 'serie_numero_serie', 'serie_situacion')
                     ->orderBy('serie_numero_serie')
                     ->get();
 
                 $productoArray['series_disponibles'] = $seriesDisponibles;
-                $productoArray['cantidad_series']    = $seriesDisponibles->count();
+                $productoArray['cantidad_series'] = $seriesDisponibles->count();
             } else {
                 $productoArray['series_disponibles'] = [];
-                $productoArray['cantidad_series']    = 0;
+                $productoArray['cantidad_series'] = 0;
             }
 
             // LOTES (nuevo)
@@ -236,8 +236,8 @@ class VentasController extends Controller
                 ->orderBy('lote_id')
                 ->get();
 
-            $productoArray['lotes']                = $lotes;                           // listado de lotes
-            $productoArray['cantidad_lotes']       = $lotes->count();                  // cuántos lotes
+            $productoArray['lotes'] = $lotes;                           // listado de lotes
+            $productoArray['cantidad_lotes'] = $lotes->count();                  // cuántos lotes
             $productoArray['lotes_cantidad_total'] = $lotes->sum('lote_cantidad_total'); // suma de cantidades
 
             return (object) $productoArray;
@@ -259,62 +259,62 @@ class VentasController extends Controller
      * Store a newly created resource in storage.
      */
     public function guardarCliente(Request $request)
-{
-    try {
-        $data = $request->validate([
-            'cliente_nombre1'      => ['required', 'string', 'max:50'],
-            'cliente_nombre2'      => ['nullable', 'string', 'max:50'],
-            'cliente_apellido1'    => ['required', 'string', 'max:50'],
-            'cliente_apellido2'    => ['nullable', 'string', 'max:50'],
-            'cliente_dpi'          => ['nullable', 'string', 'max:20'],
-            'cliente_nit'          => ['nullable', 'string', 'max:20'],
-            'cliente_direccion'    => ['nullable', 'string', 'max:255'],
-            'cliente_telefono'     => ['nullable', 'string', 'max:30'],
-            'cliente_correo'       => ['nullable', 'email', 'max:150'],
-            'cliente_tipo'         => ['required', 'integer', 'in:1,2,3'], // 👈 REQUIRED
-            'cliente_user_id'      => ['nullable', 'integer'],
-            'cliente_nom_empresa'  => ['nullable', 'string', 'max:255'],
-            'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
-            'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
-            'cliente_ubicacion'    => ['nullable', 'string', 'max:255'],
-        ]);
+    {
+        try {
+            $data = $request->validate([
+                'cliente_nombre1' => ['required', 'string', 'max:50'],
+                'cliente_nombre2' => ['nullable', 'string', 'max:50'],
+                'cliente_apellido1' => ['required', 'string', 'max:50'],
+                'cliente_apellido2' => ['nullable', 'string', 'max:50'],
+                'cliente_dpi' => ['nullable', 'string', 'max:20'],
+                'cliente_nit' => ['nullable', 'string', 'max:20'],
+                'cliente_direccion' => ['nullable', 'string', 'max:255'],
+                'cliente_telefono' => ['nullable', 'string', 'max:30'],
+                'cliente_correo' => ['nullable', 'email', 'max:150'],
+                'cliente_tipo' => ['required', 'integer', 'in:1,2,3'], // 👈 REQUIRED
+                'cliente_user_id' => ['nullable', 'integer'],
+                'cliente_nom_empresa' => ['nullable', 'string', 'max:255'],
+                'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
+                'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
+                'cliente_ubicacion' => ['nullable', 'string', 'max:255'],
+            ]);
 
-        // 👇 Asegurar que cliente_situacion tenga valor por defecto
-        if (!isset($data['cliente_situacion'])) {
-            $data['cliente_situacion'] = 1; // Activo por defecto
+            // 👇 Asegurar que cliente_situacion tenga valor por defecto
+            if (!isset($data['cliente_situacion'])) {
+                $data['cliente_situacion'] = 1; // Activo por defecto
+            }
+
+            $cliente = Clientes::create($data);
+
+            return response()->json([
+                'success' => true,
+                'data' => $cliente,
+                'message' => 'Cliente guardado correctamente'
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Error de validación:', ['errors' => $e->errors()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Error al guardar cliente:', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'data' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $cliente = Clientes::create($data);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $cliente,
-            'message' => 'Cliente guardado correctamente'
-        ], 201);
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        \Log::error('Error de validación:', ['errors' => $e->errors()]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Error de validación',
-            'errors' => $e->errors()
-        ], 422);
-        
-    } catch (\Exception $e) {
-        \Log::error('Error al guardar cliente:', [
-            'message' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile(),
-            'data' => $request->all()
-        ]);
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Error interno del servidor',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
 
 
@@ -322,28 +322,18 @@ class VentasController extends Controller
 
 
 
-
-
-
-
-
-
-
-
-
-
-///hecho por morales batz 
+    ///hecho por morales batz 
 
 public function obtenerVentasPendientes(Request $request): JsonResponse
 {
     try {
         $ventas = DB::select("
-             SELECT 
+            SELECT 
                 v.ven_id,
                 v.ven_user,
                 d.det_producto_id,
-                v.ven_fecha,
                 d.det_ven_id,
+                v.ven_fecha,
                 
                 TRIM(
                     CONCAT_WS(' ',
@@ -366,7 +356,23 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
                         TRIM(u.user_segundo_apellido)
                     )
                 ) AS vendedor,
-                GROUP_CONCAT(p.producto_nombre SEPARATOR ', ') AS productos,
+                GROUP_CONCAT(DISTINCT p.producto_nombre SEPARATOR ', ') AS productos,
+                
+                -- ✅ AGREGADO: IDs separados por comas para enviar al backend
+                GROUP_CONCAT(DISTINCT mov.mov_serie_id ORDER BY mov.mov_serie_id SEPARATOR ',') AS series_ids,
+                GROUP_CONCAT(DISTINCT mov.mov_lote_id ORDER BY mov.mov_lote_id SEPARATOR ',') AS lotes_ids,
+                
+                -- Información adicional para display
+                GROUP_CONCAT(
+                    DISTINCT CONCAT(mov.mov_lote_id, ' (', mov.mov_cantidad, ')')
+                    ORDER BY mov.mov_lote_id SEPARATOR ', '
+                ) AS lotes_display,
+                
+                GROUP_CONCAT(
+                    DISTINCT CONCAT(mov.mov_serie_id, ' (', mov.mov_cantidad, ')')
+                    ORDER BY mov.mov_serie_id SEPARATOR ', '
+                ) AS series_display,
+                
                 v.ven_total_vendido,
                 v.ven_situacion
             FROM pro_detalle_ventas d
@@ -374,6 +380,9 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
             INNER JOIN users u ON u.user_id = v.ven_user
             INNER JOIN pro_clientes c ON c.cliente_id = v.ven_cliente
             INNER JOIN pro_productos p ON d.det_producto_id = p.producto_id
+            LEFT JOIN pro_movimientos mov ON mov.mov_producto_id = d.det_producto_id
+                AND mov.mov_situacion = 3
+                AND mov.mov_documento_referencia = CONCAT('VENTA-', v.ven_id)
             WHERE d.det_situacion = 'PENDIENTE'
                 AND v.ven_situacion = 'PENDIENTE'
             GROUP BY 
@@ -381,6 +390,7 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
                 v.ven_fecha,
                 v.ven_user,
                 d.det_producto_id,
+                d.det_ven_id,
                 v.ven_total_vendido,
                 v.ven_situacion,
                 c.cliente_nombre1,
@@ -395,10 +405,30 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
             ORDER BY v.ven_fecha DESC
         ");
 
+        $ventasProcesadas = array_map(function($venta) {
+            return [
+                'ven_id' => $venta->ven_id,
+                'ven_user' => $venta->ven_user,
+                'det_producto_id' => $venta->det_producto_id,
+                'det_ven_id' => $venta->det_ven_id,
+                'ven_fecha' => $venta->ven_fecha,
+                'cliente' => $venta->cliente,
+                'empresa' => $venta->empresa,
+                'vendedor' => $venta->vendedor,
+                'productos' => $venta->productos,
+                'lotes_ids' => $venta->lotes_ids ?? '',
+                'series_ids' => $venta->series_ids ?? '',
+                'lotes_display' => $venta->lotes_display ?? '',
+                'series_display' => $venta->series_display ?? '',
+                'ven_total_vendido' => $venta->ven_total_vendido,
+                'ven_situacion' => $venta->ven_situacion
+            ];
+        }, $ventas);
+
         return response()->json([
             'success' => true,
-            'total' => count($ventas),
-            'data' => $ventas,
+            'total' => count($ventasProcesadas),
+            'data' => $ventasProcesadas,
         ]);
 
     } catch (QueryException $e) {
@@ -421,445 +451,184 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
     }
 }
 
+public function autorizarVenta(Request $request): JsonResponse
+{
 
 
-    public function autorizarVenta(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'cliente_id' => 'required|exists:pro_clientes,cliente_id',
-                'fecha_venta' => 'required|date',
-                'subtotal' => 'required|numeric|min:0',
-                'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
-                'descuento_monto' => 'nullable|numeric|min:0',
-                'total' => 'required|numeric|min:0',
-                'metodo_pago' => 'required|in:1,2,3,4,5,6',
-                'productos' => 'required|array|min:1',
-                'productos.*.producto_id' => 'required|exists:pro_productos,producto_id',
-                'productos.*.cantidad' => 'required|integer|min:1',
-                'productos.*.precio_unitario' => 'required|numeric|min:0',
-                'productos.*.subtotal_producto' => 'required|numeric|min:0',
-                'productos.*.requiere_serie' => 'required|in:0,1',
-                'productos.*.producto_requiere_stock' => 'required|in:0,1',
-                'productos.*.series_seleccionadas' => 'nullable|array',
-                'productos.*.tiene_lotes' => 'required|boolean',
-                'productos.*.lotes_seleccionados' => 'nullable|array',
-                'productos.*.lotes_seleccionados.*.lote_id' => 'nullable|exists:pro_lotes,lote_id',
-                'productos.*.lotes_seleccionados.*.cantidad' => 'nullable|integer|min:1',
-                'pago' => 'required|array',
-            ]);
+    $venId = (int) $request->input('ven_id');
+    $venUser = (int) $request->input('ven_user');
+    $detProductoId = (int) $request->input('det_producto_id');
+    $productoId = (int) $request->input('producto_id', $detProductoId);
 
-            DB::beginTransaction();
+    $seriesIds = collect($request->input('series_ids', []))
+        ->map(fn($v) => (int) $v)->filter()->unique()->values();
 
-            // 1. CREAR LA VENTA EN pro_ventas
-            $ventaId = DB::table('pro_ventas')->insertGetId([
-                'ven_user' => auth()->id(),
-                'ven_fecha' => $request->fecha_venta,
-                'ven_cliente' => $request->cliente_id,
-                'ven_total_vendido' => $request->total,
-                'ven_descuento' => $request->descuento_monto ?? 0,
-                'ven_observaciones' => 'Venta Pendiente de autorizar por digecam',
-                'ven_situacion' => 'PENDIENTE'
-            ]);
+    $lotesIds = collect($request->input('lotes_ids', []))
+        ->map(fn($v) => (int) $v)->filter()->unique()->values();
 
-            $totalPagado = 0;
-            $cantidadPagos = 0;
+    $qtyTotal = 0;
+    $detallesProcesados = [];
 
-            // 2. PROCESAR CADA PRODUCTO
-            foreach ($request->productos as $productoData) {
-                $producto = DB::table('pro_productos')->where('producto_id', $productoData['producto_id'])->first();
+    try {
+        DB::transaction(function () use (
+            $venId, $venUser, $productoId, $seriesIds, $lotesIds, &$qtyTotal, &$detallesProcesados
+        ) {
+            // Paso 1: Activar venta
+            $affected = DB::table('pro_ventas')
+                ->where('ven_id', $venId)
+                ->where('ven_user', $venUser)
+                ->update(['ven_situacion' => 'ACTIVA']);
 
-                if (!$producto) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Producto con ID {$productoData['producto_id']} no encontrado"
-                    ], 422);
-                }
+            if ($affected === 0) {
+                throw new \RuntimeException('No se pudo activar la venta (pro_ventas).');
+            }
 
-                // Validar stock disponible SOLO si el producto lo necesita
-                if ($productoData['producto_requiere_stock'] == 1) {
-                    $stockActual = DB::table('pro_stock_actual')->where('stock_producto_id', $producto->producto_id)->first();
-                    if (!$stockActual || $stockActual->stock_cantidad_disponible < $productoData['cantidad']) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Stock insuficiente para el producto: {$producto->producto_nombre}"
-                        ], 422);
-                    }
-                }
+            // Paso 2: Activar detalles
+            DB::table('pro_detalle_ventas')
+                ->where('det_ven_id', $venId)
+                ->update(['det_situacion' => 'ACTIVO']);
 
-                // Insertar detalle de venta en pro_detalle_ventas
-                $detalleId = DB::table('pro_detalle_ventas')->insertGetId([
-                    'det_ven_id' => $ventaId,
-                    'det_producto_id' => $producto->producto_id,
-                    'det_cantidad' => $productoData['cantidad'],
-                    'det_precio' => $productoData['precio_unitario'],
-                    'det_descuento' => 0,
-                    'det_situacion' => 'PENDIENTE',
-                ]);
+            $ref = 'VENTA-' . $venId;
 
-                if ($productoData['producto_requiere_stock'] == 1) {
-                    // PROCESAR SEGÚN TIPO DE PRODUCTO
-                    if ($productoData['requiere_serie'] == 1) {
-                        // ===============================
-                        // PRODUCTO CON SERIES
-                        // ===============================
-                        $seriesSeleccionadas = $productoData['series_seleccionadas'] ?? [];
+            // Paso 3: SERIES
+            if ($seriesIds->isNotEmpty()) {
+                $seriesCantidades = DB::table('pro_movimientos')
+                    ->select('mov_serie_id', DB::raw('SUM(mov_cantidad) as qty'))
+                    ->where('mov_documento_referencia', $ref)
+                    ->where('mov_situacion', 3)
+                    ->whereIn('mov_serie_id', $seriesIds)
+                    ->groupBy('mov_serie_id')
+                    ->pluck('qty', 'mov_serie_id');
 
-                        if (empty($seriesSeleccionadas)) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => "El producto {$producto->producto_nombre} requiere series"
-                            ], 422);
-                        }
+                if ($seriesCantidades->isNotEmpty()) {
+                    DB::table('pro_series_productos')
+                        ->whereIn('serie_id', $seriesCantidades->keys())
+                        ->update(['serie_estado' => 'vendido', 'serie_situacion' => 1]);
 
-                        if (count($seriesSeleccionadas) !== $productoData['cantidad']) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => "Debe seleccionar exactamente {$productoData['cantidad']} serie(s) para {$producto->producto_nombre}"
-                            ], 422);
-                        }
+                    DB::table('pro_movimientos')
+                        ->whereIn('mov_serie_id', $seriesCantidades->keys())
+                        ->where('mov_documento_referencia', $ref)
+                        ->where('mov_situacion', 3)
+                        ->update(['mov_situacion' => 1]);
 
-                        // Obtener IDs de series por número de serie
-                        $seriesInfo = DB::table('pro_series_productos')
-                            ->whereIn('serie_numero_serie', $seriesSeleccionadas)
-                            ->where('serie_producto_id', $producto->producto_id)
-                            ->where('serie_estado', 'disponible')
-                            ->where('serie_situacion', 1)
-                            ->get();
+                    $sumaSeries = $seriesCantidades->sum();
+                    $qtyTotal += $sumaSeries;
 
-                        if ($seriesInfo->count() !== count($seriesSeleccionadas)) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => "Una o más series no están disponibles para el producto {$producto->producto_nombre}"
-                            ], 422);
-                        }
-
-                        // Actualizar series: cambiar estado y situación
-                        $seriesIds = $seriesInfo->pluck('serie_id');
-                        DB::table('pro_series_productos')
-                            ->whereIn('serie_id', $seriesIds)
-                            ->update([
-                                'serie_estado' => 'pendiente',
-                                'serie_situacion' => 0, //situacion 0 y esta pendiente cuando autoriza la venta cambiar a estado vendido
-                            ]);
-
-                        // Registrar movimiento por cada serie
-                        foreach ($seriesInfo as $serieInfo) {
-                            DB::table('pro_movimientos')->insert([
-                                'mov_producto_id' => $producto->producto_id,
-                                'mov_tipo' => 'venta',
-                                'mov_origen' => 'venta',
-                                'mov_destino' => 'cliente',
-                                'mov_cantidad' => 1,
-                                'mov_precio_unitario' => $productoData['precio_unitario'],
-                                'mov_valor_total' => $productoData['precio_unitario'],
-                                'mov_fecha' => now(),
-                                'mov_usuario_id' => auth()->id(),
-                                'mov_serie_id' => $serieInfo->serie_id,
-                                'mov_documento_referencia' => "VENTA-{$ventaId}",
-                                'mov_observaciones' => "Venta - Serie: {$serieInfo->serie_numero_serie}",
-                                'mov_situacion' => 3, //situacion 3 pendiente de validar, situacion 1 autorizado 0 eliminado o cancelado
-                                'created_at' => now(),
-                                'updated_at' => now()
-                            ]);
-                        }
-
-                        // Actualizar stock
-                        DB::table('pro_stock_actual')
-                            ->where('stock_producto_id', $producto->producto_id)
-                            ->increment('stock_cantidad_reservada', count($seriesSeleccionadas));
-                    } else {
-                        // ===============================
-                        // PRODUCTO SIN SERIES (CON O SIN LOTES)
-                        // ===============================
-                        if ($productoData['tiene_lotes'] && !empty($productoData['lotes_seleccionados'])) {
-                            // PRODUCTO CON LOTES
-                            $lotesSeleccionados = $productoData['lotes_seleccionados'];
-                            $totalAsignado = array_sum(array_column($lotesSeleccionados, 'cantidad'));
-
-                            if ($totalAsignado !== $productoData['cantidad']) {
-                                return response()->json([
-                                    'success' => false,
-                                    'message' => "La cantidad asignada en lotes ($totalAsignado) debe coincidir con la cantidad del producto (" . $productoData['cantidad'] . ") para " . $producto->producto_nombre
-                                ], 422);
-                            }
-
-                            // Procesar cada lote
-                            foreach ($lotesSeleccionados as $loteData) {
-                                $lote = DB::table('pro_lotes')->where('lote_id', $loteData['lote_id'])->first();
-
-                                if (!$lote || $lote->lote_cantidad_disponible < $loteData['cantidad']) {
-                                    return response()->json([
-                                        'success' => false,
-                                        'message' => "El lote no tiene suficiente stock disponible"
-                                    ], 422);
-                                }
-
-                                // Actualizar cantidad disponible en el lote // quedó igual si se cansela se regresa la cantidad a pro_lotes
-                                DB::table('pro_lotes')
-                                    ->where('lote_id', $loteData['lote_id'])
-                                    ->decrement('lote_cantidad_disponible', $loteData['cantidad']);
-
-                                DB::table('pro_lotes')
-                                    ->where('lote_id', $loteData['lote_id'])
-                                    ->decrement('lote_cantidad_total', $loteData['cantidad']);
-
-
-                                // Registrar movimiento de lote
-                                DB::table('pro_movimientos')->insert([
-                                    'mov_producto_id' => $producto->producto_id,
-                                    'mov_tipo' => 'venta',
-                                    'mov_origen' => 'venta',
-                                    'mov_destino' => 'cliente',
-                                    'mov_cantidad' => $loteData['cantidad'],
-                                    'mov_precio_unitario' => $productoData['precio_unitario'],
-                                    'mov_valor_total' => $productoData['precio_unitario'] * $loteData['cantidad'],
-                                    'mov_fecha' => now(),
-                                    'mov_usuario_id' => auth()->id(),
-                                    'mov_lote_id' => $loteData['lote_id'],
-                                    'mov_documento_referencia' => "VENTA-{$ventaId}",
-                                    'mov_observaciones' => "Venta - Lote: {$lote->lote_codigo}",
-                                    'mov_situacion' => 1, 
-                                    'created_at' => now(),
-                                    'updated_at' => now()
-                                ]);
-
-                                // Si el lote se agotó, cambiar situación   /// si cancela y el lote estan en situacion cero se debe de cambiar a uno
-                                $loteActualizado = DB::table('pro_lotes')->where('lote_id', $loteData['lote_id'])->first();
-                                if ($loteActualizado->lote_cantidad_disponible <= 0) {
-                                    DB::table('pro_lotes')
-                                        ->where('lote_id', $loteData['lote_id'])
-                                        ->update(['lote_situacion' => 0]);
-                                }
-                            }
-                        } else {
-                            // PRODUCTO SIN LOTES (STOCK GENERAL)
-                            DB::table('pro_movimientos')->insert([
-                                'mov_producto_id' => $producto->producto_id,
-                                'mov_tipo' => 'venta',
-                                'mov_origen' => 'venta',
-                                'mov_destino' => 'cliente',
-                                'mov_cantidad' => $productoData['cantidad'],
-                                'mov_precio_unitario' => $productoData['precio_unitario'],
-                                'mov_valor_total' => $productoData['precio_unitario'] * $productoData['cantidad'],
-                                'mov_fecha' => now(),
-                                'mov_usuario_id' => auth()->id(),
-                                'mov_lote_id' => null,
-                                'mov_documento_referencia' => "VENTA-{$ventaId}",
-                                'mov_observaciones' => "Venta - Stock general",
-                                'mov_situacion' => 1,
-                                'created_at' => now(),
-                                'updated_at' => now()
-                            ]);
-                        }
-
-                        // Actualizar stock total (común para ambos casos)
-
-                                  // Actualizar stock
-                        DB::table('pro_stock_actual')
-                            ->where('stock_producto_id', $producto->producto_id)
-                            ->increment('stock_cantidad_reservada',  $productoData['cantidad']);
-
-                    }
-                } else {
-                    DB::table('pro_movimientos')->insert([
-                        'mov_producto_id' => $producto->producto_id,
-                        'mov_tipo' => 'venta',
-                        'mov_origen' => 'venta',
-                        'mov_destino' => 'cliente',
-                        'mov_cantidad' => $productoData['cantidad'],
-                        'mov_precio_unitario' => $productoData['precio_unitario'],
-                        'mov_valor_total' => $productoData['precio_unitario'] * $productoData['cantidad'],
-                        'mov_fecha' => now(),
-                        'mov_usuario_id' => auth()->id(),
-                        'mov_lote_id' => null,
-                        'mov_documento_referencia' => "VENTA-{$ventaId}",
-                        'mov_observaciones' => "Venta - Stock general",
-                        'mov_situacion' => 1,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
+                    $detallesProcesados[] = 'Series procesadas: ' . $seriesCantidades
+                        ->map(fn($qty, $id) => "$id ($qty)")
+                        ->implode(', ');
                 }
             }
 
+            // Paso 4: LOTES
+            if ($lotesIds->isNotEmpty()) {
+                $lotesCantidades = DB::table('pro_movimientos')
+                    ->select('mov_lote_id', DB::raw('SUM(mov_cantidad) as qty'))
+                    ->where('mov_documento_referencia', $ref)
+                    ->where('mov_situacion', 3)
+                    ->whereIn('mov_lote_id', $lotesIds)
+                    ->groupBy('mov_lote_id')
+                    ->pluck('qty', 'mov_lote_id');
 
-            // 3. PROCESAR PAGOS - NUEVAS TABLAS
-            // Asegúrate de acceder a los datos dentro de 'pago'
-            $metodoPago = $request->metodo_pago;
-            $totalVenta = $request->total;
+                if ($lotesCantidades->isNotEmpty()) {
+                    DB::table('pro_movimientos')
+                        ->whereIn('mov_lote_id', $lotesCantidades->keys())
+                        ->where('mov_documento_referencia', $ref)
+                        ->where('mov_situacion', 3)
+                        ->update(['mov_situacion' => 1]);
 
-            if ($metodoPago == '6') {
-                // SISTEMA DE CUOTAS
-                // Acceder a los valores dentro del array 'pago'
-                $abonoInicial = $request->pago['abono_inicial'] ?? 0;  // Obtener abono inicial
-                $cuotas = $request->pago['cuotas'] ?? [];  // Obtener el arreglo de cuotas, si existe
+                    $sumaLotes = $lotesCantidades->sum();
+                    $qtyTotal += $sumaLotes;
 
-                // 3.1 Crear registro maestro en la tabla pro_pagos (registro del pago principal)
-                $pagoId = DB::table('pro_pagos')->insertGetId([
-                    'pago_venta_id' => $ventaId,
-                    'pago_monto_total' => $totalVenta,
-                    'pago_monto_pagado' => $abonoInicial,
-                    'pago_monto_pendiente' => $totalVenta - $abonoInicial,
-                    'pago_tipo_pago' => 'CUOTAS',  // Tipo de pago: cuotas
-                    'pago_cantidad_cuotas' => $request->pago['cantidad_cuotas'],  // Acceder a cantidad de cuotas
-                    'pago_abono_inicial' => $abonoInicial,
-                    'pago_estado' => 'PENDIENTE',
-                    'pago_fecha_inicio' => now(),  // Fecha de inicio del pago
-                    'pago_fecha_completado' => $abonoInicial >= $totalVenta ? now() : null,  // Fecha de completado si ya pagó el total
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
-
-                // 3.2 Registrar el abono inicial si existe
-                if ($abonoInicial > 0) {
-                    $metodoAbonoId = $request->pago['metodo_abono'] === 'transferencia' ? 4 : 1;  // Método de abono basado en 'transferencia'
-
-                    // Inserta el detalle del abono inicial en la tabla pro_detalle_pagos
-                    DB::table('pro_detalle_pagos')->insert([
-                        'det_pago_pago_id' => $pagoId,  // Relacionado con el pago principal
-                        'det_pago_cuota_id' => null,  // No se asigna cuota ya que es abono inicial
-                        'det_pago_fecha' => now(),
-                        'det_pago_monto' => $abonoInicial,
-                        'det_pago_metodo_pago' => $metodoAbonoId,  // Método de pago
-                        // 'det_pago_banco_id' => $request->pago['banco_id_abono'],  // Banco del abono
-                        'det_pago_banco_id' => 1,  // Banco del abono
-                        'det_pago_numero_autorizacion' => $request->pago['numero_autorizacion_abono'],  // Número de autorización
-                        'det_pago_tipo_pago' => 'ABONO_INICIAL',  // Tipo de pago
-                        'det_pago_estado' => 'VALIDO',  // Estado del pago
-                        'det_pago_observaciones' => 'Abono inicial de la venta',
-                        'det_pago_usuario_registro' => auth()->id(),
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
-
-                    // Actualiza el monto total pagado
-                    $totalPagado += $abonoInicial;
-                    $cantidadPagos++;
+                    $detallesProcesados[] = 'Lotes procesados: ' . $lotesCantidades
+                        ->map(fn($qty, $id) => "$id ($qty)")
+                        ->implode(', ');
                 }
-
-                // 3.3 Crear cuotas
-                $fechaBase = now();  // Fecha base para el cálculo de vencimientos
-                foreach ($cuotas as $index => $cuotaData) {
-                    if ($cuotaData['monto'] > 0) {
-                        // Si el monto de la cuota es mayor a 0, se registra
-                        $fechaVencimiento = $fechaBase->copy()->addMonths($index + 1);  // Fecha de vencimiento, sumando meses
-
-                        // Inserta la cuota en la tabla pro_cuotas
-                        DB::table('pro_cuotas')->insert([
-                            'cuota_control_id' => $pagoId,  // Relaciona la cuota con el pago principal
-                            'cuota_numero' => $index + 1,  // Número de cuota
-                            'cuota_monto' => $cuotaData['monto'],  // Monto de la cuota
-                            'cuota_fecha_vencimiento' => $fechaVencimiento,  // Fecha de vencimiento de la cuota
-                            'cuota_estado' => 'PENDIENTE',  // Estado inicial de la cuota
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ]);
-                    }
-                }
-            } else {
-                // PAGO ÚNICO (efectivo, tarjetas, transferencia, cheque)
-
-                // 3.1 Crear registro maestro en pro_pagos (registro del pago único)
-                $pagoId = DB::table('pro_pagos')->insertGetId([
-                    'pago_venta_id' => $ventaId,
-                    'pago_monto_total' => $totalVenta,
-                    'pago_monto_pagado' => $totalVenta,
-                    'pago_monto_pendiente' => 0,
-                    'pago_tipo_pago' => 'UNICO',
-                    'pago_cantidad_cuotas' => 1,
-                    'pago_abono_inicial' => $totalVenta,
-                    'pago_estado' => 'PENDIENTE',
-                    'pago_fecha_inicio' => now(),
-                    'pago_fecha_completado' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
-
-                // 3.2 Registrar el pago único en pro_detalle_pagos
-                DB::table('pro_detalle_pagos')->insert([
-                    'det_pago_pago_id' => $pagoId,
-                    'det_pago_cuota_id' => null,
-                    'det_pago_fecha' => now(),
-                    'det_pago_monto' => $totalVenta,
-                    'det_pago_metodo_pago' => $metodoPago,
-                    // 'det_pago_banco_id' => $request->tipo_banco,
-                    'det_pago_banco_id' => 1,
-                    'det_pago_numero_autorizacion' => $request->numero_autorizacion,
-                    'det_pago_tipo_pago' => 'PAGO_UNICO',
-                    'det_pago_estado' => 'VALIDO',
-                    'det_pago_observaciones' => 'Pago completo de la venta',
-                    'det_pago_usuario_registro' => auth()->id(),
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
-
-                // Actualiza los valores de totalPagado y cantidadPagos
-                $totalPagado = $totalVenta;
-                $cantidadPagos = 1;
             }
 
-            // 5. CALCULAR PORCENTAJE DEL VENDEDOR
-            $porcentaje = 5.0;  // Porcentaje de comisión del vendedor
-            $ganancia = $totalVenta * ($porcentaje / 100);  // Cálculo de la ganancia
+            // Paso 5: Actualizar stock
+            if ($qtyTotal > 0) {
+                DB::table('pro_stock_actual')
+                    ->where('stock_producto_id', $productoId)
+                    ->decrement('stock_cantidad_reservada', $qtyTotal);
 
-            // Registrar la comisión en la tabla pro_porcentaje_vendedor
-            DB::table('pro_porcentaje_vendedor')->insert([
-                'porc_vend_user_id' => auth()->id(),  // ID del vendedor (usuario que registra la venta)
-                'porc_vend_ven_id' => $ventaId,  // ID de la venta
-                'porc_vend_porcentaje' => $porcentaje,  // Porcentaje de comisión
-                'porc_vend_cantidad_ganancia' => $ganancia,  // Ganancia calculada
-                'porc_vend_monto_base' => $totalVenta,  // Monto base sobre el que se calcula la comisión
-                'porc_vend_fecha_asignacion' => now(),  // Fecha de asignación de la comisión
-                'porc_vend_estado' => 'PENDIENTE',  // Estado inicial de la comisión (pendiente)
-                'porc_vend_situacion' => 'ACTIVO',  // Situación activa de la comisión
-                'porc_vend_observaciones' => 'Comisión por venta',  // Observaciones (puedes personalizarlo según sea necesario)
+                DB::table('pro_stock_actual')
+                    ->where('stock_producto_id', $productoId)
+                    ->decrement('stock_cantidad_disponible', $qtyTotal);
 
-            ]);
+                DB::table('pro_stock_actual')
+                    ->where('stock_producto_id', $productoId)
+                    ->decrement('stock_cantidad_total', $qtyTotal);
+            }
+        }, 3);
 
-            // 6. REGISTRAR EN HISTORIAL DE CAJA
-            DB::table('cja_historial')->insert([
-                'cja_tipo' => 'VENTA',
-                'cja_id_venta' => $ventaId,
-                'cja_usuario' => auth()->id(),
-                'cja_monto' => $totalPagado,
-                'cja_fecha' => now(),
-                'cja_metodo_pago' => $request->metodo_pago,
-                'cja_no_referencia' => "VENTA-{$ventaId}",
-                'cja_situacion' => 'PENDIENTE',
-                'cja_observaciones' => 'Venta registrada',
-                'created_at' => now()
-            ]);
-
-            // Si todo va bien, confirmamos la transacción
-            DB::commit();
-
-            // Respuesta exitosa
-            return response()->json([
-                'success' => true,
-                'message' => 'Venta procesada exitosamente',
-                'venta_id' => $ventaId,
-                'folio' => "VENTA-{$ventaId}",
-                'pago_id' => $pagoId
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Datos de validación incorrectos',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al procesar la venta: ' . $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'codigo' => 1,
+            'mensaje' => 'Venta autorizada exitosamente',
+            'meta' => [
+                'qty_total' => $qtyTotal,
+                'detalles' => $detallesProcesados,
+                'ven_id' => $venId
+            ],
+        ]);
+    } catch (\Throwable $e) {
+        report($e);
+        return response()->json([
+            'codigo' => 0,
+            'mensaje' => 'No se pudo autorizar la venta.',
+            'detalle' => $e->getMessage(),
+        ], 500);
     }
+}
+public function actualizarLicencias(Request $request): JsonResponse
+{
+    $venId = (int) $request->input('ven_id');
+    $licenciaAnterior = $request->input('licencia_anterior');
+    $licenciaNueva = $request->input('licencia_nueva');
+
+    $seriesIds = collect($request->input('series_ids', []))->filter()->values();
+    $lotesIds = collect($request->input('lotes_ids', []))->filter()->values();
+
+    try {
+        DB::transaction(function () use ($venId, $licenciaAnterior, $licenciaNueva, $seriesIds, $lotesIds) {
+            if ($seriesIds->isNotEmpty()) {
+                DB::table('pro_movimientos')
+                    ->whereIn('mov_serie_id', $seriesIds)
+                    ->where('mov_documento_referencia', 'VENTA-' . $venId)
+                    ->update([
+                        'mov_licencia_anterior' => $licenciaAnterior,
+                        'mov_licencia_nueva' => $licenciaNueva
+                    ]);
+            }
+
+            if ($lotesIds->isNotEmpty()) {
+                DB::table('pro_movimientos')
+                    ->whereIn('mov_lote_id', $lotesIds)
+                    ->where('mov_documento_referencia', 'VENTA-' . $venId)
+                    ->update([
+                        'mov_licencia_anterior' => $licenciaAnterior,
+                        'mov_licencia_nueva' => $licenciaNueva
+                    ]);
+            }
+        });
+
+        return response()->json([
+            'codigo' => 1,
+            'mensaje' => 'Licencias actualizadas correctamente'
+        ]);
+    } catch (\Throwable $e) {
+        report($e);
+        return response()->json([
+            'codigo' => 0,
+            'mensaje' => 'Error al actualizar licencias',
+            'detalle' => $e->getMessage()
+        ], 500);
+    }
+}
 
 
 
-///////// termino morales batz
+    ///////// termino morales batz
 
 
 
@@ -1060,7 +829,7 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
                                     'mov_lote_id' => $loteData['lote_id'],
                                     'mov_documento_referencia' => "VENTA-{$ventaId}",
                                     'mov_observaciones' => "Venta - Lote: {$lote->lote_codigo}",
-                                    'mov_situacion' => 1, 
+                                    'mov_situacion' => 3,
                                     'created_at' => now(),
                                     'updated_at' => now()
                                 ]);
@@ -1096,10 +865,10 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
 
                         // Actualizar stock total (común para ambos casos)
 
-                                  // Actualizar stock
+                        // Actualizar stock
                         DB::table('pro_stock_actual')
                             ->where('stock_producto_id', $producto->producto_id)
-                            ->increment('stock_cantidad_reservada',  $productoData['cantidad']);
+                            ->increment('stock_cantidad_reservada', $productoData['cantidad']);
 
                     }
                 } else {

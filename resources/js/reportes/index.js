@@ -448,7 +448,6 @@ async loadReporteVentas(filtros = {}) {
         this.hideLoading('ventas');
     }
 }
-
 renderTablaVentas(ventas) {
     const tbody = document.getElementById('tbody-ventas');
     if (!tbody) {
@@ -468,72 +467,355 @@ renderTablaVentas(ventas) {
         return;
     }
     
-    tbody.innerHTML = ventas.map(venta => `
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-            <!-- Fecha -->
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-              
-                <div class="text-gray-500">${this.formatearFechaDisplay(venta.ven_fecha)}</div>
-            </td>
-            
-            <!-- Cliente -->
-            <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                ${venta.cliente || 'N/A'}
-            </td>
-            
-            <!-- Empresa -->
-            <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                ${venta.empresa || 'N/A'}
-            </td>
-            
-            <!-- Vendedor -->
-            <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                ${venta.vendedor || 'N/A'}
-            </td>
-            
-            <!-- Productos -->
-            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                <div class="max-w-xs truncate" title="${venta.productos || 'Sin productos'}">
-                    ${venta.productos || 'Sin productos'}
+    tbody.innerHTML = ventas.map(venta => {
+        // Preparar los datos para el dataset
+        const ventaData = {
+            ven_id: venta.ven_id,
+            ven_user: venta.ven_user,
+            cliente: venta.cliente,
+            det_producto_id: venta.det_producto_id,
+            series_ids: venta.series_ids || '',
+            lotes_ids: venta.lotes_ids || ''
+        };
+        
+        console.log(ventaData)
+        // Determinar qué mostrar en la columna de identificadores
+        let identificadoresDisplay = '';
+        if (venta.series_display) {
+            identificadoresDisplay = `
+                <div class="text-xs">
+                    <span class="font-semibold">Series:</span> ${venta.series_display}
                 </div>
-            </td>
-            
-            <!-- Total -->
-            <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-bold text-gray-900 dark:text-gray-100">
-                    ${this.formatCurrency(venta.ven_total_vendido)}
+            `;
+        }
+        if (venta.lotes_display) {
+            identificadoresDisplay += `
+                <div class="text-xs mt-1">
+                    <span class="font-semibold">Lotes:</span> ${venta.lotes_display}
                 </div>
-            </td>
-            
-            <!-- Estado -->
-            <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                    <i class="fas fa-clock mr-1"></i>
-                    ${venta.ven_situacion || 'PENDIENTE'}
-                </span>
-            </td>
-            
-            <!-- Acciones -->
-            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})"
-                        class="text-blue-600 hover:text-blue-900 mr-2" 
-                        title="Ver detalle">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button onclick="reportesManager.autorizarVenta(${venta.det_ven_id})"
-                        class="text-green-600 hover:text-green-900 mr-2" 
-                        title="Autorizar">
-                    <i class="fas fa-check"></i>
-                </button>
-                <button onclick="reportesManager.rechazarVenta(${venta.ven_id})"
-                        class="text-red-600 hover:text-red-900" 
-                        title="Rechazar">
-                    <i class="fas fa-times"></i>
-                </button>
-            </td>
-        </tr>
-    `).join('');
+            `;
+        }
+        if (!identificadoresDisplay) {
+            identificadoresDisplay = '<span class="text-gray-400">Sin series/lotes</span>';
+        }
+        
+        return `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700" 
+                data-venta='${JSON.stringify(ventaData)}'>
+                <!-- Fecha -->
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    <div class="text-gray-500">${this.formatearFechaDisplay(venta.ven_fecha)}</div>
+                </td>
+                
+                <!-- Cliente -->
+                <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                    ${venta.cliente || 'N/A'}
+                </td>
+                
+                <!-- Empresa -->
+                <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                    ${venta.empresa || 'N/A'}
+                </td>
+                
+                <!-- Vendedor -->
+                <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                    ${venta.vendedor || 'N/A'}
+                </td>
+                
+                <!-- Productos -->
+                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    <div class="max-w-xs" title="${venta.productos || 'Sin productos'}">
+                        <div class="font-medium text-gray-900 dark:text-gray-100">
+                            ${venta.productos || 'Sin productos'}
+                        </div>
+                        <div class="mt-1">
+                            ${identificadoresDisplay}
+                        </div>
+                    </div>
+                </td>
+                
+                <!-- Total -->
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                        ${this.formatCurrency(venta.ven_total_vendido)}
+                    </div>
+                </td>
+                
+                <!-- Estado -->
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        <i class="fas fa-clock mr-1"></i>
+                        ${venta.ven_situacion || 'PENDIENTE'}
+                    </span>
+                </td>
+                
+                <!-- Acciones -->
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})"
+                            class="text-blue-600 hover:text-blue-900 mr-2" 
+                            title="Ver detalle">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="reportesManager.autorizarVentaClick(this)"
+                            class="text-green-600 hover:text-green-900 mr-2" 
+                            title="Autorizar">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button onclick="reportesManager.rechazarVenta(${venta.ven_id})"
+                            class="text-red-600 hover:text-red-900" 
+                            title="Rechazar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
+
+async autorizarVentaClick(buttonElement) {
+    try {
+        const row = buttonElement.closest('tr');
+        const ventaData = JSON.parse(row.dataset.venta);
+        console.log('📦 Datos de la venta:', ventaData);
+        
+        // Procesar series IDs - convertir a array de números
+        let seriesArray = [];
+        if (ventaData.series_ids && ventaData.series_ids.trim()) {
+            seriesArray = ventaData.series_ids
+                .split(',')
+                .map(id => parseInt(id.trim(), 10))
+                .filter(id => !isNaN(id) && id > 0);
+        }
+        
+        // Procesar lotes IDs - convertir a array de números
+        let lotesArray = [];
+        if (ventaData.lotes_ids && ventaData.lotes_ids.trim()) {
+            lotesArray = ventaData.lotes_ids
+                .split(',')
+                .map(id => {
+                    const trimmed = id.trim();
+                    // Ignorar "SIN-LOTE" y convertir a número
+                    if (trimmed === 'SIN-LOTE' || trimmed === '') return null;
+                    return parseInt(trimmed, 10);
+                })
+                .filter(id => id !== null && !isNaN(id) && id > 0);
+        }
+        
+        // CORREGIDO: Enviar arrays, no strings
+        const payload = {
+            ven_id: ventaData.ven_id,
+            ven_user: ventaData.ven_user,
+            cliente: ventaData.cliente,
+            det_producto_id: ventaData.det_producto_id,
+            producto_id: ventaData.det_producto_id,
+            series_ids: seriesArray,  // ✅ Array de números
+            lotes_ids: lotesArray     // ✅ Array de números
+        };
+        
+        console.log('📤 Payload a enviar:', payload);
+        console.log('📋 Series procesadas:', seriesArray);
+        console.log('📦 Lotes procesados:', lotesArray);
+        
+        // Construir mensaje de confirmación con detalles
+        let detallesHtml = `<p><strong>Cliente:</strong> ${payload.cliente}</p>`;
+        
+        if (seriesArray.length > 0) {
+            detallesHtml += `<p><strong>Series:</strong> ${seriesArray.length} serie(s)</p>`;
+        }
+        
+        if (lotesArray.length > 0) {
+            detallesHtml += `<p><strong>Lotes:</strong> ${lotesArray.length} lote(s)</p>`;
+        }
+        
+        const confirmacion = await Swal.fire({
+            title: '¿Autorizar esta venta?',
+            html: `<div class="text-left">${detallesHtml}</div>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: '<i class="fas fa-check mr-2"></i>Sí, autorizar',
+            cancelButtonText: '<i class="fas fa-times mr-2"></i>Cancelar'
+        });
+        
+        if (!confirmacion.isConfirmed) {
+            console.log('❌ Autorización cancelada por el usuario');
+            return;
+        }
+        
+        // Mostrar loading
+        Swal.fire({
+            title: 'Autorizando venta...',
+            html: 'Por favor espere',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+        
+        // Realizar petición
+        const response = await fetch('/ventas/autorizar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        console.log('📡 Response status:', response.status);
+        
+        if (response.status === 419) {
+            throw new Error('Token CSRF inválido. Recarga la página e intenta nuevamente.');
+        }
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Error response:', errorText);
+            throw new Error(`Error ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📥 Response data:', result);
+        
+  if (result.codigo === 1) {
+    console.log('✅ Venta autorizada exitosamente');
+
+    let mensajeExito = result.mensaje || '¡Venta autorizada!';
+
+    if (result.meta && result.meta.qty_total) {
+        mensajeExito += `<br><small><strong>Total procesado:</strong> ${result.meta.qty_total} unidad(es)</small>`;
+    }
+
+    if (result.meta?.detalles?.length > 0) {
+        mensajeExito += '<br><small class="text-gray-600">';
+        mensajeExito += result.meta.detalles.join('<br>');
+        mensajeExito += '</small>';
+    }
+
+    // 1️⃣ Mostrar inputs para licencia después del éxito
+    const { value: formValues } = await Swal.fire({
+        title: 'Actualizar licencias',
+        html:
+            '<input id="licencia-anterior" class="swal2-input" placeholder="Licencia anterior">' +
+            '<input id="licencia-nueva" class="swal2-input" placeholder="Licencia nueva">',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Actualizar',
+        cancelButtonText: 'Omitir',
+        preConfirm: () => {
+            const anterior = document.getElementById('licencia-anterior').value;
+            const nueva = document.getElementById('licencia-nueva').value;
+            if (!anterior || !nueva) {
+                Swal.showValidationMessage('Debes llenar ambos campos');
+            }
+            return {
+                licencia_anterior: anterior,
+                licencia_nueva: nueva
+            };
+        }
+    });
+
+    // 2️⃣ Si llenó el formulario → actualizar
+    if (formValues) {
+        const updateResponse = await fetch('/ventas/actualizar-licencias', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                ven_id: ventaData.ven_id,
+                series_ids: seriesArray,
+                lotes_ids: lotesArray,
+                licencia_anterior: formValues.licencia_anterior,
+                licencia_nueva: formValues.licencia_nueva
+            })
+        });
+
+        const updateResult = await updateResponse.json();
+        console.log('🔁 Resultado de actualización de licencias:', updateResult);
+
+        if (!updateResponse.ok || updateResult.codigo !== 1) {
+            throw new Error(updateResult.mensaje || updateResult.detalle || 'Error al actualizar licencias');
+        }
+
+        mensajeExito += `<br><small class="text-green-600">✅ Licencias actualizadas correctamente.</small>`;
+    }
+
+    // 3️⃣ Mostrar alert final
+    await Swal.fire({
+        icon: 'success',
+        title: '¡Venta completada!',
+        html: mensajeExito,
+        confirmButtonColor: '#10b981'
+    });
+
+    this.cargarVentasPendientes(); // ✅ Recarga tabla
+
+} else {
+    throw new Error(result.mensaje || result.detalle || 'Error al autorizar la venta');
+}
+
+        
+    } catch (error) {
+        console.error('❌ Error completo:', error);
+        
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            html: `
+                <div class="text-left">
+                    <p class="font-semibold mb-2">No se pudo autorizar la venta:</p>
+                    <p class="text-sm">${error.message}</p>
+                </div>
+            `,
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+
+// También actualiza esta función
+async cargarVentasPendientes() {
+    try {
+        console.log('🔄 Cargando ventas pendientes...');
+        
+        // ⭐ CAMBIO: Quitar /api (ahora es /ventas/pendientes)
+        const response = await fetch('/ventas/pendientes', {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        });
+        
+        console.log('📡 Pendientes response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('📥 Ventas pendientes:', data);
+        
+        if (data.success) {
+            this.renderTablaVentas(data.data);
+            console.log(`✅ ${data.total} ventas pendientes cargadas`);
+        } else {
+            throw new Error(data.message || 'Error al cargar ventas');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error al cargar ventas pendientes:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudieron cargar las ventas pendientes',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+
+
 
 
     /**
