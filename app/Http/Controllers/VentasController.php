@@ -357,8 +357,7 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
                     )
                 ) AS vendedor,
                 GROUP_CONCAT(DISTINCT p.producto_nombre SEPARATOR ', ') AS productos,
-                
-                -- ✅ AGREGADO: IDs separados por comas para enviar al backend
+                            
                 GROUP_CONCAT(DISTINCT mov.mov_serie_id ORDER BY mov.mov_serie_id SEPARATOR ',') AS series_ids,
                 GROUP_CONCAT(DISTINCT mov.mov_lote_id ORDER BY mov.mov_lote_id SEPARATOR ',') AS lotes_ids,
                 
