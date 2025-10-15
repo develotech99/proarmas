@@ -132,7 +132,7 @@
                     <button onclick="reportesManager.cambiarTab('ventas')"
                         class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                         <i class="fas fa-shopping-cart mr-2"></i>
-                        Reporte de Ventas Pendientes
+                        Ventas Pendientes
                     </button>
                     <button onclick="reportesManager.cambiarTab('productos')"
                         class="tab-button border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
@@ -280,15 +280,7 @@
                                 <option value="">Todos los clientes</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
-                            <select id="filtro-estado-ventas"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                <option value="">Todos los estados</option>
-                                <option value="1">Activas</option>
-                                <option value="0">Anuladas</option>
-                            </select>
-                        </div>
+                 
                         <div class="flex items-end">
                             <button onclick="reportesManager.aplicarFiltrosVentas()"
                                 class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
@@ -854,6 +846,7 @@
         </div>
 
     </div>
+    
 
 @endsection
 

@@ -327,7 +327,11 @@ class VentasController extends Controller
 public function obtenerVentasPendientes(Request $request): JsonResponse
 {
     try {
-        $ventas = DB::select("
+       
+        $clienteId = $request->input('cliente_id');
+        $vendedorId = $request->input('vendedor_id');
+        
+        $query = "
             SELECT 
                 v.ven_id,
                 v.ven_user,
@@ -361,7 +365,6 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
                 GROUP_CONCAT(DISTINCT mov.mov_serie_id ORDER BY mov.mov_serie_id SEPARATOR ',') AS series_ids,
                 GROUP_CONCAT(DISTINCT mov.mov_lote_id ORDER BY mov.mov_lote_id SEPARATOR ',') AS lotes_ids,
                 
-                -- Información adicional para display
                 GROUP_CONCAT(
                     DISTINCT CONCAT(mov.mov_lote_id, ' (', mov.mov_cantidad, ')')
                     ORDER BY mov.mov_lote_id SEPARATOR ', '
@@ -384,6 +387,22 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
                 AND mov.mov_documento_referencia = CONCAT('VENTA-', v.ven_id)
             WHERE d.det_situacion = 'PENDIENTE'
                 AND v.ven_situacion = 'PENDIENTE'
+        ";
+        
+        // ✅ Agregar filtros dinámicamente
+        $bindings = [];
+        
+        if ($clienteId) {
+            $query .= " AND v.ven_cliente = ?";
+            $bindings[] = $clienteId;
+        }
+        
+        if ($vendedorId) {
+            $query .= " AND v.ven_user = ?";
+            $bindings[] = $vendedorId;
+        }
+        
+        $query .= "
             GROUP BY 
                 v.ven_id,
                 v.ven_fecha,
@@ -402,7 +421,9 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
                 u.user_primer_apellido,
                 u.user_segundo_apellido
             ORDER BY v.ven_fecha DESC
-        ");
+        ";
+        
+        $ventas = DB::select($query, $bindings);
 
         $ventasProcesadas = array_map(function($venta) {
             return [
@@ -428,6 +449,10 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
             'success' => true,
             'total' => count($ventasProcesadas),
             'data' => $ventasProcesadas,
+            'filtros_aplicados' => [
+                'cliente_id' => $clienteId,
+                'vendedor_id' => $vendedorId
+            ]
         ]);
 
     } catch (QueryException $e) {
@@ -582,39 +607,53 @@ public function autorizarVenta(Request $request): JsonResponse
 public function actualizarLicencias(Request $request): JsonResponse
 {
     $venId = (int) $request->input('ven_id');
-    $licenciaAnterior = $request->input('licencia_anterior');
-    $licenciaNueva = $request->input('licencia_nueva');
+    $licencias = $request->input('licencias', []); // Array de objetos con licencias por serie
 
-    $seriesIds = collect($request->input('series_ids', []))->filter()->values();
-    $lotesIds = collect($request->input('lotes_ids', []))->filter()->values();
+    if (empty($licencias)) {
+        return response()->json([
+            'codigo' => 0,
+            'mensaje' => 'No se recibieron licencias para actualizar'
+        ], 400);
+    }
 
     try {
-        DB::transaction(function () use ($venId, $licenciaAnterior, $licenciaNueva, $seriesIds, $lotesIds) {
-            if ($seriesIds->isNotEmpty()) {
-                DB::table('pro_movimientos')
-                    ->whereIn('mov_serie_id', $seriesIds)
-                    ->where('mov_documento_referencia', 'VENTA-' . $venId)
+        $procesadas = 0;
+        
+        DB::transaction(function () use ($venId, $licencias, &$procesadas) {
+            $ref = 'VENTA-' . $venId;
+            
+            foreach ($licencias as $licencia) {
+                $serieId = (int) $licencia['serie_id'];
+                $licAnterior = $licencia['licencia_anterior'];
+                $licNueva = $licencia['licencia_nueva'];
+                
+                // Actualizar movimientos de esta serie específica
+                $affected = DB::table('pro_movimientos')
+                    ->where('mov_serie_id', $serieId)
+                    ->where('mov_documento_referencia', $ref)
                     ->update([
-                        'mov_licencia_anterior' => $licenciaAnterior,
-                        'mov_licencia_nueva' => $licenciaNueva
+                        'mov_licencia_anterior' => $licAnterior,
+                        'mov_licencia_nueva' => $licNueva
                     ]);
-            }
-
-            if ($lotesIds->isNotEmpty()) {
-                DB::table('pro_movimientos')
-                    ->whereIn('mov_lote_id', $lotesIds)
-                    ->where('mov_documento_referencia', 'VENTA-' . $venId)
-                    ->update([
-                        'mov_licencia_anterior' => $licenciaAnterior,
-                        'mov_licencia_nueva' => $licenciaNueva
-                    ]);
+                
+                if ($affected > 0) {
+                    $procesadas++;
+                }
+                
+            
+               
             }
         });
 
         return response()->json([
             'codigo' => 1,
-            'mensaje' => 'Licencias actualizadas correctamente'
+            'mensaje' => "Licencias actualizadas correctamente ({$procesadas} serie(s))",
+            'meta' => [
+                'series_procesadas' => $procesadas,
+                'total_enviadas' => count($licencias)
+            ]
         ]);
+        
     } catch (\Throwable $e) {
         report($e);
         return response()->json([
@@ -624,7 +663,6 @@ public function actualizarLicencias(Request $request): JsonResponse
         ], 500);
     }
 }
-
 
 
     ///////// termino morales batz
