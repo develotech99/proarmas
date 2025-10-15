@@ -543,23 +543,7 @@ function mostrarProductos(productosData) {
                     ${iniciales}
                  </div>`
             }
-            ${imagenSrc ? 
-                `<img src="${imagenSrc}" 
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>` 
-                :
-                `<img src="images/standar.webp"
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>`
-            }
+           
             <!-- Badge de stock -->
             <div class="absolute top-2 right-2">
               ${stockBadgeHtml}
@@ -981,9 +965,14 @@ function agregarProductoAlCarrito(producto) {
             producto_id: producto.producto_id,
             nombre: producto.producto_nombre,
             marca: producto.marca_descripcion,
-            imagen: producto.foto_url
-                ? `/storage/productos/${producto.foto_url}`
-                : "/storage/productos/standar.webp",
+           imagen: (() => {
+            let imgSrc = producto.foto_url;
+            if (imgSrc && !imgSrc.startsWith('/storage/') && !imgSrc.startsWith('http')) {
+                return '/storage/' + imgSrc;
+            }
+            return imgSrc || 'images/standar.webp';
+        })(),
+                
 
             // 🔹 PRECIOS CORREGIDOS - mantener valores originales
             precio_venta: precioVenta,                    // Precio normal
@@ -1094,11 +1083,9 @@ function actualizarVistaCarrito() {
         p.marca = p.marca ?? p.marca_descripcion ?? "";
 
         // imagen
-        p.imagen =
-            p.imagen ??
-            (p.foto_url
-                ? `/storage/productos/${p.foto_url}`
-                : "images/standar.webp");
+        // Construir imagen igual que en mostrarProductos
+         // imagen - ya viene procesada, solo validar que exista
+        if (!p.imagen) p.imagen = 'images/standar.webp';
 
         // precios - NO sobrescribir si ya existen
         if (!p.precio_venta) p.precio_venta = Number(p.precio ?? 0);
@@ -2770,6 +2757,8 @@ document.addEventListener('DOMContentLoaded', function () {
 function cerrarModalDocumentacion() {
     const modal = document.getElementById('modalDocumentacion');
     const checkbox = document.getElementById('checkRequiereDocumentacion');
+    document.getElementById("tipoDocumentoSelect").value = '';
+    document.getElementById("numeroDocumentoInput").value = '';
     
     modal.classList.add('hidden');
     modal.classList.remove('flex');

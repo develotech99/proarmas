@@ -296,6 +296,7 @@ Route::middleware('auth')->group(function () {
       Route::get('/reportes/ventas/{id}/detalle', [ReportesController::class, 'getDetalleVenta'])->name('reportes.venta.detalle');
 
       Route::post('/ventas/autorizar', [VentasController::class, 'autorizarVenta']);
+      Route::post('/ventas/cancelar', [VentasController::class, 'cancelarVenta']);
       Route::get('/ventas/pendientes', [VentasController::class, 'obtenerVentasPendientes']);
       Route::post('/ventas/actualizar-licencias', [VentasController::class, 'actualizarLicencias']);
 
