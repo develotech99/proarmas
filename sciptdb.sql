@@ -1,3 +1,121 @@
+CREATE TABLE `pro_detalle_ventas` (
+   `det_id` int NOT NULL AUTO_INCREMENT,
+   `det_ven_id` int NOT NULL COMMENT 'A qué venta pertenece',
+   `det_producto_id` bigint unsigned NOT NULL COMMENT 'Qué producto se vendió',
+   `det_cantidad` int NOT NULL COMMENT 'Cuántos se vendieron',
+   `det_precio` decimal(10,2) NOT NULL COMMENT 'Precio unitario de venta',
+   `det_descuento` decimal(10,2) DEFAULT '0.00' COMMENT 'Descuento específico del producto',
+   `det_situacion` enum('ACTIVO','ANULADA','PENDIENTE') DEFAULT 'ACTIVO',
+   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+   PRIMARY KEY (`det_id`),
+   KEY `det_ven_id` (`det_ven_id`),
+   KEY `det_producto_id` (`det_producto_id`),
+   CONSTRAINT `pro_detalle_ventas_ibfk_1` FOREIGN KEY (`det_ven_id`) REFERENCES `pro_ventas` (`ven_id`) ON DELETE CASCADE,
+   CONSTRAINT `pro_detalle_ventas_ibfk_2` FOREIGN KEY (`det_producto_id`) REFERENCES `pro_productos` (`producto_id`)
+ ) ENGINE=InnoDB AUTO_INCREMENT=79 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Detalle de productos vendidos en cada transacción'
+
+CREATE TABLE `pro_lotes` (
+   `lote_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+   `lote_codigo` varchar(100) NOT NULL COMMENT 'Código único del lote, ej: L2025-08-GLOCK-001',
+   `lote_producto_id` bigint unsigned NOT NULL COMMENT 'FK al producto específico',
+   `lote_fecha` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha de creación o ingreso del lote',
+   `lote_descripcion` varchar(255) DEFAULT NULL COMMENT 'Descripción breve opcional del lote',
+   `lote_cantidad_total` int DEFAULT '0' COMMENT 'Cantidad total en este lote',
+   `lote_cantidad_disponible` int DEFAULT '0' COMMENT 'Cantidad disponible en este lote',
+   `lote_usuario_id` bigint unsigned DEFAULT NULL COMMENT 'Usuario que creó el lote',
+   `lote_situacion` int DEFAULT '1' COMMENT '1 = activo, 0 = cerrado o eliminado',
+   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+   PRIMARY KEY (`lote_id`),
+   UNIQUE KEY `lote_codigo` (`lote_codigo`),
+   KEY `idx_lote_codigo` (`lote_codigo`),
+   KEY `idx_lote_fecha` (`lote_fecha`),
+   KEY `idx_lote_usuario` (`lote_usuario_id`),
+   KEY `idx_lote_producto` (`lote_producto_id`),
+   KEY `idx_lote_cantidad_total` (`lote_cantidad_total`),
+   KEY `idx_lote_cantidad_disponible` (`lote_cantidad_disponible`),
+   CONSTRAINT `fk_lote_producto` FOREIGN KEY (`lote_producto_id`) REFERENCES `pro_productos` (`producto_id`) ON DELETE CASCADE,
+   CONSTRAINT `pro_lotes_ibfk_1` FOREIGN KEY (`lote_usuario_id`) REFERENCES `users` (`user_id`),
+   CONSTRAINT `chk_cantidad_disponible_menor_igual_total` CHECK ((`lote_cantidad_disponible` <= `lote_cantidad_total`)),
+   CONSTRAINT `chk_lote_cantidad_disponible_positiva` CHECK ((`lote_cantidad_disponible` >= 0)),
+   CONSTRAINT `chk_lote_cantidad_total_positiva` CHECK ((`lote_cantidad_total` >= 0))
+ ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Lotes de productos, útil para productos sin serie o importaciones'
+
+CREATE TABLE `pro_series_productos` (
+   `serie_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+   `serie_producto_id` bigint unsigned NOT NULL COMMENT 'FK al producto',
+   `serie_numero_serie` varchar(200) NOT NULL COMMENT 'Número de serie único',
+   `serie_estado` varchar(25) DEFAULT 'disponible' COMMENT 'disponible, reservado, vendido, baja',
+   `serie_fecha_ingreso` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha en que fue ingresado al sistema',
+   `serie_observaciones` varchar(255) DEFAULT NULL COMMENT 'Observaciones específicas de esta serie',
+   `serie_situacion` int DEFAULT '1' COMMENT '1 = activo, 0 = eliminado',
+   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+   `serie_asignacion_id` bigint unsigned DEFAULT NULL COMMENT 'FK a la asignación licencia-producto si aplica',
+   PRIMARY KEY (`serie_id`),
+   UNIQUE KEY `unique_serie_per_product` (`serie_producto_id`,`serie_numero_serie`),
+   KEY `idx_serie_producto` (`serie_producto_id`),
+   KEY `idx_serie_estado` (`serie_estado`),
+   KEY `idx_serie_numero` (`serie_numero_serie`),
+   KEY `idx_serie_asignacion` (`serie_asignacion_id`),
+   CONSTRAINT `fk_serie_asignacion` FOREIGN KEY (`serie_asignacion_id`) REFERENCES `pro_licencia_asignacion_producto` (`asignacion_id`) ON DELETE SET NULL,
+   CONSTRAINT `pro_series_productos_ibfk_1` FOREIGN KEY (`serie_producto_id`) REFERENCES `pro_productos` (`producto_id`) ON DELETE CASCADE
+ ) ENGINE=InnoDB AUTO_INCREMENT=60 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Series individuales de productos que requieren número de serie'
+
+CREATE TABLE `pro_productos` (
+   `producto_id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID único del producto',
+   `producto_nombre` varchar(100) NOT NULL COMMENT 'Nombre comercial del producto',
+   `producto_descripcion` text COMMENT 'Descripción detallada del producto',
+   `pro_codigo_sku` varchar(100) NOT NULL COMMENT 'SKU único autogenerado',
+   `producto_codigo_barra` varchar(100) DEFAULT NULL COMMENT 'Código de barra si aplica (puede ser nulo)',
+   `producto_categoria_id` bigint unsigned NOT NULL COMMENT 'FK a la categoría',
+   `producto_subcategoria_id` bigint unsigned NOT NULL COMMENT 'FK a la subcategoría',
+   `producto_marca_id` bigint unsigned NOT NULL COMMENT 'FK a la marca del producto',
+   `producto_modelo_id` bigint unsigned DEFAULT NULL COMMENT 'FK al modelo del producto, puede ser nulo si no aplica',
+   `producto_calibre_id` bigint unsigned DEFAULT NULL COMMENT 'FK al calibre, puede ser nulo si no aplica',
+   `producto_madein` bigint unsigned DEFAULT NULL COMMENT 'FK al país de fabricación',
+   `producto_requiere_serie` tinyint(1) DEFAULT '0' COMMENT 'Indica si requiere número de serie',
+   `producto_stock_minimo` int DEFAULT '0' COMMENT 'Alerta de stock mínimo',
+   `producto_stock_maximo` int DEFAULT '0' COMMENT 'Stock máximo recomendado',
+   `producto_situacion` int DEFAULT '1' COMMENT '1 = activo, 0 = inactivo',
+   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha de creación',
+   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Fecha de actualización',
+   `producto_requiere_stock` int DEFAULT '1',
+   PRIMARY KEY (`producto_id`),
+   UNIQUE KEY `pro_codigo_sku` (`pro_codigo_sku`),
+   UNIQUE KEY `producto_codigo_barra` (`producto_codigo_barra`),
+   KEY `idx_producto_categoria` (`producto_categoria_id`),
+   KEY `idx_producto_subcategoria` (`producto_subcategoria_id`),
+   KEY `idx_producto_marca` (`producto_marca_id`),
+   KEY `idx_producto_modelo` (`producto_modelo_id`),
+   KEY `idx_producto_calibre` (`producto_calibre_id`),
+   KEY `idx_producto_situacion` (`producto_situacion`),
+   KEY `idx_producto_codigo` (`producto_codigo_barra`),
+   KEY `idx_producto_sku` (`pro_codigo_sku`),
+   KEY `producto_madein` (`producto_madein`),
+   CONSTRAINT `pro_productos_ibfk_1` FOREIGN KEY (`producto_categoria_id`) REFERENCES `pro_categorias` (`categoria_id`) ON DELETE RESTRICT,
+   CONSTRAINT `pro_productos_ibfk_2` FOREIGN KEY (`producto_subcategoria_id`) REFERENCES `pro_subcategorias` (`subcategoria_id`) ON DELETE RESTRICT,
+   CONSTRAINT `pro_productos_ibfk_3` FOREIGN KEY (`producto_marca_id`) REFERENCES `pro_marcas` (`marca_id`) ON DELETE RESTRICT,
+   CONSTRAINT `pro_productos_ibfk_4` FOREIGN KEY (`producto_modelo_id`) REFERENCES `pro_modelo` (`modelo_id`) ON DELETE SET NULL,
+   CONSTRAINT `pro_productos_ibfk_5` FOREIGN KEY (`producto_calibre_id`) REFERENCES `pro_calibres` (`calibre_id`) ON DELETE SET NULL,
+   CONSTRAINT `pro_productos_ibfk_6` FOREIGN KEY (`producto_madein`) REFERENCES `pro_paises` (`pais_id`) ON DELETE SET NULL
+ ) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Productos disponibles para venta o control de inventario'
+
+CREATE TABLE `pro_ventas` (
+   `ven_id` int NOT NULL AUTO_INCREMENT,
+   `ven_user` bigint unsigned NOT NULL COMMENT 'Usuario que realizó la venta',
+   `ven_fecha` date NOT NULL COMMENT 'Fecha de la venta',
+   `ven_cliente` int DEFAULT NULL COMMENT 'Cliente que compra',
+   `ven_total_vendido` decimal(10,2) NOT NULL COMMENT 'Total de la venta',
+   `ven_descuento` decimal(10,2) DEFAULT '0.00' COMMENT 'Descuento general aplicado',
+   `ven_situacion` enum('ACTIVA','ANULADA','PENDIENTE') DEFAULT 'ACTIVA',
+   `ven_observaciones` varchar(200) DEFAULT NULL COMMENT 'Observaciones generales',
+   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+   PRIMARY KEY (`ven_id`),
+   KEY `ven_user` (`ven_user`),
+   CONSTRAINT `pro_ventas_ibfk_1` FOREIGN KEY (`ven_user`) REFERENCES `users` (`user_id`)
+ ) ENGINE=InnoDB AUTO_INCREMENT=54 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Tabla principal de ventas - información general de cada transacción'
 --marin
 CREATE TABLE roles (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -6,6 +124,100 @@ CREATE TABLE roles (
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE `pro_movimientos` (
+   `mov_id` int NOT NULL AUTO_INCREMENT,
+   `mov_producto_id` bigint unsigned NOT NULL COMMENT 'FK al producto involucrado',
+   `mov_tipo` varchar(50) NOT NULL COMMENT 'ingreso, egreso, ajuste_positivo, ajuste_negativo, venta, devolucion, merma, transferencia',
+   `mov_origen` varchar(100) DEFAULT NULL COMMENT 'Fuente del movimiento: compra, importación, venta, etc.',
+   `mov_destino` varchar(100) DEFAULT NULL COMMENT 'Destino del movimiento si aplica',
+   `mov_cantidad` int NOT NULL COMMENT 'Cantidad afectada por el movimiento',
+   `mov_precio_unitario` decimal(10,2) DEFAULT NULL COMMENT 'Precio unitario en el momento del movimiento',
+   `mov_valor_total` decimal(10,2) DEFAULT NULL COMMENT 'Valor total del movimiento',
+   `mov_fecha` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha del movimiento',
+   `mov_usuario_id` bigint unsigned NOT NULL COMMENT 'Usuario que realizó el movimiento',
+   `mov_lote_id` bigint unsigned DEFAULT NULL COMMENT 'FK al lote si aplica',
+   `mov_serie_id` bigint unsigned DEFAULT NULL COMMENT 'FK a la serie específica si aplica',
+   `mov_documento_referencia` varchar(100) DEFAULT NULL COMMENT 'Número de factura, orden, etc.',
+   `mov_observaciones` varchar(250) DEFAULT NULL COMMENT 'Detalles u observaciones del movimiento',
+   `mov_situacion` int DEFAULT '1' COMMENT '1 = activo, 0 = anulado',
+   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+   PRIMARY KEY (`mov_id`),
+   KEY `idx_mov_producto_fecha` (`mov_producto_id`,`mov_fecha`),
+   KEY `idx_mov_tipo_fecha` (`mov_tipo`,`mov_fecha`),
+   KEY `idx_mov_usuario_fecha` (`mov_usuario_id`,`mov_fecha`),
+   KEY `idx_mov_lote` (`mov_lote_id`),
+   KEY `idx_mov_serie` (`mov_serie_id`),
+   KEY `idx_mov_situacion` (`mov_situacion`),
+   CONSTRAINT `pro_movimientos_ibfk_1` FOREIGN KEY (`mov_producto_id`) REFERENCES `pro_productos` (`producto_id`),
+   CONSTRAINT `pro_movimientos_ibfk_2` FOREIGN KEY (`mov_usuario_id`) REFERENCES `users` (`user_id`),
+   CONSTRAINT `pro_movimientos_ibfk_3` FOREIGN KEY (`mov_lote_id`) REFERENCES `pro_lotes` (`lote_id`),
+   CONSTRAINT `pro_movimientos_ibfk_4` FOREIGN KEY (`mov_serie_id`) REFERENCES `pro_series_productos` (`serie_id`),
+   CONSTRAINT `chk_mov_precio_positivo` CHECK (((`mov_precio_unitario` is null) or (`mov_precio_unitario` >= 0)))
+ ) ENGINE=InnoDB AUTO_INCREMENT=137 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Historial completo de movimientos de inventario'
+
+   SELECT 
+                v.ven_id,
+                v.ven_user,
+                d.det_producto_id,
+                d.det_ven_id,
+                v.ven_fecha,
+                
+                TRIM(
+                    CONCAT_WS(' ',
+                        TRIM(c.cliente_nombre1),
+                        TRIM(c.cliente_nombre2),
+                        TRIM(c.cliente_apellido1),
+                        TRIM(c.cliente_apellido2)
+                    )
+                ) AS cliente,
+                CASE 
+                    WHEN c.cliente_nom_empresa IS NULL OR c.cliente_nom_empresa = ''
+                        THEN 'Cliente Individual'
+                    ELSE c.cliente_nom_empresa
+                END AS empresa,
+                TRIM(
+                    CONCAT_WS(' ',
+                        TRIM(u.user_primer_nombre),
+                        TRIM(u.user_segundo_nombre),
+                        TRIM(u.user_primer_apellido),
+                        TRIM(u.user_segundo_apellido)
+                    )
+                ) AS vendedor,
+                GROUP_CONCAT(DISTINCT p.producto_nombre SEPARATOR ', ') AS productos,
+	             GROUP_CONCAT(DISTINCT mov.mov_lote_id SEPARATOR ', ') AS lotes,   
+                  GROUP_CONCAT(DISTINCT mov.mov_serie_id SEPARATOR ', ') AS series,  
+                v.ven_total_vendido,
+                v.ven_situacion
+            FROM pro_detalle_ventas d
+            INNER JOIN pro_ventas v ON v.ven_id = d.det_ven_id
+            INNER JOIN users u ON u.user_id = v.ven_user
+            INNER JOIN pro_clientes c ON c.cliente_id = v.ven_cliente
+            INNER JOIN pro_productos p ON d.det_producto_id = p.producto_id
+            INNER JOIN pro_movimientos mov on mov.mov_producto_id =d.det_producto_id
+
+            WHERE d.det_situacion = 'PENDIENTE'
+                AND v.ven_situacion = 'PENDIENTE'
+                AND mov.mov_situacion = 3
+            GROUP BY 
+                v.ven_id,
+                v.ven_fecha,
+                v.ven_user,
+                d.det_producto_id,
+                d.det_ven_id,
+                v.ven_total_vendido,
+                v.ven_situacion,
+                c.cliente_nombre1,
+                c.cliente_nombre2,
+                c.cliente_apellido1,
+                c.cliente_apellido2,
+                c.cliente_nom_empresa,
+                u.user_primer_nombre,
+                u.user_segundo_nombre,
+                u.user_primer_apellido,
+                u.user_segundo_apellido
+            ORDER BY v.ven_fecha DESC
 
 -- ========================
 -- ENTIDADES FUERTES

@@ -16,6 +16,7 @@ use App\Models\StockActual;
 use App\Models\Alerta;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -197,29 +198,29 @@ class VentasController extends Controller
             $productoArray = (array) $producto;
 
 
-        // 👇 Calcular stock real
-        $stockTotal = $producto->stock_cantidad_total ?? 0;
-        $stockReservado = $producto->stock_cantidad_reservada ?? 0;
-        
-        // 👇 IMPORTANTE: Sobrescribir stock_cantidad_total con el stock real disponible
-        $productoArray['stock_cantidad_total'] = max(0, $stockTotal - $stockReservado);
-        
+            // 👇 Calcular stock real
+            $stockTotal = $producto->stock_cantidad_total ?? 0;
+            $stockReservado = $producto->stock_cantidad_reservada ?? 0;
+
+            // 👇 IMPORTANTE: Sobrescribir stock_cantidad_total con el stock real disponible
+            $productoArray['stock_cantidad_total'] = max(0, $stockTotal - $stockReservado);
+
 
 
             // SERIES
             if ($producto->producto_requiere_serie == 1) {
                 $seriesDisponibles = DB::table('pro_series_productos')
                     ->where('serie_producto_id', $producto->producto_id)
-                    ->where('serie_situacion', 1)
+                    ->where('serie_estado', 'disponible')
                     ->select('serie_producto_id', 'serie_numero_serie', 'serie_situacion')
                     ->orderBy('serie_numero_serie')
                     ->get();
 
                 $productoArray['series_disponibles'] = $seriesDisponibles;
-                $productoArray['cantidad_series']    = $seriesDisponibles->count();
+                $productoArray['cantidad_series'] = $seriesDisponibles->count();
             } else {
                 $productoArray['series_disponibles'] = [];
-                $productoArray['cantidad_series']    = 0;
+                $productoArray['cantidad_series'] = 0;
             }
 
             // LOTES (nuevo)
@@ -235,8 +236,8 @@ class VentasController extends Controller
                 ->orderBy('lote_id')
                 ->get();
 
-            $productoArray['lotes']                = $lotes;                           // listado de lotes
-            $productoArray['cantidad_lotes']       = $lotes->count();                  // cuántos lotes
+            $productoArray['lotes'] = $lotes;                           // listado de lotes
+            $productoArray['cantidad_lotes'] = $lotes->count();                  // cuántos lotes
             $productoArray['lotes_cantidad_total'] = $lotes->sum('lote_cantidad_total'); // suma de cantidades
 
             return (object) $productoArray;
@@ -258,80 +259,375 @@ class VentasController extends Controller
      * Store a newly created resource in storage.
      */
     public function guardarCliente(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'cliente_nombre1' => ['required', 'string', 'max:50'],
+                'cliente_nombre2' => ['nullable', 'string', 'max:50'],
+                'cliente_apellido1' => ['required', 'string', 'max:50'],
+                'cliente_apellido2' => ['nullable', 'string', 'max:50'],
+                'cliente_dpi' => ['nullable', 'string', 'max:20'],
+                'cliente_nit' => ['nullable', 'string', 'max:20'],
+                'cliente_direccion' => ['nullable', 'string', 'max:255'],
+                'cliente_telefono' => ['nullable', 'string', 'max:30'],
+                'cliente_correo' => ['nullable', 'email', 'max:150'],
+                'cliente_tipo' => ['required', 'integer', 'in:1,2,3'], // 👈 REQUIRED
+                'cliente_user_id' => ['nullable', 'integer'],
+                'cliente_nom_empresa' => ['nullable', 'string', 'max:255'],
+                'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
+                'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
+                'cliente_ubicacion' => ['nullable', 'string', 'max:255'],
+            ]);
+
+            // 👇 Asegurar que cliente_situacion tenga valor por defecto
+            if (!isset($data['cliente_situacion'])) {
+                $data['cliente_situacion'] = 1; // Activo por defecto
+            }
+
+            $cliente = Clientes::create($data);
+
+            return response()->json([
+                'success' => true,
+                'data' => $cliente,
+                'message' => 'Cliente guardado correctamente'
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Error de validación:', ['errors' => $e->errors()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Error al guardar cliente:', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'data' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+
+
+
+
+    ///hecho por morales batz 
+
+public function obtenerVentasPendientes(Request $request): JsonResponse
 {
     try {
-        $data = $request->validate([
-            'cliente_nombre1'      => ['required', 'string', 'max:50'],
-            'cliente_nombre2'      => ['nullable', 'string', 'max:50'],
-            'cliente_apellido1'    => ['required', 'string', 'max:50'],
-            'cliente_apellido2'    => ['nullable', 'string', 'max:50'],
-            'cliente_dpi'          => ['nullable', 'string', 'max:20'],
-            'cliente_nit'          => ['nullable', 'string', 'max:20'],
-            'cliente_direccion'    => ['nullable', 'string', 'max:255'],
-            'cliente_telefono'     => ['nullable', 'string', 'max:30'],
-            'cliente_correo'       => ['nullable', 'email', 'max:150'],
-            'cliente_tipo'         => ['required', 'integer', 'in:1,2,3'], // 👈 REQUIRED
-            'cliente_user_id'      => ['nullable', 'integer'],
-            'cliente_nom_empresa'  => ['nullable', 'string', 'max:255'],
-            'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
-            'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
-            'cliente_ubicacion'    => ['nullable', 'string', 'max:255'],
-        ]);
+        $ventas = DB::select("
+            SELECT 
+                v.ven_id,
+                v.ven_user,
+                d.det_producto_id,
+                d.det_ven_id,
+                v.ven_fecha,
+                
+                TRIM(
+                    CONCAT_WS(' ',
+                        TRIM(c.cliente_nombre1),
+                        TRIM(c.cliente_nombre2),
+                        TRIM(c.cliente_apellido1),
+                        TRIM(c.cliente_apellido2)
+                    )
+                ) AS cliente,
+                CASE 
+                    WHEN c.cliente_nom_empresa IS NULL OR c.cliente_nom_empresa = ''
+                        THEN 'Cliente Individual'
+                    ELSE c.cliente_nom_empresa
+                END AS empresa,
+                TRIM(
+                    CONCAT_WS(' ',
+                        TRIM(u.user_primer_nombre),
+                        TRIM(u.user_segundo_nombre),
+                        TRIM(u.user_primer_apellido),
+                        TRIM(u.user_segundo_apellido)
+                    )
+                ) AS vendedor,
+                GROUP_CONCAT(DISTINCT p.producto_nombre SEPARATOR ', ') AS productos,
+                            
+                GROUP_CONCAT(DISTINCT mov.mov_serie_id ORDER BY mov.mov_serie_id SEPARATOR ',') AS series_ids,
+                GROUP_CONCAT(DISTINCT mov.mov_lote_id ORDER BY mov.mov_lote_id SEPARATOR ',') AS lotes_ids,
+                
+                -- Información adicional para display
+                GROUP_CONCAT(
+                    DISTINCT CONCAT(mov.mov_lote_id, ' (', mov.mov_cantidad, ')')
+                    ORDER BY mov.mov_lote_id SEPARATOR ', '
+                ) AS lotes_display,
+                
+                GROUP_CONCAT(
+                    DISTINCT CONCAT(mov.mov_serie_id, ' (', mov.mov_cantidad, ')')
+                    ORDER BY mov.mov_serie_id SEPARATOR ', '
+                ) AS series_display,
+                
+                v.ven_total_vendido,
+                v.ven_situacion
+            FROM pro_detalle_ventas d
+            INNER JOIN pro_ventas v ON v.ven_id = d.det_ven_id
+            INNER JOIN users u ON u.user_id = v.ven_user
+            INNER JOIN pro_clientes c ON c.cliente_id = v.ven_cliente
+            INNER JOIN pro_productos p ON d.det_producto_id = p.producto_id
+            LEFT JOIN pro_movimientos mov ON mov.mov_producto_id = d.det_producto_id
+                AND mov.mov_situacion = 3
+                AND mov.mov_documento_referencia = CONCAT('VENTA-', v.ven_id)
+            WHERE d.det_situacion = 'PENDIENTE'
+                AND v.ven_situacion = 'PENDIENTE'
+            GROUP BY 
+                v.ven_id,
+                v.ven_fecha,
+                v.ven_user,
+                d.det_producto_id,
+                d.det_ven_id,
+                v.ven_total_vendido,
+                v.ven_situacion,
+                c.cliente_nombre1,
+                c.cliente_nombre2,
+                c.cliente_apellido1,
+                c.cliente_apellido2,
+                c.cliente_nom_empresa,
+                u.user_primer_nombre,
+                u.user_segundo_nombre,
+                u.user_primer_apellido,
+                u.user_segundo_apellido
+            ORDER BY v.ven_fecha DESC
+        ");
 
-        // 👇 Asegurar que cliente_situacion tenga valor por defecto
-        if (!isset($data['cliente_situacion'])) {
-            $data['cliente_situacion'] = 1; // Activo por defecto
-        }
+        $ventasProcesadas = array_map(function($venta) {
+            return [
+                'ven_id' => $venta->ven_id,
+                'ven_user' => $venta->ven_user,
+                'det_producto_id' => $venta->det_producto_id,
+                'det_ven_id' => $venta->det_ven_id,
+                'ven_fecha' => $venta->ven_fecha,
+                'cliente' => $venta->cliente,
+                'empresa' => $venta->empresa,
+                'vendedor' => $venta->vendedor,
+                'productos' => $venta->productos,
+                'lotes_ids' => $venta->lotes_ids ?? '',
+                'series_ids' => $venta->series_ids ?? '',
+                'lotes_display' => $venta->lotes_display ?? '',
+                'series_display' => $venta->series_display ?? '',
+                'ven_total_vendido' => $venta->ven_total_vendido,
+                'ven_situacion' => $venta->ven_situacion
+            ];
+        }, $ventas);
 
-        $cliente = Clientes::create($data);
-        
         return response()->json([
             'success' => true,
-            'data' => $cliente,
-            'message' => 'Cliente guardado correctamente'
-        ], 201);
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        \Log::error('Error de validación:', ['errors' => $e->errors()]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Error de validación',
-            'errors' => $e->errors()
-        ], 422);
-        
-    } catch (\Exception $e) {
-        \Log::error('Error al guardar cliente:', [
-            'message' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile(),
-            'data' => $request->all()
+            'total' => count($ventasProcesadas),
+            'data' => $ventasProcesadas,
         ]);
-        
+
+    } catch (QueryException $e) {
+        Log::error('Pendientes SQL', [
+            'sql' => $e->getSql(),
+            'bindings' => $e->getBindings(),
+            'info' => $e->errorInfo
+        ]);
         return response()->json([
             'success' => false,
-            'message' => 'Error interno del servidor',
-            'error' => $e->getMessage()
+            'message' => 'Error SQL en pendientes: ' . $e->getMessage(),
+        ], 500);
+
+    } catch (\Throwable $e) {
+        Log::error('Pendientes error', ['err' => $e]);
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en pendientes: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+public function autorizarVenta(Request $request): JsonResponse
+{
+
+
+    $venId = (int) $request->input('ven_id');
+    $venUser = (int) $request->input('ven_user');
+    $detProductoId = (int) $request->input('det_producto_id');
+    $productoId = (int) $request->input('producto_id', $detProductoId);
+
+    $seriesIds = collect($request->input('series_ids', []))
+        ->map(fn($v) => (int) $v)->filter()->unique()->values();
+
+    $lotesIds = collect($request->input('lotes_ids', []))
+        ->map(fn($v) => (int) $v)->filter()->unique()->values();
+
+    $qtyTotal = 0;
+    $detallesProcesados = [];
+
+    try {
+        DB::transaction(function () use (
+            $venId, $venUser, $productoId, $seriesIds, $lotesIds, &$qtyTotal, &$detallesProcesados
+        ) {
+            // Paso 1: Activar venta
+            $affected = DB::table('pro_ventas')
+                ->where('ven_id', $venId)
+                ->where('ven_user', $venUser)
+                ->update(['ven_situacion' => 'ACTIVA']);
+
+            if ($affected === 0) {
+                throw new \RuntimeException('No se pudo activar la venta (pro_ventas).');
+            }
+
+            // Paso 2: Activar detalles
+            DB::table('pro_detalle_ventas')
+                ->where('det_ven_id', $venId)
+                ->update(['det_situacion' => 'ACTIVO']);
+
+            $ref = 'VENTA-' . $venId;
+
+            // Paso 3: SERIES
+            if ($seriesIds->isNotEmpty()) {
+                $seriesCantidades = DB::table('pro_movimientos')
+                    ->select('mov_serie_id', DB::raw('SUM(mov_cantidad) as qty'))
+                    ->where('mov_documento_referencia', $ref)
+                    ->where('mov_situacion', 3)
+                    ->whereIn('mov_serie_id', $seriesIds)
+                    ->groupBy('mov_serie_id')
+                    ->pluck('qty', 'mov_serie_id');
+
+                if ($seriesCantidades->isNotEmpty()) {
+                    DB::table('pro_series_productos')
+                        ->whereIn('serie_id', $seriesCantidades->keys())
+                        ->update(['serie_estado' => 'vendido', 'serie_situacion' => 1]);
+
+                    DB::table('pro_movimientos')
+                        ->whereIn('mov_serie_id', $seriesCantidades->keys())
+                        ->where('mov_documento_referencia', $ref)
+                        ->where('mov_situacion', 3)
+                        ->update(['mov_situacion' => 1]);
+
+                    $sumaSeries = $seriesCantidades->sum();
+                    $qtyTotal += $sumaSeries;
+
+                    $detallesProcesados[] = 'Series procesadas: ' . $seriesCantidades
+                        ->map(fn($qty, $id) => "$id ($qty)")
+                        ->implode(', ');
+                }
+            }
+
+            // Paso 4: LOTES
+            if ($lotesIds->isNotEmpty()) {
+                $lotesCantidades = DB::table('pro_movimientos')
+                    ->select('mov_lote_id', DB::raw('SUM(mov_cantidad) as qty'))
+                    ->where('mov_documento_referencia', $ref)
+                    ->where('mov_situacion', 3)
+                    ->whereIn('mov_lote_id', $lotesIds)
+                    ->groupBy('mov_lote_id')
+                    ->pluck('qty', 'mov_lote_id');
+
+                if ($lotesCantidades->isNotEmpty()) {
+                    DB::table('pro_movimientos')
+                        ->whereIn('mov_lote_id', $lotesCantidades->keys())
+                        ->where('mov_documento_referencia', $ref)
+                        ->where('mov_situacion', 3)
+                        ->update(['mov_situacion' => 1]);
+
+                    $sumaLotes = $lotesCantidades->sum();
+                    $qtyTotal += $sumaLotes;
+
+                    $detallesProcesados[] = 'Lotes procesados: ' . $lotesCantidades
+                        ->map(fn($qty, $id) => "$id ($qty)")
+                        ->implode(', ');
+                }
+            }
+
+            // Paso 5: Actualizar stock
+            if ($qtyTotal > 0) {
+                DB::table('pro_stock_actual')
+                    ->where('stock_producto_id', $productoId)
+                    ->decrement('stock_cantidad_reservada', $qtyTotal);
+
+                DB::table('pro_stock_actual')
+                    ->where('stock_producto_id', $productoId)
+                    ->decrement('stock_cantidad_disponible', $qtyTotal);
+
+                DB::table('pro_stock_actual')
+                    ->where('stock_producto_id', $productoId)
+                    ->decrement('stock_cantidad_total', $qtyTotal);
+            }
+        }, 3);
+
+        return response()->json([
+            'codigo' => 1,
+            'mensaje' => 'Venta autorizada exitosamente',
+            'meta' => [
+                'qty_total' => $qtyTotal,
+                'detalles' => $detallesProcesados,
+                'ven_id' => $venId
+            ],
+        ]);
+    } catch (\Throwable $e) {
+        report($e);
+        return response()->json([
+            'codigo' => 0,
+            'mensaje' => 'No se pudo autorizar la venta.',
+            'detalle' => $e->getMessage(),
+        ], 500);
+    }
+}
+public function actualizarLicencias(Request $request): JsonResponse
+{
+    $venId = (int) $request->input('ven_id');
+    $licenciaAnterior = $request->input('licencia_anterior');
+    $licenciaNueva = $request->input('licencia_nueva');
+
+    $seriesIds = collect($request->input('series_ids', []))->filter()->values();
+    $lotesIds = collect($request->input('lotes_ids', []))->filter()->values();
+
+    try {
+        DB::transaction(function () use ($venId, $licenciaAnterior, $licenciaNueva, $seriesIds, $lotesIds) {
+            if ($seriesIds->isNotEmpty()) {
+                DB::table('pro_movimientos')
+                    ->whereIn('mov_serie_id', $seriesIds)
+                    ->where('mov_documento_referencia', 'VENTA-' . $venId)
+                    ->update([
+                        'mov_licencia_anterior' => $licenciaAnterior,
+                        'mov_licencia_nueva' => $licenciaNueva
+                    ]);
+            }
+
+            if ($lotesIds->isNotEmpty()) {
+                DB::table('pro_movimientos')
+                    ->whereIn('mov_lote_id', $lotesIds)
+                    ->where('mov_documento_referencia', 'VENTA-' . $venId)
+                    ->update([
+                        'mov_licencia_anterior' => $licenciaAnterior,
+                        'mov_licencia_nueva' => $licenciaNueva
+                    ]);
+            }
+        });
+
+        return response()->json([
+            'codigo' => 1,
+            'mensaje' => 'Licencias actualizadas correctamente'
+        ]);
+    } catch (\Throwable $e) {
+        report($e);
+        return response()->json([
+            'codigo' => 0,
+            'mensaje' => 'Error al actualizar licencias',
+            'detalle' => $e->getMessage()
         ], 500);
     }
 }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    ///////// termino morales batz
 
 
 
@@ -532,7 +828,7 @@ class VentasController extends Controller
                                     'mov_lote_id' => $loteData['lote_id'],
                                     'mov_documento_referencia' => "VENTA-{$ventaId}",
                                     'mov_observaciones' => "Venta - Lote: {$lote->lote_codigo}",
-                                    'mov_situacion' => 1, 
+                                    'mov_situacion' => 3,
                                     'created_at' => now(),
                                     'updated_at' => now()
                                 ]);
@@ -568,10 +864,10 @@ class VentasController extends Controller
 
                         // Actualizar stock total (común para ambos casos)
 
-                                  // Actualizar stock
+                        // Actualizar stock
                         DB::table('pro_stock_actual')
                             ->where('stock_producto_id', $producto->producto_id)
-                            ->increment('stock_cantidad_reservada',  $productoData['cantidad']);
+                            ->increment('stock_cantidad_reservada', $productoData['cantidad']);
 
                     }
                 } else {

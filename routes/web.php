@@ -38,6 +38,8 @@ Route::middleware('auth')->group(function () {
             return view('dashboard');
       })->name('dashboard');
 
+
+
       Route::resource('proempresas', ProEmpresaDeImportacionController::class);
 
       // Rutas para pagos de licencias
@@ -203,6 +205,10 @@ Route::middleware('auth')->group(function () {
       Route::post('/ventas', [VentasController::class, 'store'])->name('ventas.store');
       Route::put('/ventas/{id}', [VentasController::class, 'update'])->name('ventas.update');
 
+      //ventas batz
+      Route::get('/ventas/pendientes', [VentasController::class, 'obtenerVentasPendientes'])->name('ventas.pendientes');
+      ///
+
       // APIs de ventas
       Route::get('/api/ventas/subcategorias/{categoriaId}', [VentasController::class, 'getSubcategorias'])->name('ventas.api.subcategorias');
       Route::get('/api/ventas/marcas/{subcategoriaId}', [VentasController::class, 'getMarcas'])->name('ventas.api.marcas');
@@ -288,6 +294,12 @@ Route::middleware('auth')->group(function () {
       // ================================
       // Detalle específico de una venta
       Route::get('/reportes/ventas/{id}/detalle', [ReportesController::class, 'getDetalleVenta'])->name('reportes.venta.detalle');
+
+      Route::post('/ventas/autorizar', [VentasController::class, 'autorizarVenta']);
+      Route::get('/ventas/pendientes', [VentasController::class, 'obtenerVentasPendientes']);
+      Route::post('/ventas/actualizar-licencias', [VentasController::class, 'actualizarLicencias']);
+
+
       // Imprimir comprobante de venta
       Route::get('/reportes/ventas/{id}/imprimir', [ReportesController::class, 'imprimirVenta'])->name('reportes.venta.imprimir');
       // Estadísticas avanzadas por período

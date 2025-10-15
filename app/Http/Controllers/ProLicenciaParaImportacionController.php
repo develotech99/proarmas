@@ -698,7 +698,50 @@ private function formatBytes($bytes, $precision = 2)
 
     return round($bytes, (int)$precision).' '.$units[$pow];
 }
-
+public function serveComprobante(string $filename)
+{
+    try {
+        // Decodificar y sanitizar
+        $filename = urldecode($filename);
+        $filename = basename($filename); // Evita path traversal
+        
+        // Ruta completa
+        $path = storage_path('app/public/pagos/comprobantes/' . $filename);
+        
+        // Log para debug
+        \Log::info('serveComprobante - Buscando archivo', [
+            'filename' => $filename,
+            'path' => $path,
+            'exists' => file_exists($path)
+        ]);
+        
+        // Verificar existencia
+        if (!file_exists($path)) {
+            \Log::error('Archivo no encontrado', [
+                'path' => $path,
+                'dir' => dirname($path),
+                'files_in_dir' => file_exists(dirname($path)) ? scandir(dirname($path)) : []
+            ]);
+            abort(404, 'Archivo no encontrado');
+        }
+        
+        // Obtener MIME type
+        $mimeType = mime_content_type($path) ?: 'application/octet-stream';
+        
+        // Retornar archivo
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $filename . '"'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error en serveComprobante', [
+            'filename' => $filename ?? 'unknown',
+            'error' => $e->getMessage()
+        ]);
+        abort(500, 'Error al servir el archivo');
+    }
+}
 
 }
 
