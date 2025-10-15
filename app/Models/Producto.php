@@ -30,11 +30,13 @@ class Producto extends Model
         'producto_requiere_serie',
         'producto_stock_minimo',
         'producto_stock_maximo',
-        'producto_situacion'
+        'producto_situacion', 
+        'producto_requiere_stock'
     ];
 
     protected $casts = [
         'producto_requiere_serie' => 'boolean',
+        'producto_requiere_stock' => 'boolean', 
         'producto_situacion' => 'integer',
         'producto_stock_minimo' => 'integer',
         'producto_stock_maximo' => 'integer'
