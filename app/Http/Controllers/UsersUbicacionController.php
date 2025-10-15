@@ -229,52 +229,39 @@ class UsersUbicacionController extends Controller
     {
         try {
 
-
             $name = DB::table('users as u')->selectRaw("
-                TRIM(CONCAT_WS(' ',
-                    u.user_primer_nombre,
-                    u.user_segundo_nombre,
-                    u.user_primer_apellido,
-                    u.user_segundo_apellido
-                )) as name
-            ")->where('u.user_id', $userId)->value('name');
+            TRIM(CONCAT_WS(' ',
+                u.user_primer_nombre,
+                u.user_segundo_nombre,
+                u.user_primer_apellido,
+                u.user_segundo_apellido
+            )) as name
+        ")->where('u.user_id', $userId)->value('name');
 
 
             $agg = DB::table('users_visitas')
                 ->where('visita_user', $userId)
                 ->selectRaw("
-                    COUNT(*)                            as total_visitas,
-                    SUM(CASE WHEN visita_estado=2 THEN 1 ELSE 0 END) as total_compras,
-                    SUM(CASE WHEN visita_estado=1 THEN 1 ELSE 0 END) as total_no_compra,
-                    SUM(CASE WHEN visita_estado=3 THEN 1 ELSE 0 END) as total_no_visitado,
-                    COALESCE(SUM(visita_venta),0)      as total_venta,
-                    MAX(visita_fecha)                  as ult_visita_fecha
-                ")
+                COUNT(*) as total_visitas,
+                SUM(CASE WHEN visita_estado=2 THEN 1 ELSE 0 END) as total_compras,
+                SUM(CASE WHEN visita_estado=1 THEN 1 ELSE 0 END) as total_no_compra,
+                SUM(CASE WHEN visita_estado=3 THEN 1 ELSE 0 END) as total_no_visitado,
+                COALESCE(SUM(visita_venta),0) as total_venta,
+                MAX(visita_fecha) as ult_visita_fecha
+            ")
                 ->first();
 
-            // Listado de visitas
             $visitas = DB::table('users_visitas')
                 ->where('visita_user', $userId)
-                ->orderByDesc('visita_fecha')
                 ->orderByDesc('visita_id')
-                ->limit(300)
-                ->get([
-                    'visita_id',
-                    'visita_user',
-                    'visita_fecha',
-                    'visita_estado',
-                    'visita_venta',
-                    'visita_descripcion',
-                    'created_at',
-                    'updated_at'
-                ]);
+                ->limit(50)
+                ->get();
 
             $historial = DB::table('users_historial_visitas as h')
-                ->join('users_visitas as v', 'v.visita_id', '=', 'h.hist_visita_id')
-                ->where('v.visita_user', $userId)
+                ->join('users_visitas as v', 'h.hist_visita_id', '=', 'v.visita_id')
+                ->where('v.visita_user', '=', $userId)  // ⚠️ Asegúrate que sea el user correcto
                 ->orderByDesc('h.hist_fecha_actualizacion')
-                ->limit(500)
-                ->get([
+                ->select([
                     'h.hist_id',
                     'h.hist_visita_id',
                     'h.hist_fecha_actualizacion',
@@ -283,29 +270,30 @@ class UsersUbicacionController extends Controller
                     'h.hist_total_venta_anterior',
                     'h.hist_total_venta_nuevo',
                     'h.hist_descripcion',
-                    'h.created_at',
-                    'h.updated_at'
-                ]);
+                    'v.visita_user'
+                ])
+                ->limit(100)
+                ->get();
 
             return response()->json([
                 'codigo' => 1,
                 'mensaje' => 'OK',
                 'data' => [
-                    'user_id'           => (int)$userId,
-                    'name'              => $name,
-                    'total_visitas'     => (int)($agg->total_visitas ?? 0),
-                    'total_compras'     => (int)($agg->total_compras ?? 0),
-                    'total_no_compra'   => (int)($agg->total_no_compra ?? 0),
+                    'user_id' => (int)$userId,
+                    'name' => $name,
+                    'total_visitas' => (int)($agg->total_visitas ?? 0),
+                    'total_compras' => (int)($agg->total_compras ?? 0),
+                    'total_no_compra' => (int)($agg->total_no_compra ?? 0),
                     'total_no_visitado' => (int)($agg->total_no_visitado ?? 0),
-                    'total_venta'       => (float)($agg->total_venta ?? 0),
-                    'ult_visita_fecha'  => $agg->ult_visita_fecha ?? null,
-                    'visitas'           => $visitas,
-                    'historial'         => $historial,
+                    'total_venta' => (float)($agg->total_venta ?? 0),
+                    'ult_visita_fecha' => $agg->ult_visita_fecha ?? null,
+                    'visitas' => $visitas,
+                    'historial' => $historial,
                 ]
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
-                'codigo'  => 0,
+                'codigo' => 0,
                 'mensaje' => 'No se pudo cargar el detalle',
                 'detalle' => $e->getMessage(),
             ], 500);
@@ -538,6 +526,67 @@ class UsersUbicacionController extends Controller
         }
 
         return $descripcion;
+    }
+
+
+    public function agregarVisita(Request $request)
+    {
+        $input = $request->all();
+
+        $rules = [
+            'user_id' => ['required', 'exists:users,user_id'],
+            'estado' => ['required', 'in:1,2,3'],
+            'fecha' => ['nullable', 'date'],
+            'venta' => ['nullable', 'numeric', 'min:0'],
+            'descripcion' => ['nullable', 'string'],
+        ];
+
+        $validator = Validator::make($input, $rules);
+        if ($validator->fails()) {
+            return response()->json(['codigo' => 0, 'mensaje' => 'Validación fallida', 'detalle' => $validator->errors()], 422);
+        }
+
+        $userId = (int)$input['user_id'];
+        $estado = (int)$input['estado'];
+        $fecha = !empty($input['fecha']) ? Carbon::parse($input['fecha'])->format('Y-m-d H:i:s') : null;
+        $venta = $estado === 2 ? (float)($input['venta'] ?? 0) : 0;
+        $descripcion = $input['descripcion'] ?? null;
+
+        try {
+            DB::transaction(function () use ($userId, $estado, $fecha, $venta, $descripcion) {
+                // Obtener visita anterior
+                $visitaAnterior = UsersVisita::where('visita_user', $userId)
+                    ->orderBy('visita_id', 'desc')
+                    ->first();
+
+                $estadoAnt = $visitaAnterior->visita_estado ?? null;
+                $ventaAnt = $visitaAnterior->visita_venta ?? 0;
+
+                // Crear nueva visita
+                $nuevaVisita = UsersVisita::create([
+                    'visita_user' => $userId,
+                    'visita_fecha' => $fecha,
+                    'visita_estado' => $estado,
+                    'visita_venta' => $venta,
+                    'visita_descripcion' => $descripcion
+                ]);
+
+                // Registrar historial
+                UsersHistorialVisita::create([
+                    'hist_visita_id' => $nuevaVisita->visita_id,
+                    'hist_fecha_actualizacion' => now(),
+                    'hist_estado_anterior' => $estadoAnt,
+                    'hist_estado_nuevo' => $estado,
+                    'hist_total_venta_anterior' => $ventaAnt,
+                    'hist_total_venta_nuevo' => $venta,
+                    'hist_descripcion' => "Nueva visita registrada"
+                ]);
+            });
+
+            return response()->json(['codigo' => 1, 'mensaje' => 'Visita registrada correctamente'], 200);
+        } catch (\Throwable $e) {
+            return response()->json(['codigo' => 0, 'mensaje' => 'Error', 'detalle' => $e->getMessage()], 500);
+        }
     }
     /**
      * Display the specified resource.

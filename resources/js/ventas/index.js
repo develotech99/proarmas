@@ -69,6 +69,7 @@ btnBuscarCliente.addEventListener("click", function () {
 // Event listener para el tipo de cliente
 tipoClienteSelect.addEventListener("change", function () {
     const tipoSeleccionado = this.value;
+
     if (tipoSeleccionado === "2") {
         selectorPremium.style.display = "block";
         limpiarFormulario();
@@ -81,16 +82,27 @@ tipoClienteSelect.addEventListener("change", function () {
         }
     }
 
+    // 👇 NUEVO: Mostrar/ocultar campos de empresa
+    if (tipoSeleccionado === "3") {
+        mostrarInputsEmpresa(); // muestra y habilita inputs empresa
+        limpiarFormulario();
+    } else {
+        ocultarInputsEmpresa(); // oculta y deshabilita inputs empresa
+    }
+
     actualizarEstado(
         `Tipo de cliente seleccionado: ${
             tipoSeleccionado === "1"
                 ? "Normal"
                 : tipoSeleccionado === "2"
                 ? "Premium"
+                : tipoSeleccionado === "3"
+                ? "Empresa"
                 : "Ninguno"
         }`
     );
 });
+
 
 // Event listener para el cliente premium seleccionado
 clientePremiumSelect.addEventListener("change", function () {
@@ -135,6 +147,56 @@ function limpiarFormulario() {
     document.getElementById("nc_direccion").value = "";
 }
 
+
+function ocultarInputsEmpresa() {
+    const inputs = [
+        "nombreEmpresa",
+        "nc_telefono_vendedor",
+        "nc_nombre_vendedor",
+        "nc_ubicacion",
+        
+    ];
+
+    inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = "";              // limpia el valor
+            input.classList.add("hidden"); // oculta usando Tailwind
+            input.disabled = true;         // desactiva
+        }
+    });
+     const contenedorempresa = document.getElementById("contenedorempresa");
+     contenedorempresa.classList.add("hidden");
+      const titulopropietario = document.getElementById("titulopropietario");
+     titulopropietario.classList.add("hidden");
+}
+
+function mostrarInputsEmpresa() {
+    const inputs = [
+        "nombreEmpresa",
+        "nc_telefono_vendedor",
+        "nc_nombre_vendedor",
+        "nc_ubicacion"
+    ];
+
+    inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.classList.remove("hidden"); // muestra
+            input.disabled = false;           // activa
+        }
+    });
+    const contenedorempresa = document.getElementById("contenedorempresa");
+    contenedorempresa.classList.remove("hidden");
+     const titulopropietario = document.getElementById("titulopropietario");
+     titulopropietario.classList.remove("hidden");
+}
+
+
+
+
+
+
 // Función para actualizar el estado
 function actualizarEstado(mensaje) {
     document.getElementById("nc_estado").textContent = mensaje;
@@ -155,6 +217,7 @@ const selectClientes = document.getElementById("cliente_particular");
 function abrirModal() {
     modal.classList.remove("hidden");
     limpiarFormulario();
+    ocultarInputsEmpresa();
     selectorPremium.style.display = "none";
     clientePremiumSelect.value = "";
     tipoClienteSelect.value = "";
@@ -171,27 +234,77 @@ btnCancel.addEventListener("click", cerrarModal);
 
 async function guardarCliente() {
     const form = document.getElementById("formNuevoCliente");
+    const estado = document.getElementById("nc_estado");
+    
+    // 👇 VALIDAR que cliente_tipo esté seleccionado
+    const tipoCliente = document.getElementById("tipoCliente").value;
+    if (!tipoCliente) {
+        Swal.fire({
+            title: "¡Atención!",
+            text: "Debe seleccionar un tipo de cliente.",
+            icon: "warning",
+            confirmButtonText: "Aceptar",
+        });
+        return;
+    }
+    
     const formData = new FormData(form);
+
+    // Eliminar clientePremium
+    formData.delete('clientePremium');
+
+    // Limpiar cliente_user_id si está vacío
+    if (!formData.get('cliente_user_id') || formData.get('cliente_user_id') === '') {
+        formData.delete('cliente_user_id');
+    }
+
+    console.log('====== DATOS A ENVIAR ======');
+    for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}: "${value}"`);
+    }
+    console.log('============================');
 
     estado.textContent = "Guardando cliente...";
 
     try {
         const response = await fetch("/api/clientes/guardar", {
             method: "POST",
-            headers: {
-                "X-CSRF-TOKEN": document.querySelector(
-                    'meta[name="csrf-token"]'
-                ).content,
-            },
             body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
         });
 
-        if (!response.ok) throw new Error("Error HTTP " + response.status); // Error HTTP
+        // 👇 Obtener el texto de la respuesta primero
+        const responseText = await response.text();
+        console.log('Respuesta del servidor:', responseText);
 
-        const nuevo = await response.json();
-        console.log(nuevo);
+        if (!response.ok) {
+            let errorData;
+            try {
+                errorData = JSON.parse(responseText);
+            } catch (e) {
+                // Si no es JSON, es un error HTML de Laravel
+                console.error('Respuesta HTML de error:', responseText);
+                throw new Error(`Error ${response.status}: Revisa la consola de Laravel para más detalles`);
+            }
+            
+            if (errorData.errors) {
+                let mensajeError = '';
+                for (let [campo, mensajes] of Object.entries(errorData.errors)) {
+                    mensajeError += `${campo}: ${mensajes.join(', ')}\n`;
+                }
+                throw new Error(mensajeError);
+            }
+            
+            throw new Error(errorData.message || "Error al guardar el cliente");
+        }
 
-        Swal.fire({
+        const resultado = JSON.parse(responseText);
+        console.log('✅ Cliente guardado:', resultado);
+
+        await Swal.fire({
             title: "¡Éxito!",
             text: "Cliente guardado correctamente.",
             icon: "success",
@@ -199,17 +312,20 @@ async function guardarCliente() {
         });
 
         estado.textContent = "Cliente guardado correctamente ✅";
-
+        
         setTimeout(() => {
             cerrarModal();
+            limpiarFormulario();
             estado.textContent = "";
+            location.reload();
         }, 1000);
+        
     } catch (error) {
-        console.error(error);
+        console.error('❌ Error completo:', error);
 
         Swal.fire({
             title: "¡Error!",
-            text: "No se pudo guardar el cliente. Intenta de nuevo.",
+            text: error.message || "No se pudo guardar el cliente.",
             icon: "error",
             confirmButtonText: "Aceptar",
         });
@@ -997,8 +1113,19 @@ function actualizarVistaCarrito() {
             p.precio_activo = 'normal';
         }
         
+        // Precio personalizado
+        if (p.precio_personalizado === undefined) {
+            p.precio_personalizado = null;
+        }
+        
         // Precio final según selección
-        p.precio = p.precio_activo === 'empresa' ? p.precio_venta_empresa : p.precio_venta;
+        if (p.precio_activo === 'personalizado' && p.precio_personalizado !== null) {
+            p.precio = Number(p.precio_personalizado);
+        } else if (p.precio_activo === 'empresa') {
+            p.precio = p.precio_venta_empresa;
+        } else {
+            p.precio = p.precio_venta;
+        }
 
         // cantidad
         p.cantidad = Number(p.cantidad ?? 1);
@@ -1092,35 +1219,67 @@ function actualizarVistaCarrito() {
      </span>`
                 : "";
 
-            // Selector de precio (solo si hay precio empresa)
+            // Selector de precio con opción personalizada
             const tienePrecioEmpresa = p.precio_venta_empresa > 0 && p.precio_venta_empresa !== p.precio_venta;
-            const selectorPrecio = tienePrecioEmpresa
-                ? `
-                <div class="mt-1.5 flex items-center gap-1.5 text-[10px]">
-                    <span class="text-gray-500 font-medium">Precio:</span>
-                    <button type="button"
-                            data-action="cambiar-precio"
-                            data-id="${String(p.producto_id)}"
-                            data-tipo="normal"
-                            class="px-2 py-1 rounded-md font-medium transition-all duration-200 border
-                            ${p.precio_activo === 'normal' 
-                                ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
-                                : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
-                        Venta (Q${p.precio_venta.toFixed(2)})
-                    </button>
-                    <button type="button"
-                            data-action="cambiar-precio"
-                            data-id="${String(p.producto_id)}"
-                            data-tipo="empresa"
-                            class="px-2 py-1 rounded-md font-medium transition-all duration-200 border
-                            ${p.precio_activo === 'empresa' 
-                                ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
-                                : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
-                        Especial (Q${p.precio_venta_empresa.toFixed(2)})
-                    </button>
+            const selectorPrecio = `
+                <div class="mt-1.5 space-y-2">
+                    <div class="flex items-center gap-1.5 text-[10px] flex-wrap">
+                        <span class="text-gray-500 font-medium">Precio:</span>
+                        <button type="button"
+                                data-action="cambiar-precio"
+                                data-id="${String(p.producto_id)}"
+                                data-tipo="normal"
+                                class="px-2 py-1 rounded-md font-medium transition-all duration-200 border
+                                ${p.precio_activo === 'normal' 
+                                    ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
+                                    : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
+                            Venta (Q${p.precio_venta.toFixed(2)})
+                        </button>
+                        ${tienePrecioEmpresa ? `
+                        <button type="button"
+                                data-action="cambiar-precio"
+                                data-id="${String(p.producto_id)}"
+                                data-tipo="empresa"
+                                class="px-2 py-1 rounded-md font-medium transition-all duration-200 border
+                                ${p.precio_activo === 'empresa' 
+                                    ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
+                                    : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
+                            Especial (Q${p.precio_venta_empresa.toFixed(2)})
+                        </button>
+                        ` : ''}
+
+                        <button type="button"
+                                data-action="cambiar-precio"
+                                data-id="${String(p.producto_id)}"
+                                data-tipo="personalizado"
+                                class="px-2 py-1 rounded-md font-medium transition-all duration-200 border flex items-center gap-1
+                                ${p.precio_activo === 'personalizado' 
+                                    ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
+                                    : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
+                            <i class="fas fa-edit text-[10px]"></i>
+                            Personalizado
+                        </button>
+                        
+                    </div>
+                    
+                    ${p.precio_activo === 'personalizado' ? `
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-gray-600 font-medium">Precio Custom:</span>
+                        <div class="flex items-center gap-1 bg-white border border-purple-300 rounded-md px-2 py-1 focus-within:ring-2 focus-within:ring-purple-400">
+                            <span class="text-xs text-gray-500">Q</span>
+                            <input type="number"
+                                   step="0.01"
+                                   min="0"
+                                   value="${p.precio_personalizado ?? ''}"
+                                   placeholder="0.00"
+                                   data-action="precio-personalizado"
+                                   data-id="${String(p.producto_id)}"
+                                   class="w-20 text-sm font-semibold text-gray shadow-sm bg-white-600 border-blue-600 focus:outline-none focus:ring-0 p-0">
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
-                `
-                : "";
+            `;
 
             return `
         <div class="group bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-start gap-4">
@@ -1216,22 +1375,57 @@ function actualizarVistaCarrito() {
 
             <!-- Precio total -->
             <div class="mt-2 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-2">
-              <div class="text-xs text-gray-600">
+            <div class="text-xs text-gray-600">
                 <span class="font-medium">Precio unitario:</span>
-                <span class="ml-1 font-semibold text-emerald-700">Q${p.precio.toFixed(2)}</span>
+                <span class="ml-1 font-semibold text-emerald-700 precio-unitario-valor">Q${p.precio.toFixed(2)}</span>
                 ${p.precio_activo === 'empresa' ? '<span class="ml-1 text-[10px] text-purple-600 font-medium">(Especial)</span>' : ''}
-              </div>
-              <div class="text-right">
+                ${p.precio_activo === 'personalizado' ? '<span class="ml-1 text-[10px] text-purple-600 font-medium">(Personalizado)</span>' : ''}
+            </div>
+            <div class="text-right">
                 <div class="text-xs text-gray-500 font-medium">Total</div>
-                <div class="font-bold text-emerald-600 text-lg">
-                  Q${(p.precio * p.cantidad).toFixed(2)}
+                <div class="font-bold text-emerald-600 text-lg total-producto-valor">
+                Q${(p.precio * p.cantidad).toFixed(2)}
                 </div>
-              </div>
+            </div>
             </div>
           </div>
         </div>`;
         })
         .join("");
+
+
+
+        // En la sección "Precio total", modifica esta parte:
+
+
+
+        // Event listener para precio personalizado - REEMPLAZA el que tienes:
+container.querySelectorAll('[data-action="precio-personalizado"]').forEach(input => {
+    input.addEventListener('input', (e) => {
+        const id = e.currentTarget.dataset.id;
+        const valor = parseFloat(e.currentTarget.value) || 0;
+        
+        const producto = carritoProductos.find(p => String(p.producto_id) === id);
+        if (producto) {
+            producto.precio_personalizado = valor;
+            producto.precio = valor;
+            
+            // Actualizar solo el precio unitario sin recargar todo
+            const precioUnitarioSpan = e.currentTarget.closest('.group').querySelector('.precio-unitario-valor');
+            if (precioUnitarioSpan) {
+                precioUnitarioSpan.textContent = `Q${valor.toFixed(2)}`;
+            }
+            
+            // Actualizar el total del producto
+            const totalProductoDiv = e.currentTarget.closest('.group').querySelector('.total-producto-valor');
+            if (totalProductoDiv) {
+                totalProductoDiv.textContent = `Q${(valor * producto.cantidad).toFixed(2)}`;
+            }
+            
+            calcularTotales?.();
+        }
+    });
+});
 
     // Event listener para cambio de precio
     container.querySelectorAll('[data-action="cambiar-precio"]').forEach(btn => {
@@ -1242,11 +1436,25 @@ function actualizarVistaCarrito() {
             const producto = carritoProductos.find(p => String(p.producto_id) === id);
             if (producto) {
                 producto.precio_activo = tipo;
-                producto.precio = tipo === 'empresa' ? producto.precio_venta_empresa : producto.precio_venta;
+                
+                if (tipo === 'personalizado') {
+                    // Si no hay precio personalizado previo, usar el precio actual como base
+                    if (producto.precio_personalizado === null) {
+                        producto.precio_personalizado = producto.precio;
+                    }
+                    producto.precio = Number(producto.precio_personalizado);
+                } else if (tipo === 'empresa') {
+                    producto.precio = producto.precio_venta_empresa;
+                } else {
+                    producto.precio = producto.precio_venta;
+                }
+                
                 actualizarVistaCarrito();
             }
         });
     });
+
+
 
     calcularTotales?.();
 }
@@ -2453,20 +2661,21 @@ async function procesarVentaFinal() {
 
             // Limpiar formulario
             limpiarFormularioVenta();
+            buscarProductos();
             
-            // Opcional: imprimir ticket o redirigir
-            if (resultado.venta_id) {
-                const imprimirTicket = await Swal.fire({
-                    title: '¿Desea imprimir el ticket?',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sí, imprimir',
-                    cancelButtonText: 'No, gracias'
-                });
+            // // Opcional: imprimir ticket o redirigir
+            // if (resultado.venta_id) {
+            //     const imprimirTicket = await Swal.fire({
+            //         title: '¿Desea imprimir el ticket?',
+            //         showCancelButton: true,
+            //         confirmButtonText: 'Sí, imprimir',
+            //         cancelButtonText: 'No, gracias'
+            //     });
 
-                if (imprimirTicket.isConfirmed) {
-                    window.open(`/ventas/${resultado.venta_id}/ticket`, '_blank');
-                }
-            }
+            //     if (imprimirTicket.isConfirmed) {
+            //         window.open(`/ventas/${resultado.venta_id}/ticket`, '_blank');
+            //     }
+            // }
 
         } else {
             // Error del servidor

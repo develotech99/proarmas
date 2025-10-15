@@ -483,11 +483,12 @@
                                 <label for="tipoCliente" class="block text-sm font-medium text-gray-700 mb-2">
                                     Tipo de Cliente
                                 </label>
-                                <select id="tipoCliente" name="cliente_tipo"
+                                <select id="tipoCliente" name="cliente_tipo" required
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                     <option value="">Seleccionar...</option>
                                     <option value="1">Cliente Normal</option>
                                     <option value="2">Cliente Premium</option>
+                                    <option value="3">Cliente Empresa</option>
                                 </select>
                             </div>
 
@@ -500,8 +501,7 @@
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                     <option value="">Seleccionar cliente...</option>
                                     @foreach ($clientes as $cliente)
-                                        <option value="{{ $cliente->user_id }}"
-                                            data-clienteid="{{ $cliente->user_id}}"
+                                        <option value="{{ $cliente->user_id }}" data-clienteid="{{ $cliente->user_id }}"
                                             data-nombre1="{{ $cliente->user_primer_nombre }}"
                                             data-nombre2="{{ $cliente->user_segundo_nombre ?? '' }}"
                                             data-apellido1="{{ $cliente->user_primer_apellido }}"
@@ -515,8 +515,20 @@
                             </div>
                         </div>
 
-                          <input id="idCliente" name="cliente_user_id" type="hidden" 
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input id="idCliente" name="cliente_user_id" type="hidden"
+                            class="w-full  py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                        <div id="contenedorempresa" class="sm:col-span-2 w-full">
+                            <input id="nombreEmpresa" name="cliente_nom_empresa" type="text"
+                                placeholder="Nombre de la empresa" disabled
+                                class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                            <!-- Fila siguiente: título "Propietario de la empresa" -->
+                            <p id="titulopropietario" class=" hidden mt-2 text-sm font-medium text-gray-700">
+                                Propietario de la empresa
+                            </p>
+                        </div>
+
                         <!-- Nombres -->
                         <input id="nc_nombre1" name="cliente_nombre1" type="text" placeholder="Primer nombre"
                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
@@ -541,10 +553,23 @@
                         <input id="nc_correo" name="cliente_correo" type="email" placeholder="Correo"
                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
 
+                        <!-- nombre de vendedor y telefono -->
+                        <input id="nc_nombre_vendedor" name="cliente_nom_vendedor" type="tel"
+                            placeholder="Nombre vendedor" disabled
+                            class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input id="nc_telefono_vendedor" name="cliente_cel_vendedor" disabled type="email" placeholder="Telefono Vendedor"
+                            class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+
                         <!-- Dirección -->
                         <div class="sm:col-span-2">
                             <input id="nc_direccion" name="cliente_direccion" type="text" placeholder="Dirección"
                                 class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <!-- Ubicacion Empresa -->
+                        <div class="sm:col-span-2">
+                            <input id="nc_ubicacion" name="cliente_ubicacion" type="text" placeholder="Ubicación empresa" disabled
+                                class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
 
