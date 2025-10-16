@@ -95,16 +95,22 @@ const initTablaPendientes = () => {
 };
 
 const initTablaMovimientos = () => {
-    if (dtMovimientos) dtMovimientos.destroy();
+    if (dtMovimientos) {
+        try {
+            dtMovimientos.destroy();
+        } catch (_) { }
+        dtMovimientos = null;
+    }
+
     dtMovimientos = new DataTable("#tablaMovimientos", {
         searchable: false,
         sortable: true,
-        fixedHeight: true,
+        fixedHeight: false,
         perPage: 10,
         perPageSelect: [5, 10, 20, 50],
         labels: labelsES,
         data: {
-            headings: ["Fecha", "Tipo", "Referencia", "Método", "Monto", "Estado"],
+            headings: ["Fecha", "Tipo", "Descripción", "Referencia", "Método", "Monto", "Estado", "Acciones"],
             data: [],
         },
     });
@@ -133,6 +139,7 @@ const initTablaPreview = () => {
  *  Stats / Dashboard
  *  Espera: { codigo, mensaje, detalle, data:{ saldo_total_gtq, saldos, pendientes, ultima_carga } }
  * ========================= */
+
 const CargarStats = async () => {
     try {
         swalLoadingOpen("Cargando estadísticas...");
@@ -144,38 +151,16 @@ const CargarStats = async () => {
         if (codigo === 1) {
             const {
                 saldo_total_gtq = 0,
-                saldos = [],
                 pendientes = 0,
                 ultima_carga = null,
             } = data || {};
 
             setTxt("saldoCajaTotalGTQ", fmtQ(saldo_total_gtq));
-
-            const efectivo = saldos.find((s) =>
-                (s.metodo || "").toLowerCase().includes("efectivo")
-            );
-            setTxt("saldoEfectivoGTQ", fmtQ(efectivo?.caja_saldo_monto_actual || 0));
             setTxt("contadorPendientes", String(pendientes));
             setTxt(
                 "ultimaCargaEstado",
                 ultima_carga ? new Date(ultima_carga).toLocaleString() : "—"
             );
-
-            // Rellenar selects
-            const filtroMetodo = document.getElementById("filtroMetodo");
-            const egMetodo = document.getElementById("egMetodo");
-            if (filtroMetodo) {
-                filtroMetodo.innerHTML =
-                    `<option value="">Todos los métodos</option>` +
-                    saldos
-                        .map((m) => `<option value="${m.metodo_id}">${m.metodo}</option>`)
-                        .join("");
-            }
-            if (egMetodo) {
-                egMetodo.innerHTML = saldos
-                    .map((m) => `<option value="${m.metodo_id}">${m.metodo}</option>`)
-                    .join("");
-            }
         } else {
             console.error(mensaje);
         }
@@ -376,6 +361,7 @@ document.addEventListener("click", (e) => {
         cerrarModal("modalEgreso");
         cerrarModal("modalComprobante");
         cerrarModal("modalDetalleVenta");
+        cerrarModal("modalIngreso");
     }
 
 
@@ -476,34 +462,165 @@ const rangoMes = () => {
     };
 };
 
+/* =========================
+ *  Movimientos
+ *  Espera: { codigo:1, data:{ data:[...], total } } o { codigo:1, data:[...] }
+ * ========================= */
+
 const renderMovimientos = (rows = []) => {
+    console.log("Renderizando movimientos:", rows);
+
     const data = rows.map((r) => {
         const fecha = r.cja_fecha ? new Date(r.cja_fecha).toLocaleString() : "—";
         const tipo = r.cja_tipo || "—";
         const ref = r.cja_no_referencia || "—";
+        const descripcion = r.cja_observaciones || "—";
         const metodo = r.metodo || "—";
         const esIn = ["VENTA", "DEPOSITO", "AJUSTE_POS"].includes(tipo);
         const monto = `<span class="${esIn ? "text-emerald-600" : "text-rose-600"}">${fmtQ(
             r.cja_monto
         )}</span>`;
         const est = r.cja_situacion || "—";
-        return [fecha, tipo, ref, metodo, monto, est];
+
+        const acciones = est === "PENDIENTE" ? `
+            <div class="flex justify-center gap-1">
+                <button class="btn-validar-mov bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2 py-1 rounded"
+                    data-id="${r.cja_id}" data-tipo="${tipo}" data-monto="${r.cja_monto}" data-ref="${ref}" data-descripcion="${descripcion}">
+                    Validar
+                </button>
+                <button class="btn-rechazar-mov bg-rose-600 hover:bg-rose-700 text-white text-xs px-2 py-1 rounded"
+                    data-id="${r.cja_id}" data-tipo="${tipo}" data-monto="${r.cja_monto}" data-ref="${ref}" data-descripcion="${descripcion}">
+                    Rechazar
+                </button>
+            </div>
+        ` : est === "ACTIVO"
+            ? `<span class="text-xs text-emerald-600 font-medium">Validado</span>`
+            : est === "ANULADA"
+                ? `<span class="text-xs text-rose-600 font-medium">Rechazado</span>`
+                : `<span class="text-xs text-gray-400">${est}</span>`;
+
+        return [fecha, tipo, descripcion, ref, metodo, monto, est, acciones];
     });
 
-    if (dtMovimientos) dtMovimientos.destroy();
+    if (dtMovimientos) {
+        try {
+            dtMovimientos.destroy();
+        } catch (e) {
+            console.warn("Error al destruir DataTable:", e);
+        }
+        dtMovimientos = null;
+    }
+
     dtMovimientos = new DataTable("#tablaMovimientos", {
-        searchable: false,
+        searchable: true,
         sortable: true,
-        fixedHeight: true,
+        fixedHeight: false,
         perPage: 10,
         perPageSelect: [5, 10, 20, 50],
         labels: labelsES,
         data: {
-            headings: ["Fecha", "Tipo", "Referencia", "Método", "Monto", "Estado"],
-            data,
+            headings: ["Fecha", "Tipo", "Descripción", "Referencia", "Método", "Monto", "Estado", "Acciones"],
+            data: data,
         },
     });
+
+    console.log("DataTable inicializado con", data.length, "filas");
 };
+
+
+/* =========================
+ *  Confirmar validación/rechazo de movimiento
+ * ========================= */
+const ConfirmarValidacionMovimiento = async (cjaId, tipo, monto, referencia, descripcion, accion) => {
+    const accionTexto = accion === 'validar' ? 'validar' : 'rechazar';
+    const icono = accion === 'validar' ? 'question' : 'warning';
+    const textoConfirmacion = accion === 'validar'
+        ? `¿Estás seguro de validar este movimiento?<br><br>
+           <strong>Tipo:</strong> ${tipo}<br>
+           <strong>Descripción:</strong> ${descripcion}<br>
+           <strong>Referencia:</strong> ${referencia}<br>
+           <strong>Monto:</strong> ${fmtQ(monto)}<br><br>
+           Esta acción actualizará el saldo de caja.`
+        : `¿Estás seguro de rechazar este movimiento?<br><br>
+           <strong>Tipo:</strong> ${tipo}<br>
+           <strong>Descripción:</strong> ${descripcion}<br>
+           <strong>Referencia:</strong> ${referencia}<br>
+           <strong>Monto:</strong> ${fmtQ(monto)}<br><br>
+           Este movimiento será marcado como rechazado.`;
+
+    const { isConfirmed } = await Swal.fire({
+        title: `¿${accion === 'validar' ? 'Validar' : 'Rechazar'} Movimiento?`,
+        html: textoConfirmacion,
+        icon: icono,
+        showCancelButton: true,
+        confirmButtonText: `Sí, ${accionTexto}`,
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: accion === 'validar' ? '#10b981' : '#ef4444'
+    });
+
+    if (isConfirmed) {
+        await ValidarMovimiento(cjaId, accion);
+    }
+};
+
+/* =========================
+ *  Validar Movimiento de Caja
+ * ========================= */
+const ValidarMovimiento = async (cjaId, accion = 'validar') => {
+    try {
+        swalLoadingOpen(`${accion === 'validar' ? 'Validando' : 'Rechazando'} movimiento...`);
+
+        const resp = await fetch(`${API}/movimientos/${cjaId}/${accion}`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({})
+        });
+
+        const { codigo, mensaje } = await resp.json();
+        swalLoadingClose();
+
+        if (codigo === 1) {
+            await Swal.fire("¡Éxito!", mensaje || `Movimiento ${accion === 'validar' ? 'validado' : 'rechazado'}`, "success");
+
+            // Recargar todo para actualizar saldos
+            await CargarStats();
+            await CargarMovimientos();
+            await BuscarPendientes();
+        } else {
+            await Swal.fire("Error", mensaje || `No se pudo ${accion} el movimiento`, "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error(`Error ${accion} movimiento:`, e);
+        Swal.fire("Error", "Ocurrió un error inesperado", "error");
+    }
+};
+
+// Agregar esto en el event listener general
+document.addEventListener("click", (e) => {
+    if (e.target.closest('.btn-validar-mov')) {
+        const btn = e.target.closest('.btn-validar-mov');
+        const cjaId = btn.dataset.id;
+        const tipo = btn.dataset.tipo;
+        const monto = btn.dataset.monto;
+        const ref = btn.dataset.ref;
+        const descripcion = btn.dataset.descripcion || "—";
+
+        ConfirmarValidacionMovimiento(cjaId, tipo, monto, ref, descripcion, 'validar');
+    }
+
+    // Rechazar movimiento de caja
+    if (e.target.closest('.btn-rechazar-mov')) {
+        const btn = e.target.closest('.btn-rechazar-mov');
+        const cjaId = btn.dataset.id;
+        const tipo = btn.dataset.tipo;
+        const monto = btn.dataset.monto;
+        const ref = btn.dataset.ref;
+        const descripcion = btn.dataset.descripcion || "—";
+
+        ConfirmarValidacionMovimiento(cjaId, tipo, monto, ref, descripcion, 'rechazar');
+    }
+});
 
 const CargarMovimientos = async () => {
     try {
@@ -932,6 +1049,109 @@ const ConciliarAutomatico = async (ecId) => {
 
 
 btnLimpiar?.addEventListener("click", resetUpload);
+
+
+/* =========================
+ *  Ingresos/Egresos
+ * ========================= */
+const AbrirIngreso = () => abrirModal("modalIngreso");
+
+document.getElementById("btnAbrirIngreso")?.addEventListener("click", AbrirIngreso);
+document.getElementById("btnAbrirEgreso")?.addEventListener("click", AbrirEgreso);
+
+// Guardar INGRESO - VERSIÓN SIMPLIFICADA
+document.getElementById("btnGuardarIngreso")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    const ingMonto = parseFloat(document.getElementById("ingMonto")?.value || 0);
+    const ingConcepto = document.getElementById("ingConcepto")?.value;
+
+    if (!ingMonto || !ingConcepto) {
+        return Swal.fire("Campos vacíos", "Completa monto y concepto.", "info");
+    }
+
+    try {
+        swalLoadingOpen("Guardando ingreso...");
+
+        // OBJETO SIMPLE SIN metodo_id
+        const data = {
+            monto: ingMonto,
+            concepto: ingConcepto,
+            fecha: document.getElementById("ingFecha")?.value || null,
+            referencia: document.getElementById("ingReferencia")?.value || null,
+        };
+
+        const resp = await fetch(`${API}/ingresos`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+
+        const result = await resp.json();
+        swalLoadingClose();
+
+        if (result.codigo === 1) {
+            await Swal.fire("¡Éxito!", result.mensaje || "Ingreso registrado", "success");
+            cerrarModal("modalIngreso");
+            document.getElementById("formIngreso").reset();
+            await CargarStats();
+            await CargarMovimientos();
+        } else {
+            await Swal.fire("Error", result.mensaje || "No se pudo registrar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Ingreso error:", e);
+        Swal.fire("Error", "Ocurrió un error inesperado", "error");
+    }
+});
+
+// Guardar EGRESO - VERSIÓN SIMPLIFICADA
+document.getElementById("btnGuardarEgreso")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    const egMonto = parseFloat(document.getElementById("egMonto")?.value || 0);
+    const egMotivo = document.getElementById("egMotivo")?.value;
+
+    if (!egMonto || !egMotivo) {
+        return Swal.fire("Campos vacíos", "Completa monto y motivo.", "info");
+    }
+
+    try {
+        swalLoadingOpen("Guardando egreso...");
+
+        // OBJETO SIMPLE SIN metodo_id
+        const data = {
+            monto: egMonto,
+            motivo: egMotivo,
+            fecha: document.getElementById("egFecha")?.value || null,
+            referencia: document.getElementById("egReferencia")?.value || null,
+        };
+
+        const resp = await fetch(`${API}/egresos`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+
+        const result = await resp.json();
+        swalLoadingClose();
+
+        if (result.codigo === 1) {
+            await Swal.fire("¡Éxito!", result.mensaje || "Egreso registrado", "success");
+            cerrarModal("modalEgreso");
+            document.getElementById("formEgreso").reset();
+            await CargarStats();
+            await CargarMovimientos();
+        } else {
+            await Swal.fire("Error", result.mensaje || "No se pudo registrar", "error");
+        }
+    } catch (e) {
+        swalLoadingClose();
+        console.error("Egreso error:", e);
+        Swal.fire("Error", "Ocurrió un error inesperado", "error");
+    }
+});
 
 /* =========================
  *  Filtros y refresco
