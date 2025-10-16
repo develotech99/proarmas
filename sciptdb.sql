@@ -959,6 +959,9 @@ MODIFY COLUMN det_situacion ENUM('ACTIVO', 'ANULADA', 'PENDIENTE') DEFAULT 'ACTI
 ALTER TABLE cja_historial 
 MODIFY COLUMN cja_situacion ENUM('ACTIVO', 'ANULADA', 'PENDIENTE') DEFAULT 'ACTIVO';
 
+ALTER TABLE pro_pagos 
+MODIFY COLUMN pago_estado ENUM('PENDIENTE', 'PARCIAL', 'COMPLETADO', 'VENCIDO', 'ANULADA') DEFAULT 'PENDIENTE';
+
 -- se agregaron estos campos a la tabla pro_clientes
 
 ALTER TABLE pro_clientes

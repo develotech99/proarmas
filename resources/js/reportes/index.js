@@ -562,7 +562,7 @@ renderTablaVentas(ventas) {
                             title="Autorizar">
                         <i class="fas fa-check"></i>
                     </button>
-                    <button onclick="reportesManager.rechazarVenta(${venta.ven_id})"
+                    <button onclick="reportesManager.cancelarVentaClick(${venta.ven_id})"
                             class="text-red-600 hover:text-red-900" 
                             title="Rechazar">
                         <i class="fas fa-times"></i>
@@ -716,6 +716,11 @@ async autorizarVentaClick(buttonElement) {
         }
     });
 
+
+    
+
+
+
     // 2️⃣ Si llenó el formulario → actualizar
     if (formValues) {
         const updateResponse = await fetch('/ventas/actualizar-licencias', {
@@ -772,6 +777,60 @@ async autorizarVentaClick(buttonElement) {
                 </div>
             `,
             confirmButtonColor: '#ef4444'
+        });
+    }
+}
+
+async cancelarVentaClick(venId) {
+    try {
+        const confirmacion = await Swal.fire({
+            title: '¿Cancelar esta venta?',
+            text: 'Esta acción no se puede deshacer',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, cancelar',
+            cancelButtonText: 'No'
+        });
+        
+        if (!confirmacion.isConfirmed) return;
+        
+        Swal.fire({
+            title: 'Cancelando venta...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+        
+        const response = await fetch('/ventas/cancelar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ ven_id: venId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            await Swal.fire({
+                icon: 'success',
+                title: '¡Venta Cancelada!',
+                text: result.message,
+                confirmButtonColor: '#10b981'
+            });
+            this.cargarVentasPendientes();
+        } else {
+            throw new Error(result.message || 'Error al cancelar');
+        }
+        
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.message
         });
     }
 }
