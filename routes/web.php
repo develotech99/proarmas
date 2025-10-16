@@ -325,6 +325,9 @@ Route::middleware('auth')->group(function () {
             Route::get('movimientos', [AdminPagosController::class, 'movimientos']);
             Route::post('egresos', [AdminPagosController::class, 'registrarEgreso']);
             Route::post('conciliar', [AdminPagosController::class, 'conciliarAutomatico']);
+            Route::post('movimientos/{id}/validar', [AdminPagosController::class, 'validarMovimiento']);
+            Route::post('movimientos/{id}/rechazar', [AdminPagosController::class, 'rechazarMovimiento']);
+            Route::post('ingresos', [AdminPagosController::class, 'registrarIngreso']); 
       });
 });
 

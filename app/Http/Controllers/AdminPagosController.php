@@ -30,9 +30,19 @@ class AdminPagosController extends Controller
                 ->get();
 
             $totalGTQ   = (float) $saldos->where('caja_saldo_moneda', 'GTQ')->sum('caja_saldo_monto_actual');
-            $pendientes = DB::table('pro_pagos_subidos')
+
+            // Contar pagos pendientes
+            $pagosPendientes = DB::table('pro_pagos_subidos')
                 ->whereIn('ps_estado', ['PENDIENTE', 'PENDIENTE_VALIDACION'])
                 ->count();
+
+            // Contar movimientos de caja pendientes  
+            $movimientosPendientes = DB::table('cja_historial')
+                ->where('cja_situacion', 'PENDIENTE')
+                ->count();
+
+            $pendientes = $pagosPendientes + $movimientosPendientes;
+
             $ultimaCarga = DB::table('pro_estados_cuenta')->max('created_at');
 
             return response()->json([
@@ -45,7 +55,7 @@ class AdminPagosController extends Controller
                     'ultima_carga'    => $ultimaCarga,
                 ]
             ], 200);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'codigo' => 0,
                 'mensaje' => 'Error al obtener las estadísticas',
@@ -458,6 +468,7 @@ class AdminPagosController extends Controller
      * Movimientos de caja
      * GET /admin/pagos/movimientos
      * =========================== */
+
     public function movimientos(Request $request)
     {
         try {
@@ -472,6 +483,7 @@ class AdminPagosController extends Controller
                     'h.cja_fecha',
                     'h.cja_tipo',
                     'h.cja_no_referencia',
+                    'h.cja_observaciones', // ← AGREGAR ESTE CAMPO
                     'm.metpago_descripcion as metodo',
                     'h.cja_monto',
                     'h.cja_situacion'
@@ -485,10 +497,12 @@ class AdminPagosController extends Controller
 
             $total = 0.0;
             foreach ($rows as $r) {
-                if ($r->cja_situacion === 'ANULADO') continue;
-                $total += in_array($r->cja_tipo, ['VENTA', 'DEPOSITO', 'AJUSTE_POS'])
-                    ? (float) $r->cja_monto
-                    : -(float) $r->cja_monto;
+                // Solo sumar movimientos ACTIVOS para el total
+                if ($r->cja_situacion === 'ACTIVO') {
+                    $total += in_array($r->cja_tipo, ['VENTA', 'DEPOSITO', 'AJUSTE_POS'])
+                        ? (float) $r->cja_monto
+                        : -(float) $r->cja_monto;
+                }
             }
 
             return response()->json([
@@ -499,7 +513,7 @@ class AdminPagosController extends Controller
                     'total' => round($total, 2),
                 ]
             ], 200);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'codigo' => 0,
                 'mensaje' => 'Error al obtener los movimientos',
@@ -507,18 +521,15 @@ class AdminPagosController extends Controller
             ], 500);
         }
     }
-
     /* ===========================
-     * Registrar egreso de caja
-     * POST /admin/pagos/egresos
-     * =========================== */
+    * Registrar egreso de caja
+    * POST /admin/pagos/egresos
+    * =========================== */
     public function registrarEgreso(Request $request)
     {
-
         try {
             $data = $request->validate([
                 'fecha'      => ['nullable', 'date'],
-                'metodo_id'  => ['required', 'integer', 'min:1'],
                 'monto'      => ['required', 'numeric', 'gt:0'],
                 'motivo'     => ['required', 'string', 'max:200'],
                 'referencia' => ['nullable', 'string', 'max:100'],
@@ -533,21 +544,37 @@ class AdminPagosController extends Controller
 
             DB::beginTransaction();
 
+            // ✅ AGREGAR VALIDACIÓN DE SALDO
+            $metodoId = 1; // Efectivo como valor por defecto
+            $cajaSaldo = CajaSaldo::ensureRow($metodoId, 'GTQ');
+            $saldoActual = (float) $cajaSaldo->caja_saldo_monto_actual;
+            $montoEgreso = (float) $data['monto'];
+
+            // Validar que el egreso no sea mayor al saldo disponible
+            if ($montoEgreso > $saldoActual) {
+                return response()->json([
+                    'codigo' => 0,
+                    'mensaje' => 'Saldo insuficiente',
+                    'detalle' => "No hay suficiente saldo en caja. Saldo disponible: Q " . number_format($saldoActual, 2) . ", Egreso solicitado: Q " . number_format($montoEgreso, 2)
+                ], 422);
+            }
+
             DB::table('cja_historial')->insert([
-                'cja_tipo'          => 'EGRESO',
+                'cja_tipo'          => 'EGRESO', // ✅ Este SÍ existe en el ENUM
                 'cja_id_venta'      => null,
                 'cja_id_import'     => null,
                 'cja_usuario'       => auth()->id(),
                 'cja_monto'         => $data['monto'],
                 'cja_fecha'         => $data['fecha'] ? Carbon::parse($data['fecha']) : now(),
-                'cja_metodo_pago'   => $data['metodo_id'],
+                'cja_metodo_pago'   => 1, // ← Usar valor por defecto
                 'cja_no_referencia' => $data['referencia'] ?? null,
                 'cja_situacion'     => 'ACTIVO',
                 'cja_observaciones' => $data['motivo'],
                 'created_at'        => now(),
             ]);
 
-            CajaSaldo::ensureRow($data['metodo_id'], 'GTQ')->subtractAmount($data['monto']);
+            // CORREGIDO: Usar valor por defecto para metodo_id
+            CajaSaldo::ensureRow(1, 'GTQ')->subtractAmount($data['monto']);
 
             DB::commit();
 
@@ -1500,6 +1527,176 @@ class AdminPagosController extends Controller
             }
         } catch (\Throwable $e) {
             \Log::warning('No se pudo eliminar comprobante', ['path' => $path, 'e' => $e->getMessage()]);
+        }
+    }
+
+    /* ===========================
+ * Validar movimiento de caja
+ * POST /admin/pagos/movimientos/{id}/validar
+ * =========================== */
+    public function validarMovimiento($id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $movimiento = DB::table('cja_historial')->where('cja_id', $id)->first();
+
+            if (!$movimiento) {
+                return response()->json([
+                    'codigo' => 0,
+                    'mensaje' => 'Movimiento no encontrado'
+                ], 404);
+            }
+
+            if ($movimiento->cja_situacion !== 'PENDIENTE') {
+                return response()->json([
+                    'codigo' => 0,
+                    'mensaje' => 'El movimiento no está pendiente de validación'
+                ], 422);
+            }
+
+            // Actualizar estado a ACTIVO (solo cambiar cja_situacion)
+            DB::table('cja_historial')
+                ->where('cja_id', $id)
+                ->update([
+                    'cja_situacion' => 'ACTIVO'
+                ]);
+
+            // Si es una VENTA, actualizar saldo de caja
+            if (in_array($movimiento->cja_tipo, ['VENTA', 'DEPOSITO', 'AJUSTE_POS'])) {
+                CajaSaldo::ensureRow($movimiento->cja_metodo_pago, 'GTQ')
+                    ->addAmount($movimiento->cja_monto);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'codigo' => 1,
+                'mensaje' => 'Movimiento validado correctamente'
+            ]);
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => 'Error al validar movimiento: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /* ===========================
+ * Rechazar movimiento de caja
+ * POST /admin/pagos/movimientos/{id}/rechazar
+ * =========================== */
+    public function rechazarMovimiento($id)
+    {
+        try {
+            $movimiento = DB::table('cja_historial')->where('cja_id', $id)->first();
+
+            if (!$movimiento) {
+                return response()->json([
+                    'codigo' => 0,
+                    'mensaje' => 'Movimiento no encontrado'
+                ], 404);
+            }
+
+            if ($movimiento->cja_situacion !== 'PENDIENTE') {
+                return response()->json([
+                    'codigo' => 0,
+                    'mensaje' => 'El movimiento no está pendiente de validación'
+                ], 422);
+            }
+
+            DB::table('cja_historial')
+                ->where('cja_id', $id)
+                ->update([
+                    'cja_situacion' => 'ANULADA'
+                ]);
+
+            return response()->json([
+                'codigo' => 1,
+                'mensaje' => 'Movimiento rechazado correctamente'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => 'Error al rechazar movimiento: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /* ===========================
+ * Registrar ingreso de caja
+ * POST /admin/pagos/movimientos
+ * =========================== */
+    /* ===========================
+ * Registrar ingreso de caja
+ * POST /admin/pagos/movimientos
+ * =========================== */
+    public function registrarIngreso(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'fecha'      => ['nullable', 'date'],
+                'monto'      => ['required', 'numeric', 'gt:0'],
+                'concepto'   => ['required', 'string', 'max:200'],
+                'referencia' => ['nullable', 'string', 'max:100'],
+                'archivo'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            ]);
+
+            $path = null;
+
+            if ($request->hasFile('archivo')) {
+                $path = $request->file('archivo')->store('ingresos', 'public');
+            }
+
+            DB::beginTransaction();
+
+            // CORREGIDO: Cambiar 'INGRESO' por 'DEPOSITO' que SÍ existe en el ENUM
+            DB::table('cja_historial')->insert([
+                'cja_tipo'          => 'DEPOSITO', // ← CAMBIADO DE 'INGRESO' A 'DEPOSITO'
+                'cja_id_venta'      => null,
+                'cja_id_import'     => null,
+                'cja_usuario'       => auth()->id(),
+                'cja_monto'         => $data['monto'],
+                'cja_fecha'         => $data['fecha'] ? Carbon::parse($data['fecha']) : now(),
+                'cja_metodo_pago'   => 1,
+                'cja_no_referencia' => $data['referencia'] ?? null,
+                'cja_situacion'     => 'ACTIVO',
+                'cja_observaciones' => $data['concepto'],
+                'created_at'        => now(),
+            ]);
+
+            // Actualizar saldos para ingreso
+            CajaSaldo::ensureRow(1, 'GTQ')->addAmount($data['monto']);
+
+            DB::commit();
+
+            return response()->json([
+                'codigo' => 1,
+                'mensaje' => 'Ingreso registrado exitosamente',
+                'data' => [
+                    'archivo' => $path
+                ]
+            ], 200);
+        } catch (ValidationException $ve) {
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => 'Datos de validación inválidos',
+                'detalle' => $ve->getMessage()
+            ], 422);
+        } catch (Exception $e) {
+            DB::rollBack();
+            if ($path) {
+                try {
+                    Storage::disk('public')->delete($path);
+                } catch (Exception $__) {
+                }
+            }
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => 'Error al registrar el ingreso',
+                'detalle' => $e->getMessage()
+            ], 500);
         }
     }
 }

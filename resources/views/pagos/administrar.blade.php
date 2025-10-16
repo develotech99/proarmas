@@ -1,8 +1,8 @@
-@extends('layouts.app')
+    @extends('layouts.app')
 
-@section('title', 'Validación de Pagos y Caja')
+    @section('title', 'Validación de Pagos y Caja')
 
-@section('content')
+    @section('content')
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <style>
@@ -27,24 +27,47 @@
 
 
         /* Vista Previa - que se vea como tus otras tablas */
-        #tablaPrevia.dataTable-table { width: 100%; table-layout: auto; }
-        #tablaPrevia thead th, #tablaPrevia tbody td { padding: .5rem .75rem; }
-        #tablaPrevia thead th { background: #f9fafb; position: sticky; top: 0; z-index: 1; }
-        .dataTable-container { overflow: auto; }      /* permite scroll si hay muchas filas */
-        .tabular-nums { font-variant-numeric: tabular-nums; } /* números con ancho fijo */
+        #tablaPrevia.dataTable-table {
+            width: 100%;
+            table-layout: auto;
+        }
 
+        #tablaPrevia thead th,
+        #tablaPrevia tbody td {
+            padding: .5rem .75rem;
+        }
+
+        #tablaPrevia thead th {
+            background: #f9fafb;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .dataTable-container {
+            overflow: auto;
+        }
+
+        /* permite scroll si hay muchas filas */
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* números con ancho fijo */
     </style>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        <!-- Header -->
-        <div class="mb-8 flex items-start justify-between">
+        <div class="mb-8 flex items-center justify-between">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Gestión de Caja y Validación de Pagos</h1>
-                <p class="mt-2 text-gray-600">Valida comprobantes, controla caja (ingresos/egresos) y concilia estados de
-                    cuenta.</p>
+                <p class="mt-2 text-gray-600">Valida comprobantes, controla caja (ingresos/egresos) y concilia estados de cuenta.</p>
             </div>
             <div class="flex items-center gap-3">
+                <button id="btnAbrirIngreso"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold">
+                    + Registrar Ingreso
+                </button>
                 <button id="btnAbrirEgreso"
                     class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg font-semibold">
                     + Registrar Egreso
@@ -56,9 +79,9 @@
             </div>
         </div>
 
-        <!-- Tarjetas de estado -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <!-- Saldo total caja -->
+        <!-- Tarjetas de estado SIMPLIFICADAS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Saldo total -->
             <div class="bg-white rounded-xl shadow-sm border p-6">
                 <div class="flex items-center">
                     <div class="bg-emerald-100 p-3 rounded-lg">
@@ -69,23 +92,7 @@
                     </div>
                     <div class="ml-4">
                         <h3 class="text-lg font-semibold text-gray-900" id="saldoCajaTotalGTQ">Q 0.00</h3>
-                        <p class="text-sm text-gray-500">Saldo total en caja (GTQ)</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Saldo por método (EFECTIVO) -->
-            <div class="bg-white rounded-xl shadow-sm border p-6">
-                <div class="flex items-center">
-                    <div class="bg-blue-100 p-3 rounded-lg">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 10h18M7 15h1m8 0h1M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <h3 class="text-lg font-semibold text-gray-900" id="saldoEfectivoGTQ">Q 0.00</h3>
-                        <p class="text-sm text-gray-500">Efectivo</p>
+                        <p class="text-sm text-gray-500">Saldo total en caja</p>
                     </div>
                 </div>
             </div>
@@ -122,6 +129,7 @@
                 </div>
             </div>
         </div>
+
 
         <!-- Secciones principales -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -209,17 +217,13 @@
                         <table class="min-w-full divide-y divide-gray-200" id="tablaMovimientos">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Fecha
-                                    </th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Fecha</th>
                                     <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tipo</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">
-                                        Referencia</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Método
-                                    </th>
-                                    <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Monto
-                                    </th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Estado
-                                    </th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Referencia</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Método</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Monto</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                                    <th class="px-3 py-2 text-center text-xs font-semibold text-gray-500 uppercase">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyMovimientos" class="bg-white divide-y divide-gray-100">
@@ -227,9 +231,8 @@
                             </tbody>
                             <tfoot>
                                 <tr class="bg-gray-50">
-                                    <td colspan="4" class="px-3 py-2 text-right font-semibold">Total</td>
+                                    <td colspan="6" class="px-3 py-2 text-right font-semibold">Total</td>
                                     <td class="px-3 py-2 text-right font-semibold" id="totalMovimientosMes">Q 0.00</td>
-                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -489,13 +492,6 @@
                             <input type="datetime-local" id="egFecha" name="fecha"
                                 class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Método</label>
-                            <select id="egMetodo" name="metodo_id"
-                                class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                                <!-- JS opciones -->
-                            </select>
-                        </div>
 
                         <div class="col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Monto</label>
@@ -558,7 +554,62 @@
         </div>
     </div>
 
+    <!-- Modal Registrar Ingreso -->
+    <div id="modalIngreso" class="hidden fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/50 z-0" data-modal-backdrop></div>
+        <div class="relative z-10 max-w-xl mx-auto mt-10 bg-white rounded-xl shadow-xl overflow-hidden">
+            <div class="p-4 border-b">
+                <h3 class="text-lg font-semibold">Registrar Ingreso de Caja</h3>
+            </div>
+            <form id="formIngreso">
+                <div class="p-4 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                            <input type="datetime-local" id="ingFecha" name="fecha"
+                                class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        </div>
 
-@endsection
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Monto</label>
+                            <input type="number" step="0.01" id="ingMonto" name="monto"
+                                class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="0.00">
+                        </div>
 
-@vite('resources/js/pagos/administrar.js')
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Concepto</label>
+                            <input type="text" id="ingConcepto" name="concepto"
+                                class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Venta, depósito, ajuste...">
+                        </div>
+
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Referencia</label>
+                            <input type="text" id="ingReferencia" name="referencia"
+                                class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Número de referencia">
+                        </div>
+
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Comprobante (opcional)</label>
+                            <input type="file" id="ingArchivo" name="archivo" accept="image/*,application/pdf"
+                                class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
+                <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg"
+                    data-modal-close>Cancelar</button>
+                <button id="btnGuardarIngreso" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg">
+                    Guardar ingreso
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @endsection
+
+    @vite('resources/js/pagos/administrar.js')
