@@ -543,7 +543,23 @@ function mostrarProductos(productosData) {
                     ${iniciales}
                  </div>`
             }
-           
+            ${imagenSrc ? 
+                `<img src="${imagenSrc}" 
+                      alt="${producto.producto_nombre}"
+                      class="w-full h-full object-cover"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
+                    ${iniciales}
+                 </div>` 
+                :
+                `<img src="images/standar.webp"
+                      alt="${producto.producto_nombre}"
+                      class="w-full h-full object-cover"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
+                    ${iniciales}
+                 </div>`
+            }
             <!-- Badge de stock -->
             <div class="absolute top-2 right-2">
               ${stockBadgeHtml}
