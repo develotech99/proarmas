@@ -526,40 +526,19 @@ function mostrarProductos(productosData) {
             return `
         <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
           <div class="relative h-48 bg-gray-100">
-            ${imagenSrc ? 
-                `<img src="${imagenSrc}" 
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>` 
-                :
-                `<img src="images/standar.webp"
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>`
-            }
-            ${imagenSrc ? 
-                `<img src="${imagenSrc}" 
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>` 
-                :
-                `<img src="images/standar.webp"
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>`
-            }
+                ${imagenSrc ? 
+                    `<img src="${imagenSrc}" 
+                        alt="${producto.producto_nombre}"
+                        class="w-full h-full object-cover"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="absolute inset-0 w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
+                        ${iniciales}
+                    </div>` 
+                    :
+                    `<div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl">
+                        ${iniciales}
+                    </div>`
+                }
             <!-- Badge de stock -->
             <div class="absolute top-2 right-2">
               ${stockBadgeHtml}
@@ -981,13 +960,21 @@ function agregarProductoAlCarrito(producto) {
             producto_id: producto.producto_id,
             nombre: producto.producto_nombre,
             marca: producto.marca_descripcion,
-           imagen: (() => {
-            let imgSrc = producto.foto_url;
-            if (imgSrc && !imgSrc.startsWith('/storage/') && !imgSrc.startsWith('http')) {
-                return '/storage/' + imgSrc;
-            }
-            return imgSrc || 'images/standar.webp';
-        })(),
+            imagen: (() => {
+                let imgSrc = producto.foto_url;
+                
+                // Si no hay imagen, retornar las iniciales para el avatar
+                if (!imgSrc) {
+                    return null; // El template usará las iniciales del nombre
+                }
+                
+                // Agregar /storage/ si no lo tiene
+                if (!imgSrc.startsWith('/storage/') && !imgSrc.startsWith('http')) {
+                    return '/storage/' + imgSrc;
+                }
+                
+                return imgSrc;
+            })(),
                 
 
             // 🔹 PRECIOS CORREGIDOS - mantener valores originales
@@ -1101,7 +1088,7 @@ function actualizarVistaCarrito() {
         // imagen
         // Construir imagen igual que en mostrarProductos
          // imagen - ya viene procesada, solo validar que exista
-        if (!p.imagen) p.imagen = 'images/standar.webp';
+        if (!p.imagen) p.imagen = null;
 
         // precios - NO sobrescribir si ya existen
         if (!p.precio_venta) p.precio_venta = Number(p.precio ?? 0);
@@ -1287,11 +1274,26 @@ function actualizarVistaCarrito() {
             return `
         <div class="group bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-start gap-4">
           <!-- Imagen -->
-          <div class="relative w-20 h-20 flex-shrink-0">
-            <img src="${p.imagen}"
-                 alt="${p.nombre}"
-                 class="w-full h-full object-cover rounded-lg border border-gray-200 group-hover:scale-105 transition-transform duration-300">
-            <div class="absolute -top-2 -right-2 bg-gradient-to-br from-blue-500 to-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+          <div class="relative flex-shrink-0" style="width: 96px; height: 96px;">
+            ${p.imagen ? 
+                `<img src="${p.imagen}"
+                     alt="${p.nombre}"
+                     class="w-full h-full object-cover rounded-lg border-2 border-gray-200"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div style="display:none; width: 96px; height: 96px;" 
+                      class="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold rounded-lg text-2xl">
+                    ${p.nombre.substring(0, 2).toUpperCase()}
+                 </div>` 
+                :
+                `<div style="width: 96px; height: 96px;" 
+                     class="bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold rounded-lg text-2xl">
+                    ${p.nombre.substring(0, 2).toUpperCase()}
+                 </div>`
+            }
+            
+            <!-- Badge de cantidad -->
+            <div class="absolute z-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-extrabold px-3 py-1.5 rounded-full shadow-xl border-3 border-white" 
+                 style="top: -12px; right: -12px;">
                 ${p.cantidad}x
             </div>
           </div>
