@@ -9,6 +9,7 @@ use App\Http\Controllers\UnidadMedidaController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\CalibreController;
 use App\Http\Controllers\CategoriasController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\VentasController;
@@ -34,10 +35,20 @@ Route::middleware('auth')->group(function () {
 
       Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
 
-      Route::get('/dashboard', function () {
-            return view('dashboard');
-      })->name('dashboard');
+      // Route::get('/dashboard', function () {
+      //       return view('dashboard');
+      // })->name('dashboard');
 
+
+          //Dashboard
+      Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+      
+      // API Routes para Dashboard
+      Route::prefix('api/dashboard')->group(function () {
+            Route::get('/estadisticas', [DashboardController::class, 'getEstadisticas']);
+            Route::get('/resumen-ventas', [DashboardController::class, 'getResumenVentas']);
+            Route::get('/productos-vendidos', [DashboardController::class, 'getProductosMasVendidos']);
+      });
 
 
       Route::resource('proempresas', ProEmpresaDeImportacionController::class);
