@@ -160,79 +160,83 @@ class ReportesController extends Controller
                 $venta->total_pagado = $totalPagado;
                 $venta->saldo_pendiente = $totalVenta - $totalPagado;
 
-                // Información del cliente
-                $venta->cliente_nombre_completo = $venta->cliente
-                    ? trim($venta->cliente->cliente_nombre1 . ' ' . $venta->cliente->cliente_apellido1)
-                    : 'Cliente General';
-
-                // Información del vendedor
-                $venta->vendedor_nombre_completo = $venta->vendedor
-                    ? trim($venta->vendedor->user_primer_nombre . ' ' . $venta->vendedor->user_primer_apellido)
-                    : 'Sin vendedor';
-
-                // Resumen de productos
-                $venta->total_productos = $venta->detalleVentas->sum('det_cantidad');
-                $venta->cantidad_items = $venta->detalleVentas->count();
-
-                return $venta;
+public function buscarClientes(Request $request): JsonResponse
+{
+    try {
+        $termino = $request->get('q', '');
+        
+        // 🔍 LOG para debug
+        \Log::info('Búsqueda de clientes', [
+            'termino' => $termino,
+            'request_all' => $request->all()
+        ]);
+        
+        // ✅ Construir query base
+        $query = ProCliente::select(
+                'cliente_id', 
+                'cliente_nombre1', 
+                'cliente_nombre2',
+                'cliente_apellido1', 
+                'cliente_apellido2',
+                'cliente_dpi'
+            )
+            ->where('cliente_situacion', 1);
+        
+        // Si hay término de búsqueda, filtrar
+        if (!empty($termino) && strlen($termino) >= 1) {
+            $query->where(function($q) use ($termino) {
+                $q->where('cliente_nombre1', 'LIKE', "%{$termino}%")
+                  ->orWhere('cliente_nombre2', 'LIKE', "%{$termino}%")
+                  ->orWhere('cliente_apellido1', 'LIKE', "%{$termino}%")
+                  ->orWhere('cliente_apellido2', 'LIKE', "%{$termino}%")
+                  ->orWhere('cliente_dpi', 'LIKE', "%{$termino}%");
+            });
+        }
+        
+        // Obtener resultados
+        $clientes = $query->limit(10)
+            ->orderBy('cliente_nombre1', 'asc')
+            ->get()
+            ->map(function($cliente) {
+                $nombreCompleto = trim(
+                    implode(' ', array_filter([
+                        $cliente->cliente_nombre1,
+                        $cliente->cliente_nombre2,
+                        $cliente->cliente_apellido1,
+                        $cliente->cliente_apellido2
+                    ]))
+                );
+                
+                return [
+                    'id' => $cliente->cliente_id,
+                    'text' => $nombreCompleto . 
+                             ($cliente->cliente_dpi ? " (DPI: {$cliente->cliente_dpi})" : '')
+                ];
             });
 
-            // Resumen general
-            $resumen = [
-                'total_ventas' => $ventas->total(),
-                'suma_ventas' => $query->sum('ven_total_vendido'),
-                'promedio_venta' => $ventas->total() > 0 ? $query->sum('ven_total_vendido') / $ventas->total() : 0
-            ];
+        // 🔍 LOG de resultados
+        \Log::info('Clientes encontrados', [
+            'cantidad' => $clientes->count(),
+            'resultados' => $clientes->toArray()
+        ]);
 
-            return response()->json([
-                'success' => true,
-                'data' => $ventas,
-                'resumen' => $resumen
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error en getReporteVentas: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al cargar reporte de ventas: ' . $e->getMessage()
-            ], 500);
-        }
-    }
+        return response()->json([
+            'success' => true,
+            'results' => $clientes,
+            'total' => $clientes->count()
+        ]);
 
-
-    //Buscar clientes para autocomplete
-
-    public function buscarClientes(Request $request): JsonResponse
-    {
-        try {
-            $termino = $request->get('q', '');
-
-            $clientes = ProCliente::select('cliente_id', 'cliente_nombre1', 'cliente_apellido1', 'cliente_dpi')
-                ->where(function ($query) use ($termino) {
-                    $query->where('cliente_nombre1', 'LIKE', "%{$termino}%")
-                        ->orWhere('cliente_apellido1', 'LIKE', "%{$termino}%")
-                        ->orWhere('cliente_dpi', 'LIKE', "%{$termino}%");
-                })
-                ->where('cliente_situacion', 1)
-                ->limit(10)
-                ->get()
-                ->map(function ($cliente) {
-                    return [
-                        'id' => $cliente->cliente_id,
-                        'text' => trim($cliente->cliente_nombre1 . ' ' . $cliente->cliente_apellido1) .
-                            ($cliente->cliente_dpi ? " (DPI: {$cliente->cliente_dpi})" : '')
-                    ];
-                });
-
-            return response()->json([
-                'success' => true,
-                'results' => $clientes
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error buscando clientes: ' . $e->getMessage()
-            ], 500);
-        }
+    } catch (\Exception $e) {
+        \Log::error('Error buscando clientes', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error buscando clientes: ' . $e->getMessage(),
+            'results' => []
+        ], 500);
     }
 
     /**
