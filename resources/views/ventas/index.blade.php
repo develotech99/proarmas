@@ -376,8 +376,8 @@
                         <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
                             <h3 class="text-lg font-semibold mb-4 text-gray-800 flex justify-between items-center">
                                 Agregar Documento
-                                <button class="text-gray-500 hover:text-gray-700">
-                                    <i class="fas fa-times"></i>
+                                 <button type= "button" id="btnCerrarModalDocumentacion" class="p-2 rounded hover:bg-gray-100">
+                                    <i class="fas fa-times text-xl"></i>
                                 </button>
                             </h3>
 
@@ -427,10 +427,10 @@
                             <span id="subtotalModal" class="font-semibold">Q0.00</span>
                         </div>
 
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="text-sm text-gray-600">Descuento (%):</label>
+                        <div class="flex items-center justify-between mb-2 hidden">
+                            <label class="text-sm text-gray-600 hidden">Descuento (%):</label>
                             <input type="number" id="descuentoModal" min="0" max="100" value="0"
-                                class="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm">
+                                class="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm hidden">
                         </div>
 
                         <div class="flex justify-between font-bold text-lg border-t pt-2">
@@ -455,142 +455,141 @@
 
 
 
-    {{-- MODAL NUEVO CLIENTE --}}
-    <div id="modalNuevoCliente" class="fixed inset-0 z-50 hidden">
-        <!-- Overlay -->
-        <div id="modalOverlayNC" class="absolute inset-0 bg-black/40"></div>
+   <div id="modalNuevoCliente" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <!-- Overlay -->
+    <div id="modalOverlayNC" class="fixed inset-0 bg-black/40"></div>
 
-        <!-- Contenido -->
-        <div class="relative mx-auto mt-12 w-11/12 sm:w-[42rem] bg-white rounded-xl shadow-2xl">
-            <!-- Header -->
-            <div class="p-4 border-b flex items-center justify-between">
-                <h3 class="text-lg font-semibold">
-                    <i class="fas fa-user-plus mr-2 text-emerald-600"></i>
-                    Registrar nuevo cliente
-                </h3>
-                <button id="modalCerrarNC" class="p-2 rounded hover:bg-gray-100">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
+    <!-- Contenido -->
+    <div class="relative mx-auto my-4 sm:my-12 w-11/12 sm:w-[42rem] bg-white rounded-xl shadow-2xl min-h-min">
+        <!-- Header -->
+        <div class="p-4 border-b flex items-center justify-between">
+            <h3 class="text-lg font-semibold">
+                <i class="fas fa-user-plus mr-2 text-emerald-600"></i>
+                Registrar nuevo cliente
+            </h3>
+            <button id="modalCerrarNC" class="p-2 rounded hover:bg-gray-100">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
 
-            <!-- Body -->
-            <div class="p-6 space-y-4">
-                <form id="formNuevoCliente">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+        <!-- Body -->
+        <div class="p-6 space-y-4">
+            <form id="formNuevoCliente">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
 
-                        <div class="grid grid-cols-2 gap-4 sm:col-span-2">
-                            <div>
-                                <label for="tipoCliente" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Tipo de Cliente
-                                </label>
-                                <select id="tipoCliente" name="cliente_tipo" required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="1">Cliente Normal</option>
-                                    <option value="2">Cliente Premium</option>
-                                    <option value="3">Cliente Empresa</option>
-                                </select>
-                            </div>
-
-                            <!-- Cliente Premium -->
-                            <div id="selectorPremium" style="display: none;">
-                                <label for="clientePremium" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Cliente Premium
-                                </label>
-                                <select id="clientePremium" name="clientePremium"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Seleccionar cliente...</option>
-                                    @foreach ($clientes as $cliente)
-                                        <option value="{{ $cliente->user_id }}" data-clienteid="{{ $cliente->user_id }}"
-                                            data-nombre1="{{ $cliente->user_primer_nombre }}"
-                                            data-nombre2="{{ $cliente->user_segundo_nombre ?? '' }}"
-                                            data-apellido1="{{ $cliente->user_primer_apellido }}"
-                                            data-apellido2="{{ $cliente->user_segundo_apellido ?? '' }}"
-                                            data-dpi="{{ $cliente->user_dpi_dni }}">
-                                            {{ $cliente->user_primer_nombre }} {{ $cliente->user_segundo_nombre }}
-                                            {{ $cliente->user_primer_apellido }} {{ $cliente->user_segundo_apellido }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
+                    <div class="grid grid-cols-2 gap-4 sm:col-span-2">
+                        <div>
+                            <label for="tipoCliente" class="block text-sm font-medium text-gray-700 mb-2">
+                                Tipo de Cliente
+                            </label>
+                            <select id="tipoCliente" name="cliente_tipo" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">Seleccionar...</option>
+                                <option value="1">Cliente Normal</option>
+                                <option value="2">Cliente Premium</option>
+                                <option value="3">Cliente Empresa</option>
+                            </select>
                         </div>
 
-                        <input id="idCliente" name="cliente_user_id" type="hidden"
-                            class="w-full  py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-
-                        <div id="contenedorempresa" class="sm:col-span-2 w-full">
-                            <input id="nombreEmpresa" name="cliente_nom_empresa" type="text"
-                                placeholder="Nombre de la empresa" disabled
-                                class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-
-                            <!-- Fila siguiente: título "Propietario de la empresa" -->
-                            <p id="titulopropietario" class=" hidden mt-2 text-sm font-medium text-gray-700">
-                                Propietario de la empresa
-                            </p>
-                        </div>
-
-                        <!-- Nombres -->
-                        <input id="nc_nombre1" name="cliente_nombre1" type="text" placeholder="Primer nombre"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <input id="nc_nombre2" name="cliente_nombre2" type="text" placeholder="Segundo nombre"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-
-                        <!-- Apellidos -->
-                        <input id="nc_apellido1" name="cliente_apellido1" type="text" placeholder="Primer apellido"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <input id="nc_apellido2" name="cliente_apellido2" type="text" placeholder="Segundo apellido"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-
-                        <!-- DPI y NIT -->
-                        <input id="nc_dpi" name="cliente_dpi" type="text" placeholder="DPI"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <input id="nc_nit" name="cliente_nit" type="text" placeholder="NIT"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-
-                        <!-- Teléfono y Correo -->
-                        <input id="nc_telefono" name="cliente_telefono" type="tel" placeholder="Teléfono"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <input id="nc_correo" name="cliente_correo" type="email" placeholder="Correo"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-
-                        <!-- nombre de vendedor y telefono -->
-                        <input id="nc_nombre_vendedor" name="cliente_nom_vendedor" type="tel"
-                            placeholder="Nombre vendedor" disabled
-                            class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <input id="nc_telefono_vendedor" name="cliente_cel_vendedor" disabled type="email" placeholder="Telefono Vendedor"
-                            class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-
-
-                        <!-- Dirección -->
-                        <div class="sm:col-span-2">
-                            <input id="nc_direccion" name="cliente_direccion" type="text" placeholder="Dirección"
-                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <!-- Ubicacion Empresa -->
-                        <div class="sm:col-span-2">
-                            <input id="nc_ubicacion" name="cliente_ubicacion" type="text" placeholder="Ubicación empresa" disabled
-                                class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <!-- Cliente Premium -->
+                        <div id="selectorPremium" style="display: none;">
+                            <label for="clientePremium" class="block text-sm font-medium text-gray-700 mb-2">
+                                Cliente Premium
+                            </label>
+                            <select id="clientePremium" name="clientePremium"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">Seleccionar cliente...</option>
+                                @foreach ($clientes as $cliente)
+                                    <option value="{{ $cliente->user_id }}" data-clienteid="{{ $cliente->user_id }}"
+                                        data-nombre1="{{ $cliente->user_primer_nombre }}"
+                                        data-nombre2="{{ $cliente->user_segundo_nombre ?? '' }}"
+                                        data-apellido1="{{ $cliente->user_primer_apellido }}"
+                                        data-apellido2="{{ $cliente->user_segundo_apellido ?? '' }}"
+                                        data-dpi="{{ $cliente->user_dpi_dni }}">
+                                        {{ $cliente->user_primer_nombre }} {{ $cliente->user_segundo_nombre }}
+                                        {{ $cliente->user_primer_apellido }} {{ $cliente->user_segundo_apellido }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
 
-                    <!-- Estado mensajes -->
-                    <div id="nc_estado" class="text-xs text-gray-500"></div>
-                </form>
-            </div>
+                    <input id="idCliente" name="cliente_user_id" type="hidden"
+                        class="w-full  py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                    <div id="contenedorempresa" class="sm:col-span-2 w-full">
+                        <input id="nombreEmpresa" name="cliente_nom_empresa" type="text"
+                            placeholder="Nombre de la empresa" disabled
+                            class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                        <!-- Fila siguiente: título "Propietario de la empresa" -->
+                        <p id="titulopropietario" class=" hidden mt-2 text-sm font-medium text-gray-700">
+                            Propietario de la empresa
+                        </p>
+                    </div>
+
+                    <!-- Nombres -->
+                    <input id="nc_nombre1" name="cliente_nombre1" type="text" placeholder="Primer nombre"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input id="nc_nombre2" name="cliente_nombre2" type="text" placeholder="Segundo nombre"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                    <!-- Apellidos -->
+                    <input id="nc_apellido1" name="cliente_apellido1" type="text" placeholder="Primer apellido"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input id="nc_apellido2" name="cliente_apellido2" type="text" placeholder="Segundo apellido"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                    <!-- DPI y NIT -->
+                    <input id="nc_dpi" name="cliente_dpi" type="text" placeholder="DPI"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input id="nc_nit" name="cliente_nit" type="text" placeholder="NIT"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                    <!-- Teléfono y Correo -->
+                    <input id="nc_telefono" name="cliente_telefono" type="tel" placeholder="Teléfono"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input id="nc_correo" name="cliente_correo" type="email" placeholder="Correo"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+
+                    <!-- nombre de vendedor y telefono -->
+                    <input id="nc_nombre_vendedor" name="cliente_nom_vendedor" type="tel"
+                        placeholder="Nombre vendedor" disabled
+                        class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input id="nc_telefono_vendedor" name="cliente_cel_vendedor" disabled type="email" placeholder="Telefono Vendedor"
+                        class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
 
 
-            <!-- Footer -->
-            <div class="p-5 border-t flex items-center justify-end gap-2">
-                <button id="modalGuardarCliente"
-                    class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
-                    <i class="fas fa-save mr-2"></i>Guardar
-                </button>
-                <button id="modalCancelarNC" class="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-200">
-                    Cancelar
-                </button>
-            </div>
+                    <!-- Dirección -->
+                    <div class="sm:col-span-2">
+                        <input id="nc_direccion" name="cliente_direccion" type="text" placeholder="Dirección"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <!-- Ubicacion Empresa -->
+                    <div class="sm:col-span-2">
+                        <input id="nc_ubicacion" name="cliente_ubicacion" type="text" placeholder="Ubicación empresa" disabled
+                            class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <!-- Estado mensajes -->
+                <div id="nc_estado" class="text-xs text-gray-500"></div>
+            </form>
+        </div>
+
+
+        <!-- Footer -->
+        <div class="p-5 border-t flex items-center justify-end gap-2">
+            <button id="modalGuardarCliente"
+                class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+                <i class="fas fa-save mr-2"></i>Guardar
+            </button>
+            <button id="modalCancelarNC" class="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-200">
+                Cancelar
+            </button>
         </div>
     </div>
+</div>
 
 
 

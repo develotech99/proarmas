@@ -561,7 +561,7 @@ renderTablaVentas(ventas) {
                             title="Autorizar">
                         <i class="fas fa-check"></i>
                     </button>
-                    <button onclick="reportesManager.rechazarVenta(${venta.ven_id})"
+                    <button onclick="reportesManager.cancelarVentaClick(${venta.ven_id})"
                             class="text-red-600 hover:text-red-900" 
                             title="Rechazar">
                         <i class="fas fa-times"></i>

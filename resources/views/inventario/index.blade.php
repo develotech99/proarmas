@@ -484,6 +484,21 @@
                             </div>
                         </div>
 
+
+                        
+                        <!-- Requiere stock -->
+                        <div class="md:col-span-2">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="producto_requiere_stock" name="producto_requiere_stock"
+                                    value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="producto_requiere_stock"
+                                    class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                                    ¿ Este producto NO requiere STOCK ? (Marcar si son productos como trámites, servicios, licencias, que no requiere una cantidad, pero si es para fines de ventas)
+                                </label>
+                            </div>
+                        </div>
+
+
                         <!-- Sección de Fotos -->
                         <div class="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4">
                             <div class="flex items-center mb-3">

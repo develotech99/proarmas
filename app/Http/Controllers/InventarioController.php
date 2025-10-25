@@ -566,6 +566,7 @@ public function getPaisesActivos(): JsonResponse
              'producto_madein' => 'nullable|integer|exists:pro_paises,pais_id',
              'producto_codigo_barra' => 'nullable|string|unique:pro_productos,producto_codigo_barra',
              'producto_requiere_serie' => 'boolean',
+             'producto_requiere_stock' => 'boolean',
              'producto_es_importado' => 'boolean',
              'producto_stock_minimo' => 'nullable|integer|min:0',
              'producto_stock_maximo' => 'nullable|integer|min:0',
@@ -606,20 +607,24 @@ public function getPaisesActivos(): JsonResponse
                  'producto_calibre_id' => $request->producto_calibre_id,
                  'producto_madein' => $request->producto_madein,
                  'producto_requiere_serie' => $request->has('producto_requiere_serie'),
+                 'producto_requiere_stock' => $request->boolean('producto_requiere_stock'),
                  'producto_es_importado' => $request->has('producto_es_importado'),
                  'producto_stock_minimo' => $request->producto_stock_minimo ?? 0,
                  'producto_stock_maximo' => $request->producto_stock_maximo ?? 0,
                  'producto_situacion' => 1
              ]);
      
-             // 3. Crear registro de stock inicial
-             StockActual::create([
-                 'stock_producto_id' => $producto->producto_id,
-                 'stock_cantidad_total' => 0,
-                 'stock_cantidad_disponible' => 0,
-                 'stock_cantidad_reservada' => 0,
-                 'stock_valor_total' => 0
-             ]);
+           // 3. Crear registro de stock inicial SOLO si requiere stock
+           if ($producto->producto_requiere_stock) {
+                StockActual::create([
+                    'stock_producto_id' => $producto->producto_id,
+                    'stock_cantidad_total' => 0,
+                    'stock_cantidad_disponible' => 0,
+                    'stock_cantidad_reservada' => 0,
+                    'stock_valor_total' => 0
+                ]);
+            }
+
      
              // 4. REGISTRAR PRECIOS SI SE PROPORCIONARON
              if ($request->filled('agregar_precios') && $request->agregar_precios) {
