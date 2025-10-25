@@ -2499,6 +2499,7 @@ public function getProductosExcel(Request $request): JsonResponse
                 'p.producto_id',
                 'p.producto_nombre',
                 'p.pro_codigo_sku as codigo',
+                'cat.categoria_id',      
                 'cat.categoria_nombre',
                 'sub.subcategoria_nombre',
                 'mar.marca_descripcion as marca_nombre',

@@ -45,6 +45,7 @@ class InventarioManager {
     init() {
         console.log('🚀 InventarioManager inicializado');
         this.setupEventListeners();
+        this.setupExcelFilters();   
         this.setupFotosHandling(); 
         this.setupPreciosHandling();
         this.loadInitialData();
@@ -205,12 +206,60 @@ class InventarioManager {
             });
         }
 
-       // Event listener para búsqueda Excel
-            const excelSearchInput = document.getElementById('excel-search');
-            if (excelSearchInput) {
-                excelSearchInput.addEventListener('input', () => this.buscarEnExcel());
-            }
+    //    // Event listener para búsqueda Excel
+    //         const excelSearchInput = document.getElementById('excel-search');
+    //         if (excelSearchInput) {
+    //             excelSearchInput.addEventListener('input', () => this.buscarEnExcel());
+    //         }
     }
+
+    /**
+ * Configurar event listeners para filtros Excel
+ */
+setupExcelFilters() {
+    // Event listener para búsqueda de texto
+    const excelSearchInput = document.getElementById('excel-search');
+    if (excelSearchInput) {
+        excelSearchInput.addEventListener('input', () => this.aplicarFiltrosExcel());
+    }
+
+    // Event listener para filtro de estado
+    const excelFilterEstado = document.getElementById('excel-filter-estado');
+    if (excelFilterEstado) {
+        excelFilterEstado.addEventListener('change', () => this.aplicarFiltrosExcel());
+    }
+
+    // Event listener para filtro de categoría
+    const excelFilterCategoria = document.getElementById('excel-filter-categoria');
+    if (excelFilterCategoria) {
+        excelFilterCategoria.addEventListener('change', () => this.aplicarFiltrosExcel());
+    }
+}
+
+/**
+ * Cargar categorías en el select de filtros
+ */
+async cargarCategoriasExcel() {
+    try {
+        const response = await fetch('/categorias/activas');
+        if (response.ok) {
+            const data = await response.json();
+            const select = document.getElementById('excel-filter-categoria');
+            
+            if (select) {
+                let options = '<option value="">Todas las categorías</option>';
+                
+                data.data.forEach(categoria => {
+                    options += `<option value="${categoria.categoria_id}">${categoria.categoria_nombre}</option>`;
+                });
+                
+                select.innerHTML = options;
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando categorías para filtro:', error);
+    }
+}
 
     /**
      * Cargar datos iniciales
@@ -5066,6 +5115,7 @@ toggleExcelView() {
         // Cargar datos si no están cargados
         if (this.excelData.length === 0) {
             this.cargarDatosExcel();
+            this.cargarCategoriasExcel(); 
         }
     } else {
         content.classList.add('hidden');
@@ -5153,37 +5203,96 @@ mostrarDatosExcel() {
 
 /**
  * Buscar en vista Excel
+ *//**
+ * Aplicar filtros en vista Excel
  */
-buscarEnExcel() {
-    const searchTerm = document.getElementById('excel-search').value.toLowerCase();
+aplicarFiltrosExcel() {
+    // Obtener valores de todos los filtros
+    const searchTerm = document.getElementById('excel-search')?.value.toLowerCase().trim() || '';
+    const estadoFiltro = document.getElementById('excel-filter-estado')?.value || '';
+    const categoriaFiltro = document.getElementById('excel-filter-categoria')?.value || '';
     
-    if (searchTerm.trim() === '') {
-        this.excelFilteredData = [...this.excelData];
-    } else {
-        this.excelFilteredData = this.excelData.filter(item => 
+    // Aplicar filtros
+    this.excelFilteredData = this.excelData.filter(item => {
+        // Filtro de búsqueda por texto
+        const matchesSearch = !searchTerm || 
             (item.producto_nombre?.toLowerCase().includes(searchTerm)) ||
             (item.codigo?.toLowerCase().includes(searchTerm)) ||
             (item.marca_nombre?.toLowerCase().includes(searchTerm)) ||
             (item.modelo_nombre?.toLowerCase().includes(searchTerm)) ||
             (item.numero_serie?.toLowerCase().includes(searchTerm)) ||
             (item.categoria_nombre?.toLowerCase().includes(searchTerm)) ||
-            (item.calibre_nombre?.toLowerCase().includes(searchTerm))
-        );
-    }
+            (item.calibre_nombre?.toLowerCase().includes(searchTerm));
+        
+        // Filtro por estado
+        const matchesEstado = !estadoFiltro || 
+            (item.estado?.toLowerCase() === estadoFiltro.toLowerCase());
+        
+        // Filtro por categoría
+        const matchesCategoria = !categoriaFiltro || 
+            (item.categoria_id?.toString() === categoriaFiltro);
+        
+        return matchesSearch && matchesEstado && matchesCategoria;
+    });
     
+    // Reiniciar a la primera página
     this.excelCurrentPage = 1;
+    
+    // Actualizar vista y contadores
     this.mostrarDatosExcel();
     this.actualizarContadorExcel();
+    this.actualizarIndicadorFiltrosActivos();
 }
+
+
+/**
+ * Actualizar indicador de filtros activos
+ */
+actualizarIndicadorFiltrosActivos() {
+    const searchTerm = document.getElementById('excel-search')?.value.trim() || '';
+    const estadoFiltro = document.getElementById('excel-filter-estado')?.value || '';
+    const categoriaFiltro = document.getElementById('excel-filter-categoria')?.value || '';
+    
+    // Contar filtros activos
+    let filtrosActivos = 0;
+    if (searchTerm) filtrosActivos++;
+    if (estadoFiltro) filtrosActivos++;
+    if (categoriaFiltro) filtrosActivos++;
+    
+    // Mostrar/ocultar indicador
+    const indicador = document.getElementById('excel-filtros-activos');
+    const contador = document.getElementById('excel-filtros-count');
+    
+    if (indicador && contador) {
+        if (filtrosActivos > 0) {
+            indicador.classList.remove('hidden');
+            contador.textContent = filtrosActivos;
+        } else {
+            indicador.classList.add('hidden');
+        }
+    }
+}
+
 
 /**
  * Limpiar búsqueda Excel
  */
-limpiarBusquedaExcel() {
-    document.getElementById('excel-search').value = '';
-    this.buscarEnExcel();
+/**
+ * Limpiar todos los filtros
+ */
+limpiarFiltrosExcel() {
+    // Limpiar todos los campos de filtro
+    const searchInput = document.getElementById('excel-search');
+    const estadoSelect = document.getElementById('excel-filter-estado');
+    const categoriaSelect = document.getElementById('excel-filter-categoria');
+    
+    if (searchInput) searchInput.value = '';
+    if (estadoSelect) estadoSelect.value = '';
+    if (categoriaSelect) categoriaSelect.value = '';
+    
+    // Reaplicar filtros (que ahora estarán vacíos)
+    this.aplicarFiltrosExcel();
 }
-
 /**
  * Cambiar página Excel
  */
