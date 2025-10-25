@@ -3823,20 +3823,32 @@ renderPreciosDetalle(precios) {
                 <span class="font-medium text-gray-900 dark:text-gray-100">Q${precioActual.precio_costo}</span>
             </div>
             <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Venta:</span>
+                <span class="text-gray-500 dark:text-gray-400">Venta (Individual):</span>
                 <span class="font-medium text-green-600">Q${precioActual.precio_venta}</span>
             </div>
+            ${precioActual.precio_venta_empresa ? `
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Venta (Empresa):</span>
+                    <span class="font-medium text-blue-600">Q${precioActual.precio_venta_empresa}</span>
+                </div>
+            ` : ''}
             ${precioActual.precio_especial ? `
                 <div class="flex justify-between">
                     <span class="text-gray-500 dark:text-gray-400">Especial:</span>
-                    <span class="font-medium text-blue-600">Q${precioActual.precio_especial}</span>
+                    <span class="font-medium text-orange-600">Q${precioActual.precio_especial}</span>
                 </div>
             ` : ''}
             <hr class="border-gray-300 dark:border-gray-600">
             <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Margen:</span>
-                <span class="font-medium text-purple-600">${precioActual.precio_margen}%</span>
+                <span class="text-gray-500 dark:text-gray-400">Margen (Individual):</span>
+                <span class="font-medium text-purple-600">${precioActual.precio_margen || 0}%</span>
             </div>
+            ${precioActual.precio_margen_empresa ? `
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Margen (Empresa):</span>
+                    <span class="font-medium text-indigo-600">${precioActual.precio_margen_empresa}%</span>
+                </div>
+            ` : ''}
         </div>
     `;
 }
@@ -4669,20 +4681,41 @@ renderHistorialPrecios(precios) {
                     <span class="text-xs font-medium text-purple-600">${precio.precio_margen}% margen</span>
                 </div>
                 
-                <div class="grid grid-cols-3 gap-2 text-sm">
+                <!-- ✅ ACTUALIZADO: Ahora muestra 4 columnas incluyendo Venta Empresa -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                     <div>
                         <span class="block text-xs text-gray-500 dark:text-gray-400">Costo</span>
                         <span class="font-medium">Q${precio.precio_costo}</span>
                     </div>
                     <div>
-                        <span class="block text-xs text-gray-500 dark:text-gray-400">Venta</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Venta (Individual)</span>
                         <span class="font-medium text-green-600">Q${precio.precio_venta}</span>
                     </div>
+                    ${precio.precio_venta_empresa ? `
+                        <div>
+                            <span class="block text-xs text-gray-500 dark:text-gray-400">Venta (Empresa)</span>
+                            <span class="font-medium text-blue-600">Q${precio.precio_venta_empresa}</span>
+                        </div>
+                    ` : '<div></div>'}
                     <div>
                         <span class="block text-xs text-gray-500 dark:text-gray-400">Especial</span>
-                        <span class="font-medium text-blue-600">${precio.precio_especial ? 'Q' + precio.precio_especial : '-'}</span>
+                        <span class="font-medium text-orange-600">${precio.precio_especial ? 'Q' + precio.precio_especial : '-'}</span>
                     </div>
                 </div>
+                
+                <!-- ✅ NUEVO: Mostrar margen empresa si existe -->
+                ${precio.precio_margen_empresa ? `
+                    <div class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-gray-500 dark:text-gray-400">Margen Individual:</span>
+                            <span class="font-medium text-purple-600">${precio.precio_margen}%</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs mt-1">
+                            <span class="text-gray-500 dark:text-gray-400">Margen Empresa:</span>
+                            <span class="font-medium text-indigo-600">${precio.precio_margen_empresa}%</span>
+                        </div>
+                    </div>
+                ` : ''}
                 
                 ${precio.precio_justificacion ? `
                     <div class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
