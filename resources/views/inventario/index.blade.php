@@ -53,7 +53,7 @@
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Productos
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Productos Total
                             </dt>
                             <dd class="text-lg font-medium text-gray-900 dark:text-gray-100" id="total-productos">0</dd>
                         </dl>
@@ -70,7 +70,7 @@
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Stock Total</dt>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Productos Disponibles</dt>
                             <dd class="text-lg font-medium text-gray-900 dark:text-gray-100" id="stock-total">0</dd>
                         </dl>
                     </div>
@@ -86,7 +86,7 @@
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Stock Bajo</dt>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Productos Stock Bajo</dt>
                             <dd class="text-lg font-medium text-gray-900 dark:text-gray-100" id="stock-bajo">0</dd>
                         </dl>
                     </div>
@@ -102,7 +102,7 @@
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Agotados</dt>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Productos Agotados</dt>
                             <dd class="text-lg font-medium text-gray-900 dark:text-gray-100" id="stock-agotado">0</dd>
                         </dl>
                     </div>
