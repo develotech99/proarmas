@@ -23,6 +23,7 @@ export default defineConfig({
             'resources/js/pagos/mispagos.js',
             'resources/js/pagos/administrar.js',
             'resources/js/reportes/index.js',
+            'resources/js/clientes/clientes.js',
 
         ],
             refresh: true,
