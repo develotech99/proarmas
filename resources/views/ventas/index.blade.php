@@ -570,6 +570,22 @@
                         <input id="nc_ubicacion" name="cliente_ubicacion" type="text" placeholder="Ubicación empresa" disabled
                             class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                     </div>
+
+                    <!-- PDF Licencia de Compraventa (solo para empresas) -->
+                    <div id="contenedor_pdf_licencia" class="sm:col-span-2 hidden">
+                        <label for="nc_pdf_licencia" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-file-pdf text-red-600 mr-1"></i>
+                            PDF Licencia de Compraventa
+                        </label>
+                        <input id="nc_pdf_licencia" 
+                            name="cliente_pdf_licencia" 
+                            type="file" 
+                            accept=".pdf"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle"></i> Solo archivos PDF, máximo 2MB
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Estado mensajes -->

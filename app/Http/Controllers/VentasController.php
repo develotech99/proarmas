@@ -272,27 +272,42 @@ class VentasController extends Controller
                 'cliente_direccion' => ['nullable', 'string', 'max:255'],
                 'cliente_telefono' => ['nullable', 'string', 'max:30'],
                 'cliente_correo' => ['nullable', 'email', 'max:150'],
-                'cliente_tipo' => ['required', 'integer', 'in:1,2,3'], // 👈 REQUIRED
+                'cliente_tipo' => ['required', 'integer', 'in:1,2,3'],
                 'cliente_user_id' => ['nullable', 'integer'],
                 'cliente_nom_empresa' => ['nullable', 'string', 'max:255'],
                 'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
                 'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
                 'cliente_ubicacion' => ['nullable', 'string', 'max:255'],
+                'cliente_pdf_licencia' => ['nullable', 'file', 'mimes:pdf', 'max:10240'], //Validar PDF
             ]);
-
-            // 👇 Asegurar que cliente_situacion tenga valor por defecto
+    
+            // Asegurar que cliente_situacion tenga valor por defecto
             if (!isset($data['cliente_situacion'])) {
-                $data['cliente_situacion'] = 1; // Activo por defecto
+                $data['cliente_situacion'] = 1;
             }
-
+    
+            // Manejar subida de PDF si existe
+            if ($request->hasFile('cliente_pdf_licencia')) {
+                $file = $request->file('cliente_pdf_licencia');
+                
+                // Crear nombre único para el archivo
+                $fileName = 'licencia_' . time() . '_' . uniqid() . '.pdf';
+                
+                // Guardar en storage/app/public/clientes/licencias/
+                $path = $file->storeAs('clientes/licencias', $fileName, 'public');
+                
+                // Agregar la ruta al array de datos
+                $data['cliente_pdf_licencia'] = $path;
+            }
+    
             $cliente = Clientes::create($data);
-
+    
             return response()->json([
                 'success' => true,
                 'data' => $cliente,
                 'message' => 'Cliente guardado correctamente'
             ], 201);
-
+    
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Error de validación:', ['errors' => $e->errors()]);
             return response()->json([
@@ -300,15 +315,15 @@ class VentasController extends Controller
                 'message' => 'Error de validación',
                 'errors' => $e->errors()
             ], 422);
-
+    
         } catch (\Exception $e) {
             \Log::error('Error al guardar cliente:', [
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
-                'data' => $request->all()
+                'data' => $request->except('cliente_pdf_licencia') // No loguear el archivo
             ]);
-
+    
             return response()->json([
                 'success' => false,
                 'message' => 'Error interno del servidor',
@@ -316,8 +331,6 @@ class VentasController extends Controller
             ], 500);
         }
     }
-
-
 
 
 

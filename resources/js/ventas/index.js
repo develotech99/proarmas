@@ -177,6 +177,10 @@ function ocultarInputsEmpresa() {
      contenedorempresa.classList.add("hidden");
       const titulopropietario = document.getElementById("titulopropietario");
      titulopropietario.classList.add("hidden");
+
+         // Ocultar y limpiar input de PDF
+    document.getElementById("contenedor_pdf_licencia").classList.add("hidden");
+    document.getElementById("nc_pdf_licencia").value = "";
 }
 
 function mostrarInputsEmpresa() {
@@ -198,6 +202,7 @@ function mostrarInputsEmpresa() {
     contenedorempresa.classList.remove("hidden");
      const titulopropietario = document.getElementById("titulopropietario");
      titulopropietario.classList.remove("hidden");
+     document.getElementById("contenedor_pdf_licencia").classList.remove("hidden");
 }
 
 
