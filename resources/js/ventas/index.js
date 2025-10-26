@@ -3,7 +3,6 @@ const btnBuscarCliente = document.getElementById("btnBuscarCliente");
 const tipoClienteSelect = document.getElementById("tipoCliente");
 const selectorPremium = document.getElementById("selectorPremium");
 const clientePremiumSelect = document.getElementById("clientePremium");
-
 async function clientesParticulares() {
     const nit = document.getElementById("nitClientes").value.trim();
     const dpi = document.getElementById("dpiClientes").value.trim();
@@ -23,16 +22,15 @@ async function clientesParticulares() {
     if (data.length > 0) {
         Swal.fire({
             title: "Cliente Encontrado",
-            text: `Se ${data.length === 1 ? "encontró" : "encontraron"} ${
-                data.length
-            } cliente(s).`,
+            text: `Se ${data.length === 1 ? "encontró" : "encontraron"} ${data.length} cliente(s).`,
             icon: "success",
             confirmButtonText: "Aceptar",
         });
 
         // SOLO mostramos los resultados, sin "Seleccionar..."
         data.forEach((c) => {
-            const nombre = [
+            // ✅ NUEVO: Construir nombre completo del cliente
+            const nombreCliente = [
                 c.cliente_nombre1,
                 c.cliente_nombre2,
                 c.cliente_apellido1,
@@ -41,9 +39,19 @@ async function clientesParticulares() {
                 .filter(Boolean)
                 .join(" ");
 
+            // ✅ NUEVO: Si es cliente tipo 3 (empresa), mostrar nombre de empresa primero
+            let nombreMostrar = '';
+            if (c.cliente_tipo == 3 && c.cliente_nom_empresa) {
+                // Formato: "EMPRESA XYZ - Nombre Cliente — NIT: 123"
+                nombreMostrar = `Empresa: ${c.cliente_nom_empresa} - ${nombreCliente}`;
+            } else {
+                // Formato normal: "Nombre Cliente — NIT: 123"
+                nombreMostrar = nombreCliente;
+            }
+
             select.innerHTML += `
                 <option value="${c.cliente_id}">
-                    ${nombre} — NIT: ${c.cliente_nit ?? "SN"}
+                    ${nombreMostrar} — NIT: ${c.cliente_nit ?? "SN"}
                 </option>`;
         });
 
@@ -169,6 +177,10 @@ function ocultarInputsEmpresa() {
      contenedorempresa.classList.add("hidden");
       const titulopropietario = document.getElementById("titulopropietario");
      titulopropietario.classList.add("hidden");
+
+         // Ocultar y limpiar input de PDF
+    document.getElementById("contenedor_pdf_licencia").classList.add("hidden");
+    document.getElementById("nc_pdf_licencia").value = "";
 }
 
 function mostrarInputsEmpresa() {
@@ -190,6 +202,7 @@ function mostrarInputsEmpresa() {
     contenedorempresa.classList.remove("hidden");
      const titulopropietario = document.getElementById("titulopropietario");
      titulopropietario.classList.remove("hidden");
+     document.getElementById("contenedor_pdf_licencia").classList.remove("hidden");
 }
 
 
@@ -526,40 +539,19 @@ function mostrarProductos(productosData) {
             return `
         <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
           <div class="relative h-48 bg-gray-100">
-            ${imagenSrc ? 
-                `<img src="${imagenSrc}" 
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>` 
-                :
-                `<img src="images/standar.webp"
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>`
-            }
-            ${imagenSrc ? 
-                `<img src="${imagenSrc}" 
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>` 
-                :
-                `<img src="images/standar.webp"
-                      alt="${producto.producto_nombre}"
-                      class="w-full h-full object-cover"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                 <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
-                    ${iniciales}
-                 </div>`
-            }
+                ${imagenSrc ? 
+                    `<img src="${imagenSrc}" 
+                        alt="${producto.producto_nombre}"
+                        class="w-full h-full object-cover"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="absolute inset-0 w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl" style="display:none;">
+                        ${iniciales}
+                    </div>` 
+                    :
+                    `<div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl">
+                        ${iniciales}
+                    </div>`
+                }
             <!-- Badge de stock -->
             <div class="absolute top-2 right-2">
               ${stockBadgeHtml}
@@ -981,9 +973,22 @@ function agregarProductoAlCarrito(producto) {
             producto_id: producto.producto_id,
             nombre: producto.producto_nombre,
             marca: producto.marca_descripcion,
-            imagen: producto.foto_url
-                ? `/storage/productos/${producto.foto_url}`
-                : "/storage/productos/standar.webp",
+            imagen: (() => {
+                let imgSrc = producto.foto_url;
+                
+                // Si no hay imagen, retornar las iniciales para el avatar
+                if (!imgSrc) {
+                    return null; // El template usará las iniciales del nombre
+                }
+                
+                // Agregar /storage/ si no lo tiene
+                if (!imgSrc.startsWith('/storage/') && !imgSrc.startsWith('http')) {
+                    return '/storage/' + imgSrc;
+                }
+                
+                return imgSrc;
+            })(),
+                
 
             // 🔹 PRECIOS CORREGIDOS - mantener valores originales
             precio_venta: precioVenta,                    // Precio normal
@@ -1094,11 +1099,9 @@ function actualizarVistaCarrito() {
         p.marca = p.marca ?? p.marca_descripcion ?? "";
 
         // imagen
-        p.imagen =
-            p.imagen ??
-            (p.foto_url
-                ? `/storage/productos/${p.foto_url}`
-                : "images/standar.webp");
+        // Construir imagen igual que en mostrarProductos
+         // imagen - ya viene procesada, solo validar que exista
+        if (!p.imagen) p.imagen = null;
 
         // precios - NO sobrescribir si ya existen
         if (!p.precio_venta) p.precio_venta = Number(p.precio ?? 0);
@@ -1284,11 +1287,26 @@ function actualizarVistaCarrito() {
             return `
         <div class="group bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-start gap-4">
           <!-- Imagen -->
-          <div class="relative w-20 h-20 flex-shrink-0">
-            <img src="${p.imagen}"
-                 alt="${p.nombre}"
-                 class="w-full h-full object-cover rounded-lg border border-gray-200 group-hover:scale-105 transition-transform duration-300">
-            <div class="absolute -top-2 -right-2 bg-gradient-to-br from-blue-500 to-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+          <div class="relative flex-shrink-0" style="width: 96px; height: 96px;">
+            ${p.imagen ? 
+                `<img src="${p.imagen}"
+                     alt="${p.nombre}"
+                     class="w-full h-full object-cover rounded-lg border-2 border-gray-200"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div style="display:none; width: 96px; height: 96px;" 
+                      class="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold rounded-lg text-2xl">
+                    ${p.nombre.substring(0, 2).toUpperCase()}
+                 </div>` 
+                :
+                `<div style="width: 96px; height: 96px;" 
+                     class="bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold rounded-lg text-2xl">
+                    ${p.nombre.substring(0, 2).toUpperCase()}
+                 </div>`
+            }
+            
+            <!-- Badge de cantidad -->
+            <div class="absolute z-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-extrabold px-3 py-1.5 rounded-full shadow-xl border-3 border-white" 
+                 style="top: -12px; right: -12px;">
                 ${p.cantidad}x
             </div>
           </div>
@@ -2770,6 +2788,8 @@ document.addEventListener('DOMContentLoaded', function () {
 function cerrarModalDocumentacion() {
     const modal = document.getElementById('modalDocumentacion');
     const checkbox = document.getElementById('checkRequiereDocumentacion');
+    document.getElementById("tipoDocumentoSelect").value = '';
+    document.getElementById("numeroDocumentoInput").value = '';
     
     modal.classList.add('hidden');
     modal.classList.remove('flex');

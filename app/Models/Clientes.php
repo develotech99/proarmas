@@ -30,6 +30,7 @@ class Clientes extends Model
         'cliente_nom_vendedor',
         'cliente_cel_vendedor',
         'cliente_ubicacion',
+        'cliente_pdf_licencia',
     ];
 
 

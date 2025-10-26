@@ -30,14 +30,15 @@ class ReportesManager {
     /**
      * Inicializar el gestor
      */
-    init() {
-        console.log('🚀 ReportesManager inicializado');
-        this.setupEventListeners();
-        this.setupFechasIniciales();
-        this.initClienteSelect();
-        this.loadInitialData();
-    }
+init() {
+  
+    this.setupEventListeners();
+    this.setupFechasIniciales();
+    this.loadInitialData();
+    
 
+
+}
     /**
      * Configurar event listeners
      */
@@ -404,9 +405,8 @@ async loadReporteVentas(filtros = {}) {
     try {
         this.showLoading('ventas');
         
-        console.log('🔄 Cargando ventas pendientes...');
         
-        // Construir query params si hay filtros
+      
         const params = new URLSearchParams();
         if (filtros.fecha_desde) params.append('fecha_desde', filtros.fecha_desde);
         if (filtros.fecha_hasta) params.append('fecha_hasta', filtros.fecha_hasta);
@@ -426,15 +426,14 @@ async loadReporteVentas(filtros = {}) {
         if (response.ok) {
             const result = await response.json();
             
-            console.log('✅ Datos recibidos:', result);
-            
+           
             if (result.success && result.data) {
                 this.renderTablaVentas(result.data);
                 
                 // Mostrar resumen
-                console.log(`📊 Total de ventas pendientes: ${result.total}`);
+                
             } else {
-                console.warn('⚠️ No hay datos:', result);
+               
                 this.renderTablaVentas([]);
             }
         } else {
@@ -442,7 +441,7 @@ async loadReporteVentas(filtros = {}) {
         }
         
     } catch (error) {
-        console.error('❌ Error cargando reporte de ventas:', error);
+       
         Swal.fire('Error', 'No se pudieron cargar las ventas pendientes', 'error');
         this.renderTablaVentas([]);
     } finally {
@@ -562,7 +561,7 @@ renderTablaVentas(ventas) {
                             title="Autorizar">
                         <i class="fas fa-check"></i>
                     </button>
-                    <button onclick="reportesManager.rechazarVenta(${venta.ven_id})"
+                    <button onclick="reportesManager.cancelarVentaClick(${venta.ven_id})"
                             class="text-red-600 hover:text-red-900" 
                             title="Rechazar">
                         <i class="fas fa-times"></i>
@@ -595,35 +594,29 @@ async autorizarVentaClick(buttonElement) {
                 .split(',')
                 .map(id => {
                     const trimmed = id.trim();
-                    // Ignorar "SIN-LOTE" y convertir a número
                     if (trimmed === 'SIN-LOTE' || trimmed === '') return null;
                     return parseInt(trimmed, 10);
                 })
                 .filter(id => id !== null && !isNaN(id) && id > 0);
         }
         
-        // CORREGIDO: Enviar arrays, no strings
         const payload = {
             ven_id: ventaData.ven_id,
             ven_user: ventaData.ven_user,
             cliente: ventaData.cliente,
             det_producto_id: ventaData.det_producto_id,
             producto_id: ventaData.det_producto_id,
-            series_ids: seriesArray,  // ✅ Array de números
-            lotes_ids: lotesArray     // ✅ Array de números
+            series_ids: seriesArray,
+            lotes_ids: lotesArray
         };
         
         console.log('📤 Payload a enviar:', payload);
-        console.log('📋 Series procesadas:', seriesArray);
-        console.log('📦 Lotes procesados:', lotesArray);
         
-        // Construir mensaje de confirmación con detalles
+        // Construir mensaje de confirmación
         let detallesHtml = `<p><strong>Cliente:</strong> ${payload.cliente}</p>`;
-        
         if (seriesArray.length > 0) {
             detallesHtml += `<p><strong>Series:</strong> ${seriesArray.length} serie(s)</p>`;
         }
-        
         if (lotesArray.length > 0) {
             detallesHtml += `<p><strong>Lotes:</strong> ${lotesArray.length} lote(s)</p>`;
         }
@@ -663,7 +656,7 @@ async autorizarVentaClick(buttonElement) {
             body: JSON.stringify(payload)
         });
         
-        console.log('📡 Response status:', response.status);
+        //console.log('📡 Response status:', response.status);
         
         if (response.status === 419) {
             throw new Error('Token CSRF inválido. Recarga la página e intenta nuevamente.');
@@ -671,93 +664,156 @@ async autorizarVentaClick(buttonElement) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Error response:', errorText);
+            //console.error('❌ Error response:', errorText);
             throw new Error(`Error ${response.status}: ${errorText}`);
         }
         
         const result = await response.json();
-        console.log('📥 Response data:', result);
+        //console.log('📥 Response data:', result);
         
-  if (result.codigo === 1) {
-    console.log('✅ Venta autorizada exitosamente');
+        if (result.codigo === 1) {
+            //console.log('✅ Venta autorizada exitosamente');
 
-    let mensajeExito = result.mensaje || '¡Venta autorizada!';
+            let mensajeExito = result.mensaje || '¡Venta autorizada!';
 
-    if (result.meta && result.meta.qty_total) {
-        mensajeExito += `<br><small><strong>Total procesado:</strong> ${result.meta.qty_total} unidad(es)</small>`;
-    }
-
-    if (result.meta?.detalles?.length > 0) {
-        mensajeExito += '<br><small class="text-gray-600">';
-        mensajeExito += result.meta.detalles.join('<br>');
-        mensajeExito += '</small>';
-    }
-
-    // 1️⃣ Mostrar inputs para licencia después del éxito
-    const { value: formValues } = await Swal.fire({
-        title: 'Actualizar licencias',
-        html:
-            '<input id="licencia-anterior" class="swal2-input" placeholder="Licencia anterior">' +
-            '<input id="licencia-nueva" class="swal2-input" placeholder="Licencia nueva">',
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Actualizar',
-        cancelButtonText: 'Omitir',
-        preConfirm: () => {
-            const anterior = document.getElementById('licencia-anterior').value;
-            const nueva = document.getElementById('licencia-nueva').value;
-            if (!anterior || !nueva) {
-                Swal.showValidationMessage('Debes llenar ambos campos');
+            if (result.meta && result.meta.qty_total) {
+                mensajeExito += `<br><small><strong>Total procesado:</strong> ${result.meta.qty_total} unidad(es)</small>`;
             }
-            return {
-                licencia_anterior: anterior,
-                licencia_nueva: nueva
-            };
+
+            if (result.meta?.detalles?.length > 0) {
+                mensajeExito += '<br><small class="text-gray-600">';
+                mensajeExito += result.meta.detalles.join('<br>');
+                mensajeExito += '</small>';
+            }
+
+           
+            if (seriesArray.length > 0) {
+                // Construir HTML dinámico con inputs para cada serie
+                let htmlLicencias = `
+                    <div style="max-height: 400px; overflow-y: auto; text-align: left;">
+                        <p class="text-sm text-gray-600 mb-3">Ingresa las tencias  para cada serie de las pistolas:</p>
+                `;
+                
+                seriesArray.forEach((serieId, index) => {
+                    htmlLicencias += `
+                        <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; background-color: #f9fafb;">
+                            <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #374151;">
+                                🔫 Serie ID: ${serieId}
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <input 
+                                    id="lic-ant-${serieId}" 
+                                    class="swal2-input" 
+                                    style="margin: 0; padding: 8px; font-size: 14px;"
+                                    placeholder="Licencia anterior"
+                                    data-serie-id="${serieId}">
+                                <input 
+                                    id="lic-nueva-${serieId}" 
+                                    class="swal2-input" 
+                                    style="margin: 0; padding: 8px; font-size: 14px;"
+                                    placeholder="Licencia nueva"
+                                    data-serie-id="${serieId}">
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                htmlLicencias += '</div>';
+                
+                // Mostrar formulario de licencias - OBLIGATORIO
+                const { value: formValues } = await Swal.fire({
+                    title: 'Actualizar Licencias',
+                    html: htmlLicencias,
+                    width: '700px',
+                    focusConfirm: false,
+                    showCancelButton: false, 
+                    allowOutsideClick: false, 
+                    allowEscapeKey: false, 
+                    allowEnterKey: false, 
+                    confirmButtonText: '<i class="fas fa-save mr-2"></i>Guardar licencias',
+                    confirmButtonColor: '#10b981',
+                    preConfirm: () => {
+                        const licencias = [];
+                        let hayErrores = false;
+                        let mensajeError = '';
+                        
+                        seriesArray.forEach(serieId => {
+                            const anterior = document.getElementById(`lic-ant-${serieId}`)?.value.trim();
+                            const nueva = document.getElementById(`lic-nueva-${serieId}`)?.value.trim();
+                            
+                           
+                            if (!anterior || !nueva) {
+                                hayErrores = true;
+                                if (!mensajeError) {
+                                    mensajeError = `⚠️ Debes llenar ambas licencias para la serie ${serieId}`;
+                                }
+                                return;
+                            }
+                            
+                            licencias.push({
+                                serie_id: serieId,
+                                licencia_anterior: anterior,
+                                licencia_nueva: nueva
+                            });
+                        });
+                        
+                        if (hayErrores) {
+                            Swal.showValidationMessage(mensajeError);
+                            return false;
+                        }
+                        
+                        return licencias;
+                    }
+                });
+
+              
+                if (formValues && formValues.length > 0) {
+                    //console.log('📋 Licencias a actualizar:', formValues);
+                    
+                    Swal.fire({
+                        title: 'Actualizando licencias...',
+                        html: 'Por favor espere',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+                    
+                    const updateResponse = await fetch('/ventas/actualizar-licencias', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            ven_id: ventaData.ven_id,
+                            licencias: formValues // Array con todas las licencias
+                        })
+                    });
+
+                    const updateResult = await updateResponse.json();
+                    //console.log('🔁 Resultado de actualización de licencias:', updateResult);
+
+                    if (!updateResponse.ok || updateResult.codigo !== 1) {
+                        throw new Error(updateResult.mensaje || updateResult.detalle || 'Error al actualizar licencias');
+                    }
+
+                    mensajeExito += `<br><small class="text-green-600">✅ Licencias actualizadas: ${formValues.length} serie(s)</small>`;
+                }
+            }
+
+            // Mostrar mensaje final
+            await Swal.fire({
+                icon: 'success',
+                title: '¡Venta completada!',
+                html: mensajeExito,
+                confirmButtonColor: '#10b981'
+            });
+
+            this.cargarVentasPendientes();
+
+        } else {
+            throw new Error(result.mensaje || result.detalle || 'Error al autorizar la venta');
         }
-    });
-
-    // 2️⃣ Si llenó el formulario → actualizar
-    if (formValues) {
-        const updateResponse = await fetch('/ventas/actualizar-licencias', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                ven_id: ventaData.ven_id,
-                series_ids: seriesArray,
-                lotes_ids: lotesArray,
-                licencia_anterior: formValues.licencia_anterior,
-                licencia_nueva: formValues.licencia_nueva
-            })
-        });
-
-        const updateResult = await updateResponse.json();
-        console.log('🔁 Resultado de actualización de licencias:', updateResult);
-
-        if (!updateResponse.ok || updateResult.codigo !== 1) {
-            throw new Error(updateResult.mensaje || updateResult.detalle || 'Error al actualizar licencias');
-        }
-
-        mensajeExito += `<br><small class="text-green-600">✅ Licencias actualizadas correctamente.</small>`;
-    }
-
-    // 3️⃣ Mostrar alert final
-    await Swal.fire({
-        icon: 'success',
-        title: '¡Venta completada!',
-        html: mensajeExito,
-        confirmButtonColor: '#10b981'
-    });
-
-    this.cargarVentasPendientes(); // ✅ Recarga tabla
-
-} else {
-    throw new Error(result.mensaje || result.detalle || 'Error al autorizar la venta');
-}
-
         
     } catch (error) {
         console.error('❌ Error completo:', error);
@@ -776,13 +832,20 @@ async autorizarVentaClick(buttonElement) {
     }
 }
 
-// También actualiza esta función
-async cargarVentasPendientes() {
+
+async cargarVentasPendientes(filtros = {}) {
     try {
-        console.log('🔄 Cargando ventas pendientes...');
+        console.log('🔄 Cargando ventas pendientes... con los select ', filtros);
         
-        // ⭐ CAMBIO: Quitar /api (ahora es /ventas/pendientes)
-        const response = await fetch('/ventas/pendientes', {
+        // Construir query params desde los filtros
+        const params = new URLSearchParams();
+        if (filtros.cliente_id) params.append('cliente_id', filtros.cliente_id);
+        if (filtros.vendedor_id) params.append('vendedor_id', filtros.vendedor_id);
+        
+        const url = `/ventas/pendientes${params.toString() ? '?' + params.toString() : ''}`;
+        console.log('📡 URL:', url);
+        
+        const response = await fetch(url, {
             headers: {
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
@@ -1131,73 +1194,81 @@ aplicarFiltrosDigecamMuniciones() {
 /**
  * Aplicar filtros de ventas - CORREGIDO
  */
+/**
+ * Aplicar filtros de ventas
+ */
 aplicarFiltrosVentas() {
     const filtros = {};
     
     const vendedorEl = document.getElementById('filtro-vendedor-ventas');
-    const clienteBuscarEl = document.getElementById('filtro-cliente-ventas');
+    const clienteEl = document.getElementById('filtro-cliente-ventas');
     const estadoEl = document.getElementById('filtro-estado-ventas');
     
-    if (vendedorEl?.value) filtros.vendedor_id = vendedorEl.value;
-    if (clienteBuscarEl?.value) filtros.cliente_buscar = clienteBuscarEl.value;
-    if (estadoEl?.value) filtros.estado = estadoEl.value;
+    if (vendedorEl?.value) {
+        filtros.vendedor_id = vendedorEl.value;
+        // vendedor:', vendedorEl.value);
+    }
+    
+    if (clienteEl?.value) {
+        filtros.cliente_id = clienteEl.value;
+        // cliente:', clienteEl.value);
+    }
+    
+    if (estadoEl?.value) {
+        filtros.estado = estadoEl.value;
+        // estado:', estadoEl.value);
+    }
 
-    this.loadReporteVentas(filtros);
+   // console.log('📋 Aplicando filtros:', filtros);
+    this.cargarVentasPendientes(filtros);
 }
 
 /**
  * Inicializar Select2 para clientes
  */
-initClienteSelect() {
-    // Esperar a que jQuery y Select2 estén disponibles
-    const initSelect2 = () => {
-        const clienteSelect = $('#filtro-cliente-ventas');
-        if (clienteSelect.length && typeof $.fn.select2 !== 'undefined') {
-            clienteSelect.select2({
-                ajax: {
-                    url: '/reportes/buscar-clientes',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function (params) {
-                        return { q: params.term };
-                    },
-                    processResults: function (data) {
-                        if (data.success) {
-                            return { results: data.results };
-                        }
-                        return { results: [] };
-                    },
-                    cache: true
-                },
-                placeholder: 'Buscar cliente por nombre o DPI...',
-                minimumInputLength: 2,
-                allowClear: true,
-                language: {
-                    inputTooShort: function () {
-                        return 'Escriba al menos 2 caracteres';
-                    },
-                    noResults: function () {
-                        return 'No se encontraron clientes';
-                    },
-                    searching: function () {
-                        return 'Buscando...';
-                    }
-                }
-            });
-            console.log('✅ Select2 de clientes inicializado');
+/**
+ * Inicializar Select2 para clientes
+ */
+/**
+ * Inicializar select de clientes (sin Select2, estilo normal)
+ */
+async initClienteSelect() {
+    try {
+        console.log('🔄 Cargando clientes...');
+        
+        const response = await fetch('/reportes/buscar-clientes?q=');
+        const data = await response.json();
+        
+        if (data.success && data.results) {
+            this.populateSelect('filtro-cliente-ventas', data.results, 'id', 'text');
+            console.log('✅ Clientes cargados:', data.results.length);
         } else {
-            console.warn('⚠️ Select2 no disponible, reintentando...');
-            setTimeout(initSelect2, 500);
+            console.warn('⚠️ No se encontraron clientes');
         }
-    };
-
-    if (typeof $ !== 'undefined') {
-        initSelect2();
-    } else {
-        setTimeout(initSelect2, 1000);
+    } catch (error) {
+        console.error('❌ Error cargando clientes:', error);
     }
 }
 
+/**
+ * Cargar filtros para los formularios
+ */
+async loadFiltros() {
+    try {
+        const response = await fetch('/reportes/filtros');
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                this.populateFiltros(result.data);
+                // ✅ Cargar clientes después de los otros filtros
+                await this.initClienteSelect();
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando filtros:', error);
+    }
+}
+    
     /**
      * Renderizar tabla de productos
      */
@@ -1870,4 +1941,3 @@ if (!window.reportesManager) {
     window.reportesManager = window.reportesManagerProxy;
 }
 
-console.log('🔧 Sistema de inicialización de reportes configurado');

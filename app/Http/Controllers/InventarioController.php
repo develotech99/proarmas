@@ -1892,12 +1892,15 @@ public function getDetalleProducto($id): JsonResponse
             return [
                 'precio_costo' => number_format($precio->precio_costo, 2),
                 'precio_venta' => number_format($precio->precio_venta, 2),
+                'precio_venta_empresa' => $precio->precio_venta_empresa ? number_format($precio->precio_venta_empresa, 2) : null,  // ✅ NUEVO
                 'precio_especial' => $precio->precio_especial ? number_format($precio->precio_especial, 2) : null,
                 'precio_margen' => number_format($precio->precio_margen, 1),
+                'precio_margen_empresa' => $precio->precio_margen_empresa ? number_format($precio->precio_margen_empresa, 1) : null,  // ✅ NUEVO
                 'precio_moneda' => $precio->precio_moneda,
                 'precio_fecha_asignacion' => $precio->precio_fecha_asignacion
             ];
         });
+
 
         return response()->json([
             'success' => true,
@@ -2161,8 +2164,10 @@ public function getHistorialPrecios($id): JsonResponse
                     'precio_id' => $precio->precio_id,
                     'precio_costo' => number_format($precio->precio_costo, 2),
                     'precio_venta' => number_format($precio->precio_venta, 2),
+                    'precio_venta_empresa' => $precio->precio_venta_empresa ? number_format($precio->precio_venta_empresa, 2) : null,  // ✅ NUEVO
                     'precio_especial' => $precio->precio_especial ? number_format($precio->precio_especial, 2) : null,
                     'precio_margen' => number_format($precio->precio_margen, 1),
+                    'precio_margen_empresa' => $precio->precio_margen_empresa ? number_format($precio->precio_margen_empresa, 1) : null,  // ✅ NUEVO
                     'precio_moneda' => $precio->precio_moneda,
                     'precio_justificacion' => $precio->precio_justificacion,
                     'precio_fecha_asignacion' => $precio->precio_fecha_asignacion,
@@ -2494,6 +2499,7 @@ public function getProductosExcel(Request $request): JsonResponse
                 'p.producto_id',
                 'p.producto_nombre',
                 'p.pro_codigo_sku as codigo',
+                'cat.categoria_id',      
                 'cat.categoria_nombre',
                 'sub.subcategoria_nombre',
                 'mar.marca_descripcion as marca_nombre',

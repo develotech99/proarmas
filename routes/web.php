@@ -1,5 +1,15 @@
 <?php
 
+use App\Http\Controllers\AdminPagosController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\MetodoPagoController;
+use App\Http\Controllers\PaisController;
+use App\Http\Controllers\UnidadMedidaController;
+use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\CalibreController;
+use App\Http\Controllers\CategoriasController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PaisController;
 use App\Http\Controllers\UserController;
@@ -35,10 +45,20 @@ Route::middleware('auth')->group(function () {
 
       Route::resource('prolicencias', ProLicenciaParaImportacionController::class);
 
-      Route::get('/dashboard', function () {
-            return view('dashboard');
-      })->name('dashboard');
+      // Route::get('/dashboard', function () {
+      //       return view('dashboard');
+      // })->name('dashboard');
 
+
+          //Dashboard
+      Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+      
+      // API Routes para Dashboard
+      Route::prefix('api/dashboard')->group(function () {
+            Route::get('/estadisticas', [DashboardController::class, 'getEstadisticas']);
+            Route::get('/resumen-ventas', [DashboardController::class, 'getResumenVentas']);
+            Route::get('/productos-vendidos', [DashboardController::class, 'getProductosMasVendidos']);
+      });
 
 
       Route::resource('proempresas', ProEmpresaDeImportacionController::class);
@@ -297,6 +317,7 @@ Route::middleware('auth')->group(function () {
       Route::get('/reportes/ventas/{id}/detalle', [ReportesController::class, 'getDetalleVenta'])->name('reportes.venta.detalle');
 
       Route::post('/ventas/autorizar', [VentasController::class, 'autorizarVenta']);
+      Route::post('/ventas/cancelar', [VentasController::class, 'cancelarVenta']);
       Route::get('/ventas/pendientes', [VentasController::class, 'obtenerVentasPendientes']);
       Route::post('/ventas/actualizar-licencias', [VentasController::class, 'actualizarLicencias']);
 
@@ -326,6 +347,9 @@ Route::middleware('auth')->group(function () {
             Route::get('movimientos', [AdminPagosController::class, 'movimientos']);
             Route::post('egresos', [AdminPagosController::class, 'registrarEgreso']);
             Route::post('conciliar', [AdminPagosController::class, 'conciliarAutomatico']);
+            Route::post('movimientos/{id}/validar', [AdminPagosController::class, 'validarMovimiento']);
+            Route::post('movimientos/{id}/rechazar', [AdminPagosController::class, 'rechazarMovimiento']);
+            Route::post('ingresos', [AdminPagosController::class, 'registrarIngreso']); 
       });
 
         // Clientes

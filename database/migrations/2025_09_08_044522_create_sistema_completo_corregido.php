@@ -551,6 +551,7 @@ return new class extends Migration
             $table->string('cliente_nom_vendedor', 250)->nullable(); 
             $table->string('cliente_cel_vendedor', 250)->nullable(); 
             $table->string('cliente_ubicacion', 250)->nullable(); 
+            $table->string('cliente_pdf_licencia', 250)->nullable(); 
             $table->unsignedBigInteger('cliente_user_id')->unique()->nullable();
             $table->integer('cliente_tipo');
             $table->integer('cliente_situacion')->default(1);
