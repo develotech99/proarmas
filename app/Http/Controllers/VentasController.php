@@ -62,7 +62,9 @@ class VentasController extends Controller
                 'cliente_apellido1',
                 'cliente_apellido2',
                 'cliente_nit',
-                'cliente_dpi'
+                'cliente_dpi',
+                'cliente_tipo',          
+                'cliente_nom_empresa'  
             )
             ->orderBy('cliente_nombre1')
             ->get();

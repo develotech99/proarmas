@@ -3,7 +3,6 @@ const btnBuscarCliente = document.getElementById("btnBuscarCliente");
 const tipoClienteSelect = document.getElementById("tipoCliente");
 const selectorPremium = document.getElementById("selectorPremium");
 const clientePremiumSelect = document.getElementById("clientePremium");
-
 async function clientesParticulares() {
     const nit = document.getElementById("nitClientes").value.trim();
     const dpi = document.getElementById("dpiClientes").value.trim();
@@ -23,16 +22,15 @@ async function clientesParticulares() {
     if (data.length > 0) {
         Swal.fire({
             title: "Cliente Encontrado",
-            text: `Se ${data.length === 1 ? "encontró" : "encontraron"} ${
-                data.length
-            } cliente(s).`,
+            text: `Se ${data.length === 1 ? "encontró" : "encontraron"} ${data.length} cliente(s).`,
             icon: "success",
             confirmButtonText: "Aceptar",
         });
 
         // SOLO mostramos los resultados, sin "Seleccionar..."
         data.forEach((c) => {
-            const nombre = [
+            // ✅ NUEVO: Construir nombre completo del cliente
+            const nombreCliente = [
                 c.cliente_nombre1,
                 c.cliente_nombre2,
                 c.cliente_apellido1,
@@ -41,9 +39,19 @@ async function clientesParticulares() {
                 .filter(Boolean)
                 .join(" ");
 
+            // ✅ NUEVO: Si es cliente tipo 3 (empresa), mostrar nombre de empresa primero
+            let nombreMostrar = '';
+            if (c.cliente_tipo == 3 && c.cliente_nom_empresa) {
+                // Formato: "EMPRESA XYZ - Nombre Cliente — NIT: 123"
+                nombreMostrar = `Empresa: ${c.cliente_nom_empresa} - ${nombreCliente}`;
+            } else {
+                // Formato normal: "Nombre Cliente — NIT: 123"
+                nombreMostrar = nombreCliente;
+            }
+
             select.innerHTML += `
                 <option value="${c.cliente_id}">
-                    ${nombre} — NIT: ${c.cliente_nit ?? "SN"}
+                    ${nombreMostrar} — NIT: ${c.cliente_nit ?? "SN"}
                 </option>`;
         });
 
