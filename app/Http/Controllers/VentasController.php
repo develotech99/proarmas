@@ -25,6 +25,9 @@ use Illuminate\Support\Str;
 class VentasController extends Controller
 {
 
+    // Constante para el monto de tenencia
+private const MONTO_TENENCIA = 60.00;
+
     public function index()
     {
         // // Datos necesarios para los selects y filtros
