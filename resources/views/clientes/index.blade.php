@@ -253,7 +253,7 @@
                                                 <option value="3">Empresa</option>
                                             </select>
                                         </div>
-                                        <div>
+                                        <!-- <div>
                                             <label for="cliente_user_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                 Asociar a Usuario Premium
                                             </label>
@@ -264,7 +264,7 @@
                                                     <option value="{{ $usuario->id }}">{{ $usuario->name }}</option>
                                                 @endforeach
                                             </select>
-                                        </div>
+                                        </div> -->
                                     </div>
                                 </div>
                                 <!-- Información Personal -->
