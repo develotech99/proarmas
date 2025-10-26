@@ -35,7 +35,9 @@ class SerieProducto extends Model
 
     protected $casts = [
         'serie_fecha_ingreso' => 'datetime',
-        'serie_situacion' => 'integer'
+        'serie_situacion' => 'integer', 
+        'serie_tiene_tenencia' => 'boolean',
+        'serie_monto_tenencia' => 'decimal:2',
     ];
 
     //Estados válidos como constantes
