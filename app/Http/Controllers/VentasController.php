@@ -723,7 +723,9 @@ public function cancelarVenta(Request $request): JsonResponse
                     ->whereIn('serie_id', $seriesIds)
                     ->update([
                         'serie_estado' => 'disponible',
-                        'serie_situacion' => 1
+                        'serie_situacion' => 1, 
+                        'serie_tiene_tenencia' => false,  
+                        'serie_monto_tenencia' => null 
                     ]);
 
                 // Cancelar movimientos de series
@@ -908,6 +910,7 @@ public function cancelarVenta(Request $request): JsonResponse
                 'productos.*.requiere_serie' => 'required|in:0,1',
                 'productos.*.producto_requiere_stock' => 'required|in:0,1',
                 'productos.*.series_seleccionadas' => 'nullable|array',
+                'productos.*.cobrar_tenencia' => 'nullable|boolean',
                 'productos.*.tiene_lotes' => 'required|boolean',
                 'productos.*.lotes_seleccionados' => 'nullable|array',
                 'productos.*.lotes_seleccionados.*.lote_id' => 'nullable|exists:pro_lotes,lote_id',
@@ -1001,13 +1004,24 @@ public function cancelarVenta(Request $request): JsonResponse
                         }
 
                         // Actualizar series: cambiar estado y situación
+                      // Actualizar series: cambiar estado, situación y tenencia
                         $seriesIds = $seriesInfo->pluck('serie_id');
+
+                   
+                        $updateData = [
+                            'serie_estado' => 'pendiente',
+                            'serie_situacion' => 0,
+                        ];
+
+                        //  Agregar tenencia si aplica
+                        if (isset($productoData['cobrar_tenencia']) && $productoData['cobrar_tenencia'] === true) {
+                            $updateData['serie_tiene_tenencia'] = true;
+                            $updateData['serie_monto_tenencia'] = self::MONTO_TENENCIA;
+                        }
+
                         DB::table('pro_series_productos')
                             ->whereIn('serie_id', $seriesIds)
-                            ->update([
-                                'serie_estado' => 'pendiente',
-                                'serie_situacion' => 0, //situacion 0 y esta pendiente cuando autoriza la venta cambiar a estado vendido
-                            ]);
+                            ->update($updateData);
 
                         // Registrar movimiento por cada serie
                         foreach ($seriesInfo as $serieInfo) {
