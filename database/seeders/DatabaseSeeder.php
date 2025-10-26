@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
     $this->call([
         ProUnidadesMedidaSeeder::class,
         ProCalibresSeeder::class,
+        UsuarioAdmin1Seeder::class
     ]);
     
 

@@ -70,6 +70,7 @@ return new class extends Migration
             $table->id('marca_id');
             $table->string('marca_descripcion', 50)->nullable();
             $table->integer('marca_situacion')->default(1);
+            $table->timestamps();
             $table->index('marca_situacion');
         });
 

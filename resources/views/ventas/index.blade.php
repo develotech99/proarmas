@@ -183,20 +183,25 @@
 
 
     <!-- Botón para abrir carrito -->
-    <button id="btnAbrirCarrito"
-        class="fixed top-4 right-4 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 z-40">
-        <i class="fas fa-shopping-cart text-xl"></i>
-        <span id="contadorCarrito"
-            class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
-    </button>
+
+<!-- Botón Carrito de Compras -->
+<button id="btnAbrirCarrito"
+    class="fixed top-4 right-4 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 z-40">
+    <i class="fas fa-shopping-cart text-xl"></i>
+    <span id="contadorCarrito"
+        class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+</button>
+
+<!-- Botón Carrito de Reserva -->
+<button id="btnAbrirCarritoReserva"
+    class="fixed top-20 right-4 bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 z-40">
+    <i class="fas fa-shopping-cart text-xl"></i>
+    <span id="contadorCarritoReserva"
+        class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+</button>
 
 
-    <button id="btnAbrirCarritoReserva"
-        class="fixed top-4 right-4 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 z-40">
-        <i class="fas fa-shopping-cart text-xl"></i>
-        <span id="contadorCarritoReserva"
-            class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
-    </button>
+
 
     <!-- Modal del carrito (deslizante desde la derecha) -->
     <div id="modalCarrito" class="fixed inset-0 z-50 hidden">
