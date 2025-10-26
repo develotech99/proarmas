@@ -11,17 +11,27 @@ use App\Http\Controllers\CalibreController;
 use App\Http\Controllers\CategoriasController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PaisController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\PagosController;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\VentasController;
+use App\Http\Controllers\CalibreController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
-use App\Http\Controllers\ProLicenciaParaImportacionController;
-use App\Http\Controllers\ProEmpresaDeImportacionController;
-use App\Http\Controllers\PagoLicenciaController;
-use App\Http\Controllers\UsersUbicacionController;
+use App\Http\Controllers\AdminPagosController;
+use App\Http\Controllers\CategoriasController;
 use App\Http\Controllers\ComisionesController;
-use App\Http\Controllers\PagosController;
+use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\MetodoPagoController;
+use App\Http\Controllers\PagoLicenciaController;
+use App\Http\Controllers\UnidadMedidaController;
+use App\Http\Controllers\UsersUbicacionController;
+use App\Http\Controllers\ProEmpresaDeImportacionController;
+use App\Http\Controllers\ProLicenciaParaImportacionController;
 
 Route::get('/', function () {
       return redirect()->route('login');
@@ -341,6 +351,17 @@ Route::middleware('auth')->group(function () {
             Route::post('movimientos/{id}/rechazar', [AdminPagosController::class, 'rechazarMovimiento']);
             Route::post('ingresos', [AdminPagosController::class, 'registrarIngreso']); 
       });
+
+        // Clientes
+            // Clientes
+Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
+Route::post('/clientes', [ClientesController::class, 'store'])->name('clientes.crear');
+Route::put('/clientes/actualizar', [ClientesController::class, 'update'])->name('clientes.update');
+Route::delete('/clientes/eliminar', [ClientesController::class, 'destroy'])->name('clientes.eliminar');
+
+
+
+
 });
 
 require __DIR__ . '/auth.php';
