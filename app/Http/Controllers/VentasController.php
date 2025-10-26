@@ -405,8 +405,7 @@ public function obtenerVentasPendientes(Request $request): JsonResponse
             WHERE d.det_situacion = 'PENDIENTE'
                 AND v.ven_situacion = 'PENDIENTE'
         ";
-        
-        // ✅ Agregar filtros dinámicamente
+    
         $bindings = [];
         
         if ($clienteId) {
