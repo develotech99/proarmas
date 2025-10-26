@@ -28,7 +28,7 @@
             </p>
         </div>
         <div class="mt-4 flex md:mt-0 md:ml-4">
-            <button onclick="clientesManager.openCreateModal()" 
+            <button onclick="window.clientesManager.openCreateModal()" 
                     class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -159,7 +159,7 @@
                 </select>
             </div>
             <div class="flex items-end">
-                <button onclick="clientesManager.limpiarFiltros()" 
+                <button onclick="window.clientesManager.limpiarFiltros()" 
                         class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -221,7 +221,7 @@
 <!-- Modal Cliente -->
 <div id="cliente-modal" class="hidden fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="clientesManager.closeModal()"></div>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="window.clientesManager.closeModal()"></div>
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         
         <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
@@ -324,7 +324,7 @@
                                             <label for="cliente_tipo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                 Tipo de Cliente <span class="text-red-500">*</span>
                                             </label>
-                                            <select name="cliente_tipo" id="cliente_tipo" required onchange="clientesManager.toggleCamposEmpresa()"
+                                            <select name="cliente_tipo" id="cliente_tipo" required onchange="window.clientesManager.toggleCamposEmpresa()"
                                                     class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                                 <option value="">Seleccione...</option>
                                                 <option value="1">Normal</option>
@@ -376,7 +376,7 @@
                                         </div>
                                         <div class="sm:col-span-2">
                                             <label for="cliente_ubicacion" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Ubicación de la Empresa
+                                                Referencia de la Empresa
                                             </label>
                                             <input type="text" name="cliente_ubicacion" id="cliente_ubicacion"
                                                    class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md">
@@ -392,7 +392,7 @@
                                                 accept=".pdf"
                                                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                <i class="fas fa-info-circle"></i> Solo archivos PDF, máximo 2MB
+                                                <i class="fas fa-info-circle"></i> Solo archivos PDF, máximo 10MB
                                             </p>
                                         </div>
                                     </div>
@@ -414,7 +414,7 @@
                         </span>
                     </button>
                     <button type="button" 
-                            onclick="clientesManager.closeModal()"
+                            onclick="window.clientesManager.closeModal()"
                             class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         Cancelar
                     </button>
@@ -424,6 +424,65 @@
     </div>
 </div>
 
+<!-- Modal PDF -->
+<div id="pdf-modal" class="hidden fixed z-50 inset-0 overflow-y-auto" aria-labelledby="pdf-modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="window.clientesManager.closePdfModal()"></div>
+        
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        
+        <!-- Modal Content -->
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
+            <!-- Header -->
+            <div class="bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="pdf-modal-title">
+                        <i class="fas fa-file-pdf text-red-600 mr-2"></i>
+                        Licencia de Compraventa
+                    </h3>
+                    <button onclick="window.clientesManager.closePdfModal()" 
+                            class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- PDF Content -->
+            <div class="bg-gray-100 dark:bg-gray-900" style="height: 80vh;">
+                <!-- Loading -->
+                <div id="pdf-loading" class="flex items-center justify-center h-full">
+                    <div class="text-center">
+                        <svg class="animate-spin h-12 w-12 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="mt-4 text-sm text-gray-600 dark:text-gray-400">Cargando PDF...</p>
+                    </div>
+                </div>
+                
+                <!-- PDF Iframe -->
+                <iframe id="pdf-iframe" 
+                        class="w-full h-full hidden" 
+                        frameborder="0">
+                </iframe>
+            </div>
+            
+            <!-- Footer -->
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" 
+                        onclick="window.clientesManager.closePdfModal()"
+                        class="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto sm:text-sm">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
+
 
 @vite('resources/js/clientes/clientes.js')

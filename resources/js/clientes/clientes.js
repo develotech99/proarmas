@@ -119,8 +119,11 @@ class ClientesManager {
             tipoFilter: ''
         };
         
-        document.getElementById('search-clientes').value = '';
-        document.getElementById('tipo-filter').value = '';
+        const searchInput = document.getElementById('search-clientes');
+        const tipoSelect = document.getElementById('tipo-filter');
+        
+        if (searchInput) searchInput.value = '';
+        if (tipoSelect) tipoSelect.value = '';
         
         this.renderClientes();
     }
@@ -165,11 +168,11 @@ class ClientesManager {
 
         if (clientesFiltrados.length === 0) {
             tbody.innerHTML = '';
-            emptyState?.classList.remove('hidden');
+            if (emptyState) emptyState.classList.remove('hidden');
             return;
         }
 
-        emptyState?.classList.add('hidden');
+        if (emptyState) emptyState.classList.add('hidden');
 
         tbody.innerHTML = clientesFiltrados.map(cliente => this.renderClienteRow(cliente)).join('');
     }
@@ -226,18 +229,18 @@ class ClientesManager {
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex justify-end space-x-2">
                         ${cliente.tiene_pdf ? `
-                            <button onclick="clientesManager.verPdfLicencia(${cliente.cliente_id})" 
+                            <button onclick="window.clientesManager.verPdfLicenciaModal(${cliente.cliente_id})" 
                                     class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                                     title="Ver PDF Licencia">
                                 <i class="fas fa-file-pdf"></i>
                             </button>
                         ` : ''}
-                        <button onclick="clientesManager.openEditModal(${cliente.cliente_id})" 
+                        <button onclick="window.clientesManager.openEditModal(${cliente.cliente_id})" 
                                 class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                                 title="Editar">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button onclick="clientesManager.confirmDelete(${cliente.cliente_id})" 
+                        <button onclick="window.clientesManager.confirmDelete(${cliente.cliente_id})" 
                                 class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                                 title="Eliminar">
                             <i class="fas fa-trash"></i>
@@ -273,15 +276,19 @@ class ClientesManager {
     }
 
     // ==========================
-    // Modal
+    // Modal Cliente
     // ==========================
     openCreateModal() {
         this.isEditing = false;
         this.editingClienteId = null;
         
-        document.getElementById('modal-title').textContent = 'Nuevo Cliente';
-        document.getElementById('cliente-form').reset();
-        document.getElementById('campos-empresa').classList.add('hidden');
+        const modalTitle = document.getElementById('modal-title');
+        const form = document.getElementById('cliente-form');
+        const camposEmpresa = document.getElementById('campos-empresa');
+        
+        if (modalTitle) modalTitle.textContent = 'Nuevo Cliente';
+        if (form) form.reset();
+        if (camposEmpresa) camposEmpresa.classList.add('hidden');
         
         this.toggleModal(true);
     }
@@ -296,21 +303,25 @@ class ClientesManager {
             return;
         }
 
-        document.getElementById('modal-title').textContent = 'Editar Cliente';
-        this.fillForm(cliente);
+        const modalTitle = document.getElementById('modal-title');
+        if (modalTitle) modalTitle.textContent = 'Editar Cliente';
         
+        this.fillForm(cliente);
         this.toggleModal(true);
     }
 
     closeModal() {
         this.toggleModal(false);
-        document.getElementById('cliente-form').reset();
+        const form = document.getElementById('cliente-form');
+        if (form) form.reset();
         this.isEditing = false;
         this.editingClienteId = null;
     }
 
     toggleModal(show) {
         const modal = document.getElementById('cliente-modal');
+        if (!modal) return;
+        
         if (show) {
             modal.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
@@ -321,36 +332,113 @@ class ClientesManager {
     }
 
     fillForm(cliente) {
-        document.getElementById('cliente_nombre1').value = cliente.cliente_nombre1 || '';
-        document.getElementById('cliente_nombre2').value = cliente.cliente_nombre2 || '';
-        document.getElementById('cliente_apellido1').value = cliente.cliente_apellido1 || '';
-        document.getElementById('cliente_apellido2').value = cliente.cliente_apellido2 || '';
-        document.getElementById('cliente_dpi').value = cliente.cliente_dpi || '';
-        document.getElementById('cliente_nit').value = cliente.cliente_nit || '';
-        document.getElementById('cliente_telefono').value = cliente.cliente_telefono || '';
-        document.getElementById('cliente_correo').value = cliente.cliente_correo || '';
-        document.getElementById('cliente_direccion').value = cliente.cliente_direccion || '';
-        document.getElementById('cliente_tipo').value = cliente.cliente_tipo || '';
-        document.getElementById('cliente_user_id').value = cliente.cliente_user_id || '';
+        const fields = {
+            'cliente_nombre1': cliente.cliente_nombre1 || '',
+            'cliente_nombre2': cliente.cliente_nombre2 || '',
+            'cliente_apellido1': cliente.cliente_apellido1 || '',
+            'cliente_apellido2': cliente.cliente_apellido2 || '',
+            'cliente_dpi': cliente.cliente_dpi || '',
+            'cliente_nit': cliente.cliente_nit || '',
+            'cliente_telefono': cliente.cliente_telefono || '',
+            'cliente_correo': cliente.cliente_correo || '',
+            'cliente_direccion': cliente.cliente_direccion || '',
+            'cliente_tipo': cliente.cliente_tipo || '',
+            'cliente_user_id': cliente.cliente_user_id || '',
+            'cliente_nom_empresa': cliente.cliente_nom_empresa || '',
+            'cliente_nom_vendedor': cliente.cliente_nom_vendedor || '',
+            'cliente_cel_vendedor': cliente.cliente_cel_vendedor || '',
+            'cliente_ubicacion': cliente.cliente_ubicacion || ''
+        };
+
+        Object.entries(fields).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) element.value = value;
+        });
         
-        // Campos empresa
+        // Mostrar campos empresa si es tipo 3
         if (cliente.cliente_tipo == 3) {
-            document.getElementById('cliente_nom_empresa').value = cliente.cliente_nom_empresa || '';
-            document.getElementById('cliente_nom_vendedor').value = cliente.cliente_nom_vendedor || '';
-            document.getElementById('cliente_cel_vendedor').value = cliente.cliente_cel_vendedor || '';
-            document.getElementById('cliente_ubicacion').value = cliente.cliente_ubicacion || '';
             this.toggleCamposEmpresa();
         }
     }
 
     toggleCamposEmpresa() {
-        const tipo = document.getElementById('cliente_tipo').value;
+        const tipoSelect = document.getElementById('cliente_tipo');
         const camposEmpresa = document.getElementById('campos-empresa');
+        
+        if (!tipoSelect || !camposEmpresa) return;
+        
+        const tipo = tipoSelect.value;
         
         if (tipo == '3') {
             camposEmpresa.classList.remove('hidden');
         } else {
             camposEmpresa.classList.add('hidden');
+        }
+    }
+
+    // ==========================
+    // Modal PDF
+    // ==========================
+    verPdfLicenciaModal(clienteId) {
+        const modal = document.getElementById('pdf-modal');
+        const iframe = document.getElementById('pdf-iframe');
+        const modalTitle = document.getElementById('pdf-modal-title');
+        
+        if (!modal || !iframe) {
+            console.error('Modal de PDF no encontrado');
+            return;
+        }
+
+        // Encontrar el cliente
+        const cliente = this.clientes.find(c => c.cliente_id === clienteId);
+        if (!cliente) {
+            this.showAlert('error', 'Error', 'Cliente no encontrado');
+            return;
+        }
+
+        // Actualizar título
+        if (modalTitle) {
+            modalTitle.textContent = `Licencia - ${cliente.nombre_completo}`;
+        }
+
+        // Mostrar loading
+        iframe.classList.add('hidden');
+        const loadingDiv = document.getElementById('pdf-loading');
+        if (loadingDiv) loadingDiv.classList.remove('hidden');
+
+        // Cargar PDF
+        const pdfUrl = `/clientes/${clienteId}/ver-pdf-licencia`;
+        iframe.src = pdfUrl;
+
+        // Manejar carga del PDF
+        iframe.onload = () => {
+            if (loadingDiv) loadingDiv.classList.add('hidden');
+            iframe.classList.remove('hidden');
+        };
+
+        iframe.onerror = () => {
+            if (loadingDiv) loadingDiv.classList.add('hidden');
+            this.closePdfModal();
+            this.showAlert('error', 'Error', 'No se pudo cargar el PDF');
+        };
+
+        // Mostrar modal
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    closePdfModal() {
+        const modal = document.getElementById('pdf-modal');
+        const iframe = document.getElementById('pdf-iframe');
+        
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        // Limpiar iframe
+        if (iframe) {
+            iframe.src = '';
         }
     }
 
@@ -363,8 +451,8 @@ class ClientesManager {
         const btnText = document.getElementById('btn-text');
         const btnLoading = document.getElementById('btn-loading');
         
-        btnText.classList.add('hidden');
-        btnLoading.classList.remove('hidden');
+        if (btnText) btnText.classList.add('hidden');
+        if (btnLoading) btnLoading.classList.remove('hidden');
 
         try {
             const formData = new FormData(e.target);
@@ -377,8 +465,8 @@ class ClientesManager {
         } catch (error) {
             console.error('Error en submit:', error);
         } finally {
-            btnText.classList.remove('hidden');
-            btnLoading.classList.add('hidden');
+            if (btnText) btnText.classList.remove('hidden');
+            if (btnLoading) btnLoading.classList.add('hidden');
         }
     }
 
@@ -482,19 +570,6 @@ class ClientesManager {
     }
 
     // ==========================
-    // PDF
-    // ==========================
-    async verPdfLicencia(clienteId) {
-        try {
-            const url = `/clientes/${clienteId}/ver-pdf-licencia`;
-            window.open(url, '_blank');
-        } catch (error) {
-            console.error('Error al abrir PDF:', error);
-            this.showAlert('error', 'Error', 'No se pudo abrir el PDF');
-        }
-    }
-
-    // ==========================
     // Errores
     // ==========================
     handleErrors(data) {
@@ -508,7 +583,8 @@ class ClientesManager {
 }
 
 // Inicializar cuando el DOM esté listo
-let clientesManager;
+// IMPORTANTE: Asignar a window para acceso global
 document.addEventListener('DOMContentLoaded', () => {
-    clientesManager = new ClientesManager();
+    window.clientesManager = new ClientesManager();
+    console.log('✅ clientesManager disponible globalmente');
 });
