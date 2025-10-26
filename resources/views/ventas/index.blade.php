@@ -567,7 +567,7 @@
                     </div>
                     <!-- Ubicacion Empresa -->
                     <div class="sm:col-span-2">
-                        <input id="nc_ubicacion" name="cliente_ubicacion" type="text" placeholder="Ubicación empresa" disabled
+                        <input id="nc_ubicacion" name="cliente_ubicacion" type="text" placeholder="Referencia empresa" disabled
                             class=" hidden  w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                     </div>
 
