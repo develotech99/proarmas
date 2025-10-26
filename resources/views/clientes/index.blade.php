@@ -233,6 +233,40 @@
                                 Nuevo Cliente
                             </h3>
                             <div class="mt-4">
+
+                            
+                                <!-- Tipo y Asociación -->
+                                <div class="mb-6">
+                                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                                        <i class="fas fa-tag mr-2"></i>Clasificación
+                                    </h4>
+                                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label for="cliente_tipo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Tipo de Cliente <span class="text-red-500">*</span>
+                                            </label>
+                                            <select name="cliente_tipo" id="cliente_tipo" required onchange="window.clientesManager.toggleCamposEmpresa()"
+                                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                                <option value="">Seleccione...</option>
+                                                <option value="1">Normal</option>
+                                                <option value="2">Premium</option>
+                                                <option value="3">Empresa</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="cliente_user_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Asociar a Usuario Premium
+                                            </label>
+                                            <select name="cliente_user_id" id="cliente_user_id"
+                                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                                <option value="">Sin asignar</option>
+                                                @foreach($usuariosPremium as $usuario)
+                                                    <option value="{{ $usuario->id }}">{{ $usuario->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
                                 <!-- Información Personal -->
                                 <div class="mb-6">
                                     <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
@@ -314,38 +348,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Tipo y Asociación -->
-                                <div class="mb-6">
-                                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
-                                        <i class="fas fa-tag mr-2"></i>Clasificación
-                                    </h4>
-                                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                        <div>
-                                            <label for="cliente_tipo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Tipo de Cliente <span class="text-red-500">*</span>
-                                            </label>
-                                            <select name="cliente_tipo" id="cliente_tipo" required onchange="window.clientesManager.toggleCamposEmpresa()"
-                                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                                <option value="">Seleccione...</option>
-                                                <option value="1">Normal</option>
-                                                <option value="2">Premium</option>
-                                                <option value="3">Empresa</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label for="cliente_user_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Asociar a Usuario Premium
-                                            </label>
-                                            <select name="cliente_user_id" id="cliente_user_id"
-                                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                                <option value="">Sin asignar</option>
-                                                @foreach($usuariosPremium as $usuario)
-                                                    <option value="{{ $usuario->id }}">{{ $usuario->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
 
                                 <!-- Campos Empresa (ocultos por defecto) -->
                                 <div id="campos-empresa" class="mb-6 hidden">
