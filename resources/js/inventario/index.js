@@ -2984,6 +2984,8 @@ async handleRegistroSubmit() {
         return;
     }
 
+    const requiereStock = document.getElementById('producto_requiere_stock')?.checked;
+    formData.set('producto_requiere_stock', requiereStock ? '0' : '1');
     // MANTENER: Manejo de precios en registro
     const agregaPrecios = document.getElementById('agregar_precios')?.checked;
     formData.set('agregar_precios', agregaPrecios ? '1' : '0');

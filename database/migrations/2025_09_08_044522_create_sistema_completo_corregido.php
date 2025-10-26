@@ -455,6 +455,8 @@ return new class extends Migration
             $table->unsignedBigInteger('mov_serie_id')->nullable();
             $table->string('mov_documento_referencia', 100)->nullable();
             $table->string('mov_observaciones', 250)->nullable();
+            $table->string('mov_licencia_anterior', 250)->nullable(); 
+            $table->string('mov_licencia_nueva', 250)->nullable(); 
             $table->integer('mov_situacion')->default(1);
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
@@ -471,6 +473,8 @@ return new class extends Migration
             $table->foreign('mov_lote_id')->references('lote_id')->on('pro_lotes')->onDelete('set null');
             $table->foreign('mov_serie_id')->references('serie_id')->on('pro_series_productos')->onDelete('set null');
         });
+
+
 
         Schema::create('pro_stock_actual', function (Blueprint $table) {
             $table->id('stock_id');
@@ -543,6 +547,10 @@ return new class extends Migration
             $table->string('cliente_direccion', 255)->nullable();
             $table->string('cliente_telefono', 30)->nullable();
             $table->string('cliente_correo', 150)->nullable();
+            $table->string('cliente_nom_empresa', 250)->nullable(); 
+            $table->string('cliente_nom_vendedor', 250)->nullable(); 
+            $table->string('cliente_cel_vendedor', 250)->nullable(); 
+            $table->string('cliente_ubicacion', 250)->nullable(); 
             $table->unsignedBigInteger('cliente_user_id')->unique()->nullable();
             $table->integer('cliente_tipo');
             $table->integer('cliente_situacion')->default(1);
@@ -563,7 +571,7 @@ return new class extends Migration
             $table->unsignedInteger('ven_cliente')->nullable();
             $table->decimal('ven_total_vendido', 10, 2);
             $table->decimal('ven_descuento', 10, 2)->default(0);
-            $table->enum('ven_situacion', ['ACTIVA', 'ANULADA'])->default('ACTIVA');
+            $table->enum('ven_situacion', ['ACTIVA', 'ANULADA', 'PENDIENTE'])->default('ACTIVA');
             $table->string('ven_observaciones', 200)->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
@@ -578,7 +586,7 @@ return new class extends Migration
             $table->integer('det_cantidad');
             $table->decimal('det_precio', 10, 2);
             $table->decimal('det_descuento', 10, 2)->default(0);
-            $table->enum('det_situacion', ['ACTIVO', 'ANULADO'])->default('ACTIVO');
+            $table->enum('det_situacion', ['ACTIVO', 'ANULADO', 'PENDIENTE'])->default('ACTIVO');
             $table->timestamp('created_at')->useCurrent();
             
             $table->foreign('det_ven_id')->references('ven_id')->on('pro_ventas')->onDelete('cascade');
@@ -733,7 +741,7 @@ return new class extends Migration
             $table->unsignedBigInteger('cja_metodo_pago');
             $table->unsignedBigInteger('cja_tipo_banco')->nullable();
             $table->string('cja_no_referencia', 100)->nullable();
-            $table->enum('cja_situacion', ['ACTIVO', 'ANULADO'])->default('ACTIVO');
+            $table->enum('cja_situacion', ['ACTIVO', 'ANULADO', 'PENDIENTE'])->default('ACTIVO');
             $table->string('cja_observaciones', 200)->nullable();
             $table->timestamp('created_at')->useCurrent();
             
