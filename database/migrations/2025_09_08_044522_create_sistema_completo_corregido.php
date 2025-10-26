@@ -351,6 +351,8 @@ return new class extends Migration
             $table->timestamp('serie_fecha_ingreso')->useCurrent();
             $table->string('serie_observaciones', 255)->nullable();
             $table->integer('serie_situacion')->default(1);
+            $table->boolean('serie_tiene_tenencia')->default(false);
+            $table->decimal('serie_monto_tenencia', 8, 2)->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->unsignedBigInteger('serie_asignacion_id')->nullable();
