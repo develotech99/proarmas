@@ -1514,17 +1514,34 @@ function calcularTotales() {
         (sum, p) => sum + p.precio * p.cantidad,
         0
     );
+    
+    // ✅ NUEVO: Calcular tenencia
+    const totalTenencia = carritoProductos.reduce((sum, p) => {
+        if (p.cobrar_tenencia && p.seriesSeleccionadas) {
+            return sum + (p.seriesSeleccionadas.length * 60);
+        }
+        return sum;
+    }, 0);
+    
     const descuento =
         parseFloat(document.getElementById("descuentoModal").value) || 0;
     const descuentoMonto = subtotal * (descuento / 100);
-    const total = subtotal - descuentoMonto;
+    const total = subtotal - descuentoMonto + totalTenencia; // ✅ SUMAR TENENCIA
 
-    document.getElementById("subtotalModal").textContent = `Q${subtotal.toFixed(
-        2
-    )}`;
+    document.getElementById("subtotalModal").textContent = `Q${subtotal.toFixed(2)}`;
+    
+    // ✅ NUEVO: Actualizar tenencia
+    const tenenciaEl = document.getElementById("tenenciaModal");
+    if (tenenciaEl) {
+        tenenciaEl.textContent = `Q${totalTenencia.toFixed(2)}`;
+        const tenenciaRow = tenenciaEl.closest('.tenencia-row');
+        if (tenenciaRow) {
+            tenenciaRow.classList.toggle('hidden', totalTenencia === 0);
+        }
+    }
+    
     document.getElementById("totalModal").textContent = `Q${total.toFixed(2)}`;
 }
-
 function actualizarContadorCarrito() {
     const contador = carritoProductos.reduce((sum, p) => sum + p.cantidad, 0);
     const badge = document.getElementById("contadorCarrito");
@@ -1618,7 +1635,7 @@ async function seleccionarSeries(producto_id) {
     const yaSel = new Set(
         Array.isArray(p.seriesSeleccionadas) ? p.seriesSeleccionadas : []
     );
-
+    const yaConTenencia = p.cobrar_tenencia ?? false;
     // Armar HTML de checkboxes
     const opciones = disponibles
         .map((s) => {
@@ -1635,68 +1652,87 @@ async function seleccionarSeries(producto_id) {
     const { value: ok } = await Swal.fire({
         title: `Selecciona ${cantidad} serie(s)`,
         html: `
-          <div class="text-left max-h-64 overflow-auto px-1">
-            ${
-                opciones ||
-                '<div class="text-sm text-gray-500">Sin series disponibles.</div>'
-            }
-          </div>
-          <div class="mt-3 text-xs text-gray-600">
-            Seleccionadas: <span id="selCount">${
-                yaSel.size
-            }</span> / ${cantidad}
-          </div>
-        `,
+        <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="checkTenencia" ${yaConTenencia ? 'checked' : ''} class="w-4 h-4">
+            <span class="font-semibold text-blue-900">
+              <i class="fas fa-money-bill-wave mr-1"></i>
+              Cobrar tenencia (+Q60/serie)
+            </span>
+          </label>
+          <div class="text-xs text-blue-700 mt-1" id="tenenciaInfo">Total: Q0.00</div>
+        </div>
+        
+        <div class="text-left max-h-64 overflow-auto px-1 border rounded p-2">
+          ${opciones || '<div class="text-sm text-gray-500">Sin series disponibles.</div>'}
+        </div>
+        <div class="mt-3 text-xs text-gray-600">
+          Seleccionadas: <span id="selCount">${yaSel.size}</span> / ${cantidad}
+        </div>
+      `,
         showCancelButton: true,
         confirmButtonText: "Guardar",
         cancelButtonText: "Cancelar",
         didOpen: () => {
-            const checks =
-                Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const checks = Swal.getHtmlContainer().querySelectorAll(".serie-opt");
             const selCount = Swal.getHtmlContainer().querySelector("#selCount");
-
+            const checkTenencia = Swal.getHtmlContainer().querySelector("#checkTenencia");
+            const tenenciaInfo = Swal.getHtmlContainer().querySelector("#tenenciaInfo");
+        
+            // ✅ NUEVO: Función para actualizar tenencia
+            function actualizarTenencia() {
+                const numSel = Array.from(checks).filter(c => c.checked).length;
+                const monto = checkTenencia.checked ? numSel * 60 : 0;
+                tenenciaInfo.textContent = `Total: Q${monto.toFixed(2)}`;
+            }
+        
+            checkTenencia.addEventListener('change', actualizarTenencia);
+        
             checks.forEach((chk) => {
                 chk.addEventListener("change", () => {
-                    const current = Array.from(checks).filter(
-                        (c) => c.checked
-                    ).length;
+                    const current = Array.from(checks).filter((c) => c.checked).length;
                     selCount.textContent = current;
-
-                    // No permitir seleccionar más que la cantidad requerida (bloqueo soft)
+                    actualizarTenencia(); // ✅ NUEVO
+        
                     if (current > cantidad) {
                         chk.checked = false;
-                        selCount.textContent = Array.from(checks).filter(
-                            (c) => c.checked
-                        ).length;
-                        mostrarNotificacion?.(
-                            `Solo puedes seleccionar ${cantidad} serie(s).`,
-                            "warning"
-                        );
+                        selCount.textContent = Array.from(checks).filter((c) => c.checked).length;
+                        actualizarTenencia(); // ✅ NUEVO
+                        mostrarNotificacion?.(`Solo puedes seleccionar ${cantidad} serie(s).`, "warning");
                     }
                 });
             });
+            
+            actualizarTenencia(); // ✅ NUEVO: Inicializar
         },
         preConfirm: () => {
-            const checks =
-                Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const checks = Swal.getHtmlContainer().querySelectorAll(".serie-opt");
             const seleccionadas = Array.from(checks)
                 .filter((c) => c.checked)
                 .map((c) => c.value);
-
+            const checkTenencia = Swal.getHtmlContainer().querySelector("#checkTenencia"); // ✅ NUEVO
+        
             if (seleccionadas.length !== cantidad) {
-                Swal.showValidationMessage(
-                    `Debes seleccionar exactamente ${cantidad} serie(s).`
-                );
+                Swal.showValidationMessage(`Debes seleccionar exactamente ${cantidad} serie(s).`);
                 return false;
             }
-            return seleccionadas;
+            
+            // ✅ NUEVO: Retornar objeto con series y tenencia
+            return {
+                series: seleccionadas,
+                cobrar_tenencia: checkTenencia.checked
+            };
         },
     });
 
     if (ok) {
-        p.seriesSeleccionadas = ok; // guardamos exactamente cantidad series
+        p.seriesSeleccionadas = ok.series; // ✅ MODIFICADO
+        p.cobrar_tenencia = ok.cobrar_tenencia; // ✅ NUEVO
         actualizarVistaCarrito();
-        mostrarNotificacion?.("Series actualizadas.", "success");
+        calcularTotales(); // ✅ NUEVO
+        
+        const msgTenencia = ok.cobrar_tenencia ? ` (+Q${ok.series.length * 60} tenencia)` : '';
+        mostrarNotificacion?.(`Series actualizadas${msgTenencia}`, "success");
     }
 }
 
@@ -2582,7 +2618,8 @@ async function procesarVentaFinal() {
                 
                 // Lotes si los tiene
                 tiene_lotes: (Array.isArray(producto.lotes) && producto.lotes.length > 0),
-                lotes_seleccionados: producto.lotesSeleccionados || []
+                lotes_seleccionados: producto.lotesSeleccionados || [], 
+                cobrar_tenencia: producto.cobrar_tenencia || false 
             }))
         };
 
