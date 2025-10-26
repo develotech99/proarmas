@@ -1,6 +1,6 @@
 <?php
-
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\AdminPagosController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PaisController;
@@ -343,13 +343,15 @@ Route::middleware('auth')->group(function () {
             Route::post('ingresos', [AdminPagosController::class, 'registrarIngreso']); 
       });
 
-        // Clientes
-            // Clientes
-Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
-Route::post('/clientes', [ClientesController::class, 'store'])->name('clientes.crear');
-Route::put('/clientes/actualizar', [ClientesController::class, 'update'])->name('clientes.update');
-Route::delete('/clientes/eliminar', [ClientesController::class, 'destroy'])->name('clientes.eliminar');
-
+    // Rutas CRUD de Clientes
+    Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
+    Route::post('/clientes', [ClientesController::class, 'store'])->name('clientes.store');
+    Route::put('/clientes/{cliente}', [ClientesController::class, 'update'])->name('clientes.update');
+    Route::delete('/clientes/{cliente}', [ClientesController::class, 'destroy'])->name('clientes.destroy');
+    
+    // Ruta para ver PDF de licencia
+    Route::get('/clientes/{cliente}/ver-pdf-licencia', [ClientesController::class, 'verPdfLicencia'])
+         ->name('clientes.ver-pdf-licencia');
 
 
 
