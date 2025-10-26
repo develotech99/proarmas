@@ -18,7 +18,7 @@ class SerieProducto extends Model
     protected $table = 'pro_series_productos';
     protected $primaryKey = 'serie_id';
     
-    // ✅ CORREGIDO: Activar timestamps porque la migración los incluye
+    // CORREGIDO: Activar timestamps porque la migración los incluye
     public $timestamps = true;
 
     protected $fillable = [
@@ -28,7 +28,9 @@ class SerieProducto extends Model
         'serie_estado',
         'serie_fecha_ingreso',
         'serie_observaciones',    //Campo faltante
-        'serie_situacion'
+        'serie_situacion', 
+        'serie_tiene_tenencia',     
+        'serie_monto_tenencia',
     ];
 
     protected $casts = [
