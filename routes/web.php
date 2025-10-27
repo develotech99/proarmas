@@ -248,7 +248,7 @@ Route::middleware('auth')->group(function () {
             Route::put('/', [UsersUbicacionController::class, 'update'])->name('ubi.update');
             Route::put('/{id}', [UsersUbicacionController::class, 'update'])->name('ubi.update.id');
             Route::get('/', [UsersUbicacionController::class, 'getDatos'])->name('ubi.getDatos');
-            Route::get('/{user}/detalle', [UsersUbicacionController::class, 'detalle'])->name('ubi.detalle');
+            Route::get('/{user}/detalle', [UsersUbicacionController::class, 'getDetallesCliente'])->name('ubi.detalle');
             Route::delete('/{id}', [UsersUbicacionController::class, 'eliminarUbicacion'])->name('ubi.delete');
             Route::post('/visita', [UsersUbicacionController::class, 'agregarVisita']);
       });
