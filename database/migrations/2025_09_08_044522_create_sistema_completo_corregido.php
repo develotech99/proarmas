@@ -778,7 +778,7 @@ return new class extends Migration
             $table->string('ubi_descripcion', 255)->nullable();
             $table->timestamps();
             
-            $table->foreign('ubi_user')->references('user_id')->on('users')->onDelete('cascade');
+            $table->foreign('ubi_user')->references('cli_id')->on('pro_clientes')->onDelete('cascade');
         });
 
         Schema::create('users_visitas', function (Blueprint $table) {
@@ -790,7 +790,7 @@ return new class extends Migration
             $table->text('visita_descripcion')->nullable();
             $table->timestamps();
             
-            $table->foreign('visita_user')->references('user_id')->on('users');
+            $table->foreign('visita_user')->references('cli_id')->on('pro_clientes')->onDelete('cascade');
         });
 
         Schema::create('users_historial_visitas', function (Blueprint $table) {
