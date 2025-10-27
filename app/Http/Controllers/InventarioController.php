@@ -48,7 +48,47 @@ class InventarioController extends Controller
      */
     // Reemplazar el método getProductosStock en InventarioController
 
-public function getProductosStock(Request $request): JsonResponse
+/**
+ * Obtener stock de múltiples productos
+ */
+public function obtenerStock(Request $request): JsonResponse
+{
+    try {
+        $productosIds = $request->input('productos_ids', []);
+        
+        if (empty($productosIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se proporcionaron IDs de productos'
+            ]);
+        }
+        
+  $stocks = DB::table('pro_productos as p')
+    ->leftJoin('pro_stock_actual as sa', 'p.producto_id', '=', 'sa.stock_producto_id') // ← Corregido
+    ->whereIn('p.producto_id', $productosIds)
+    ->select([
+        'p.producto_id',
+        DB::raw('COALESCE(sa.stock_cantidad_disponible, 0) as stock_disponible'),
+        DB::raw('COALESCE(sa.stock_cantidad_total, 0) as stock_total'),
+        DB::raw('COALESCE(sa.stock_cantidad_reservada, 0) as stock_reservado') // ← Agregado
+    ])
+    ->get();
+        
+        return response()->json([
+            'success' => true,
+            'stocks' => $stocks
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener stock: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+    public function getProductosStock(Request $request): JsonResponse
 {
     try {
         $query = Producto::activos()

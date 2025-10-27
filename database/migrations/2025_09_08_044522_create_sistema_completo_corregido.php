@@ -575,7 +575,7 @@ return new class extends Migration
             $table->unsignedInteger('ven_cliente')->nullable();
             $table->decimal('ven_total_vendido', 10, 2);
             $table->decimal('ven_descuento', 10, 2)->default(0);
-            $table->enum('ven_situacion', ['ACTIVA', 'ANULADA', 'PENDIENTE'])->default('ACTIVA');
+            $table->enum('ven_situacion', ['ACTIVA', 'ANULADA', 'PENDIENTE','RESERVADA'])->default('ACTIVA');
             $table->string('ven_observaciones', 200)->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();

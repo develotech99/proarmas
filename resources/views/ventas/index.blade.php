@@ -192,13 +192,6 @@
         class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
 </button>
 
-<!-- Botón Carrito de Reserva -->
-<button id="btnAbrirCarritoReserva"
-    class="fixed top-20 right-4 bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 z-40">
-    <i class="fas fa-shopping-cart text-xl"></i>
-    <span id="contadorCarritoReserva"
-        class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
-</button>
 
 
 
@@ -242,6 +235,17 @@
                                 <div id="carritoVacio" class="text-center py-8 text-gray-500">
                                     <i class="fas fa-shopping-cart text-4xl mb-2 opacity-30"></i>
                                     <p>Tu carrito está vacío</p>
+                                </div>
+                            </div>
+                        </div>
+                                                <div>
+                            <h3 class="text-lg font-semibold mb-3 text-gray-800">Productos Reservados</h3>
+                            <div id="productosCarritoReserva" class="space-y-3">
+                                
+                                <!-- Mensaje cuando está vacío -->
+                                <div id="carritoVacioReserva" class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-shopping-cart text-4xl mb-2 opacity-30"></i>
+                                    <p>Tu carrito no tiene Reservas</p>
                                 </div>
                             </div>
                         </div>

@@ -311,6 +311,11 @@ Route::middleware('auth')->group(function () {
       Route::post('/ventas/cancelar', [VentasController::class, 'cancelarVenta']);
       Route::get('/ventas/pendientes', [VentasController::class, 'obtenerVentasPendientes']);
       Route::post('/ventas/actualizar-licencias', [VentasController::class, 'actualizarLicencias']);
+      Route::post('/reservas/procesar', [VentasController::class, 'procesarReserva'])
+    ->middleware('auth')
+    ->name('reservas.procesar');
+    Route::get('/api/reservas/cliente/{clienteId}', [VentasController::class, 'buscarReservaPorCliente']);
+    Route::post('/api/productos/stock', [InventarioController::class, 'obtenerStock']);
 
 
       // Imprimir comprobante de venta

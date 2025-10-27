@@ -469,25 +469,34 @@ renderTablaVentas(ventas) {
     
     tbody.innerHTML = ventas.map(venta => {
         // Preparar los datos para el dataset
-        const ventaData = {
-            ven_id: venta.ven_id,
-            ven_user: venta.ven_user,
-            cliente: venta.cliente,
-            det_producto_id: venta.det_producto_id,
-            series_ids: venta.series_ids || '',
-            lotes_ids: venta.lotes_ids || ''
-        };
+const ventaData = {
+  ven_id: venta.ven_id,
+  ven_user: venta.ven_user,
+  cliente: venta.cliente,
+  det_producto_id: venta.det_producto_id,
+  series_ids: venta.series_numeros || venta.series_ids || '',
+  lotes_ids: venta.lotes_ids || '',
+  precio_venta: venta.precio_venta || 0,
+  precio_venta_empresa: venta.precio_venta_empresa || 0
+};
+
         
-        console.log(ventaData)
-        // Determinar qué mostrar en la columna de identificadores
+
         let identificadoresDisplay = '';
-        if (venta.series_display) {
-            identificadoresDisplay = `
-                <div class="text-xs">
-                    <span class="font-semibold">Series:</span> ${venta.series_display}
-                </div>
-            `;
-        }
+   if (venta.series_numeros) {
+  identificadoresDisplay = `
+    <div class="text-xs">
+      <span class="font-semibold">Series:</span> ${venta.series_numeros}
+    </div>
+  `;
+} else if (venta.series_display) {
+  identificadoresDisplay = `
+    <div class="text-xs">
+      <span class="font-semibold">Series:</span> ${venta.series_display}
+    </div>
+  `;
+}
+
         if (venta.lotes_display) {
             identificadoresDisplay += `
                 <div class="text-xs mt-1">
@@ -535,11 +544,16 @@ renderTablaVentas(ventas) {
                 </td>
                 
                 <!-- Total -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100">
-                        ${this.formatCurrency(venta.ven_total_vendido)}
-                    </div>
-                </td>
+         <td class="px-6 py-4 whitespace-nowrap">
+  <div class="text-sm font-bold text-gray-900 dark:text-gray-100">
+    ${this.formatCurrency(venta.ven_total_vendido)}
+  </div>
+  <div class="text-xs text-gray-600 dark:text-gray-300">
+    <span class="font-semibold">P. Individual:</span> ${this.formatCurrency(venta.precio_venta || 0)}<br>
+    <span class="font-semibold">P. Empresa:</span> ${this.formatCurrency(venta.precio_venta_empresa || 0)}
+  </div>
+</td>
+
                 
                 <!-- Estado -->
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -551,11 +565,11 @@ renderTablaVentas(ventas) {
                 
                 <!-- Acciones -->
                 <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})"
+                   <!--  <button onclick="reportesManager.verDetalleVenta(${venta.ven_id})"
                             class="text-blue-600 hover:text-blue-900 mr-2" 
                             title="Ver detalle">
                         <i class="fas fa-eye"></i>
-                    </button>
+                    </button>-->
                     <button onclick="reportesManager.autorizarVentaClick(this)"
                             class="text-green-600 hover:text-green-900 mr-2" 
                             title="Autorizar">
@@ -573,264 +587,193 @@ renderTablaVentas(ventas) {
 }
 
 async autorizarVentaClick(buttonElement) {
-    try {
-        const row = buttonElement.closest('tr');
-        const ventaData = JSON.parse(row.dataset.venta);
-        console.log('📦 Datos de la venta:', ventaData);
-        
-        // Procesar series IDs - convertir a array de números
-        let seriesArray = [];
-        if (ventaData.series_ids && ventaData.series_ids.trim()) {
-            seriesArray = ventaData.series_ids
-                .split(',')
-                .map(id => parseInt(id.trim(), 10))
-                .filter(id => !isNaN(id) && id > 0);
-        }
-        
-        // Procesar lotes IDs - convertir a array de números
-        let lotesArray = [];
-        if (ventaData.lotes_ids && ventaData.lotes_ids.trim()) {
-            lotesArray = ventaData.lotes_ids
-                .split(',')
-                .map(id => {
-                    const trimmed = id.trim();
-                    if (trimmed === 'SIN-LOTE' || trimmed === '') return null;
-                    return parseInt(trimmed, 10);
-                })
-                .filter(id => id !== null && !isNaN(id) && id > 0);
-        }
-        
-        const payload = {
-            ven_id: ventaData.ven_id,
-            ven_user: ventaData.ven_user,
-            cliente: ventaData.cliente,
-            det_producto_id: ventaData.det_producto_id,
-            producto_id: ventaData.det_producto_id,
-            series_ids: seriesArray,
-            lotes_ids: lotesArray
-        };
-        
-        console.log('📤 Payload a enviar:', payload);
-        
-        // Construir mensaje de confirmación
-        let detallesHtml = `<p><strong>Cliente:</strong> ${payload.cliente}</p>`;
-        if (seriesArray.length > 0) {
-            detallesHtml += `<p><strong>Series:</strong> ${seriesArray.length} serie(s)</p>`;
-        }
-        if (lotesArray.length > 0) {
-            detallesHtml += `<p><strong>Lotes:</strong> ${lotesArray.length} lote(s)</p>`;
-        }
-        
-        const confirmacion = await Swal.fire({
-            title: '¿Autorizar esta venta?',
-            html: `<div class="text-left">${detallesHtml}</div>`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#10b981',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: '<i class="fas fa-check mr-2"></i>Sí, autorizar',
-            cancelButtonText: '<i class="fas fa-times mr-2"></i>Cancelar'
-        });
-        
-        if (!confirmacion.isConfirmed) {
-            console.log('❌ Autorización cancelada por el usuario');
-            return;
-        }
-        
-        // Mostrar loading
-        Swal.fire({
-            title: 'Autorizando venta...',
-            html: 'Por favor espere',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-        
-        // Realizar petición
-        const response = await fetch('/ventas/autorizar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-        
-        //console.log('📡 Response status:', response.status);
-        
-        if (response.status === 419) {
-            throw new Error('Token CSRF inválido. Recarga la página e intenta nuevamente.');
-        }
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            //console.error('❌ Error response:', errorText);
-            throw new Error(`Error ${response.status}: ${errorText}`);
-        }
-        
-        const result = await response.json();
-        //console.log('📥 Response data:', result);
-        
-        if (result.codigo === 1) {
-            //console.log('✅ Venta autorizada exitosamente');
+  try {
+    const row = buttonElement.closest('tr');
+    const ventaData = JSON.parse(row.dataset.venta);
+    console.log('📦 Datos de la venta:', ventaData);
 
-            let mensajeExito = result.mensaje || '¡Venta autorizada!';
+    // Series -> array<number>
+    const seriesArray = (ventaData.series_ids || '')
+      .split(',')
+      .map(id => parseInt(id.trim(), 10))
+      .filter(id => !isNaN(id) && id > 0);
 
-            if (result.meta && result.meta.qty_total) {
-                mensajeExito += `<br><small><strong>Total procesado:</strong> ${result.meta.qty_total} unidad(es)</small>`;
-            }
+    // Lotes -> array<number>
+    const lotesArray = (ventaData.lotes_ids || '')
+      .split(',')
+      .map(id => {
+        const t = id.trim();
+        if (t === 'SIN-LOTE' || t === '') return null;
+        return parseInt(t, 10);
+      })
+      .filter(id => id !== null && !isNaN(id) && id > 0);
 
-            if (result.meta?.detalles?.length > 0) {
-                mensajeExito += '<br><small class="text-gray-600">';
-                mensajeExito += result.meta.detalles.join('<br>');
-                mensajeExito += '</small>';
-            }
+    const payload = {
+      ven_id: ventaData.ven_id,
+      ven_user: ventaData.ven_user,
+      cliente: ventaData.cliente,
+      det_producto_id: ventaData.det_producto_id,
+      producto_id: ventaData.det_producto_id,
+      series_ids: seriesArray,
+      lotes_ids: lotesArray
+    };
 
-           
-            if (seriesArray.length > 0) {
-                // Construir HTML dinámico con inputs para cada serie
-                let htmlLicencias = `
-                    <div style="max-height: 400px; overflow-y: auto; text-align: left;">
-                        <p class="text-sm text-gray-600 mb-3">Ingresa las tencias  para cada serie de las pistolas:</p>
-                `;
-                
-                seriesArray.forEach((serieId, index) => {
-                    htmlLicencias += `
-                        <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; background-color: #f9fafb;">
-                            <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #374151;">
-                                🔫 Serie ID: ${serieId}
-                            </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                                <input 
-                                    id="lic-ant-${serieId}" 
-                                    class="swal2-input" 
-                                    style="margin: 0; padding: 8px; font-size: 14px;"
-                                    placeholder="Licencia anterior"
-                                    data-serie-id="${serieId}">
-                                <input 
-                                    id="lic-nueva-${serieId}" 
-                                    class="swal2-input" 
-                                    style="margin: 0; padding: 8px; font-size: 14px;"
-                                    placeholder="Licencia nueva"
-                                    data-serie-id="${serieId}">
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                htmlLicencias += '</div>';
-                
-                // Mostrar formulario de licencias - OBLIGATORIO
-                const { value: formValues } = await Swal.fire({
-                    title: 'Actualizar Licencias',
-                    html: htmlLicencias,
-                    width: '700px',
-                    focusConfirm: false,
-                    showCancelButton: false, 
-                    allowOutsideClick: false, 
-                    allowEscapeKey: false, 
-                    allowEnterKey: false, 
-                    confirmButtonText: '<i class="fas fa-save mr-2"></i>Guardar licencias',
-                    confirmButtonColor: '#10b981',
-                    preConfirm: () => {
-                        const licencias = [];
-                        let hayErrores = false;
-                        let mensajeError = '';
-                        
-                        seriesArray.forEach(serieId => {
-                            const anterior = document.getElementById(`lic-ant-${serieId}`)?.value.trim();
-                            const nueva = document.getElementById(`lic-nueva-${serieId}`)?.value.trim();
-                            
-                           
-                            if (!anterior || !nueva) {
-                                hayErrores = true;
-                                if (!mensajeError) {
-                                    mensajeError = `⚠️ Debes llenar ambas licencias para la serie ${serieId}`;
-                                }
-                                return;
-                            }
-                            
-                            licencias.push({
-                                serie_id: serieId,
-                                licencia_anterior: anterior,
-                                licencia_nueva: nueva
-                            });
-                        });
-                        
-                        if (hayErrores) {
-                            Swal.showValidationMessage(mensajeError);
-                            return false;
-                        }
-                        
-                        return licencias;
-                    }
-                });
+    console.log('📤 Payload a enviar:', payload);
 
-              
-                if (formValues && formValues.length > 0) {
-                    //console.log('📋 Licencias a actualizar:', formValues);
-                    
-                    Swal.fire({
-                        title: 'Actualizando licencias...',
-                        html: 'Por favor espere',
-                        allowOutsideClick: false,
-                        didOpen: () => Swal.showLoading()
-                    });
-                    
-                    const updateResponse = await fetch('/ventas/actualizar-licencias', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            ven_id: ventaData.ven_id,
-                            licencias: formValues // Array con todas las licencias
-                        })
-                    });
+    let detallesHtml = `<p><strong>Cliente:</strong> ${payload.cliente}</p>`;
+    if (seriesArray.length > 0) detallesHtml += `<p><strong>Series:</strong> ${seriesArray.length} serie(s)</p>`;
+    if (lotesArray.length > 0) detallesHtml += `<p><strong>Lotes:</strong> ${lotesArray.length} lote(s)</p>`;
 
-                    const updateResult = await updateResponse.json();
-                    //console.log('🔁 Resultado de actualización de licencias:', updateResult);
+    const confirmacion = await Swal.fire({
+      title: '¿Autorizar esta venta?',
+      html: `<div class="text-left">${detallesHtml}</div>`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: '<i class="fas fa-check mr-2"></i>Sí, autorizar',
+      cancelButtonText: '<i class="fas fa-times mr-2"></i>Cancelar'
+    });
+    if (!confirmacion.isConfirmed) return;
 
-                    if (!updateResponse.ok || updateResult.codigo !== 1) {
-                        throw new Error(updateResult.mensaje || updateResult.detalle || 'Error al actualizar licencias');
-                    }
+    Swal.fire({
+      title: 'Autorizando venta...',
+      html: 'Por favor espere',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
-                    mensajeExito += `<br><small class="text-green-600">✅ Licencias actualizadas: ${formValues.length} serie(s)</small>`;
-                }
-            }
+    const response = await fetch('/ventas/autorizar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
 
-            // Mostrar mensaje final
-            await Swal.fire({
-                icon: 'success',
-                title: '¡Venta completada!',
-                html: mensajeExito,
-                confirmButtonColor: '#10b981'
-            });
+    if (response.status === 419)
+      throw new Error('Token CSRF inválido. Recarga la página e intenta nuevamente.');
 
-            this.cargarVentasPendientes();
+    if (!response.ok)
+      throw new Error(`Error ${response.status}: ${await response.text()}`);
 
-        } else {
-            throw new Error(result.mensaje || result.detalle || 'Error al autorizar la venta');
-        }
-        
-    } catch (error) {
-        console.error('❌ Error completo:', error);
-        
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            html: `
-                <div class="text-left">
-                    <p class="font-semibold mb-2">No se pudo autorizar la venta:</p>
-                    <p class="text-sm">${error.message}</p>
-                </div>
-            `,
-            confirmButtonColor: '#ef4444'
-        });
+    const result = await response.json();
+    if (result.codigo !== 1)
+      throw new Error(result.mensaje || result.detalle || 'Error al autorizar la venta');
+
+    let mensajeExito = result.mensaje || '¡Venta autorizada!';
+    if (result.meta?.qty_total) {
+      mensajeExito += `<br><small><strong>Total procesado:</strong> ${result.meta.qty_total} unidad(es)</small>`;
     }
+
+    // 💡 Licencias
+    if (seriesArray.length > 0) {
+      let htmlLicencias = `
+        <div style="max-height: 280px; overflow-y: auto; text-align: left;">
+          <p class="text-sm text-gray-600 mb-3">Ingresa las licencias para cada serie:</p>
+      `;
+      seriesArray.forEach(serieId => {
+        htmlLicencias += `
+          <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; margin-bottom: 8px; background-color: #f9fafb;">
+            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #374151;">🔫 Serie ID: ${serieId}</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <input id="lic-ant-${serieId}" class="swal2-input" style="margin:0;padding:6px;font-size:13px;" placeholder="Licencia anterior">
+              <input id="lic-nueva-${serieId}" class="swal2-input" style="margin:0;padding:6px;font-size:13px;" placeholder="Licencia nueva">
+            </div>
+          </div>`;
+      });
+      htmlLicencias += '</div>';
+
+      const { value: formValues } = await Swal.fire({
+        title: 'Actualizar Licencias',
+        html: htmlLicencias,
+        width: '500px', // 🔹 más pequeño
+        focusConfirm: false,
+        showCancelButton: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        confirmButtonText: '<i class="fas fa-save mr-2"></i>Guardar',
+        confirmButtonColor: '#10b981',
+        preConfirm: () => {
+          const licencias = [];
+          let errorMsg = '';
+          seriesArray.forEach(serieId => {
+            const anterior = document.getElementById(`lic-ant-${serieId}`)?.value.trim();
+            const nueva = document.getElementById(`lic-nueva-${serieId}`)?.value.trim();
+            if (!anterior || !nueva) {
+              errorMsg = `⚠️ Debes llenar ambas licencias para la serie ${serieId}`;
+            }
+            licencias.push({ serie_id: serieId, licencia_anterior: anterior, licencia_nueva: nueva });
+          });
+          if (errorMsg) {
+            Swal.showValidationMessage(errorMsg);
+            return false;
+          }
+          return licencias;
+        }
+      });
+
+      if (formValues && formValues.length > 0) {
+        Swal.fire({
+          title: 'Actualizando licencias...',
+          html: 'Por favor espere',
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading()
+        });
+
+        const updateResponse = await fetch('/ventas/actualizar-licencias', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ ven_id: ventaData.ven_id, licencias: formValues })
+        });
+
+        const updateResult = await updateResponse.json();
+
+        if (!updateResponse.ok || updateResult.codigo !== 1) {
+          throw new Error(updateResult.detalle || updateResult.mensaje || 'Error al actualizar licencias');
+        }
+
+        mensajeExito += `<br><small class="text-green-600">✅ Licencias actualizadas: ${formValues.length} serie(s)</small>`;
+      }
+    }
+
+    await Swal.fire({
+      icon: 'success',
+      title: '¡Venta completada!',
+      html: mensajeExito,
+      confirmButtonColor: '#10b981'
+    });
+
+    // 🔹 Ejecuta correctamente aunque esté dentro de clase
+    if (this.cargarVentasPendientes) {
+      this.cargarVentasPendientes();
+    } else if (typeof cargarVentasPendientes === 'function') {
+      cargarVentasPendientes();
+    }
+
+  } catch (error) {
+    console.error('❌ Error completo:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      html: `
+        <div class="text-left">
+          <p class="font-semibold mb-2">No se pudo autorizar la venta:</p>
+          <p class="text-sm">${error.message}</p>
+        </div>
+      `,
+      confirmButtonColor: '#ef4444'
+    });
+  }
 }
+
+
 
 
 async cargarVentasPendientes(filtros = {}) {
