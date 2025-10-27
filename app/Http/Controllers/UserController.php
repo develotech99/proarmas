@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\VerificarCorreoMailable;
 use App\Models\User;
+use App\Models\Clientes;
 use App\Models\Rol;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -49,14 +50,34 @@ class UserController extends Controller
     }
 
 
+    // public function indexMapa()
+    // {
+
+    //     $usuarios = User::where('user_rol', 2)
+    //         ->select('user_id', 'user_primer_nombre', 'user_primer_apellido', 'user_empresa')
+    //         ->orderBy('user_primer_nombre')
+    //         ->get();
+
+    //     return view('usuarios.mapa', compact('usuarios'));
+    // }
+
+
     public function indexMapa()
     {
-
-        $usuarios = User::where('user_rol', 2)
-            ->select('user_id', 'user_primer_nombre', 'user_primer_apellido', 'user_empresa')
-            ->orderBy('user_primer_nombre')
-            ->get();
-
+        $usuarios = Clientes::activos()
+            ->where('cliente_tipo', 3)
+            ->get()
+            ->map(function($cliente) {
+                $nombreCompleto = $cliente->cliente_nom_empresa . ' | ' . trim($cliente->cliente_nombre1 . ' ' . $cliente->cliente_apellido1);
+                return (object)[
+                    'user_id' => $cliente->cliente_id,
+                    'user_primer_nombre' => $nombreCompleto,
+                    'user_primer_apellido' => '',
+                    'user_empresa' => $cliente->cliente_nom_empresa,
+                    'name' => $nombreCompleto
+                ];
+            });
+    
         return view('usuarios.mapa', compact('usuarios'));
     }
 

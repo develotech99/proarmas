@@ -33,31 +33,16 @@ class PagosController extends Controller
         return view('pagos.administrar');
     }
 
+    /**
+     * ⭐ MÉTODO ACTUALIZADO: Muestra TODOS los pagos (general)
+     * Incluye información del cliente en cada registro
+     */
     public function MisFacturasPendientes(Request $request)
     {
         try {
-            $userId = auth()->id();
-            if (!$userId) {
-                return response()->json(['error' => 'No autenticado'], 401);
-            }
-
-            $cliente = DB::table('pro_clientes')
-                ->where('cliente_user_id', $userId)
-                ->first();
-
-            if (!$cliente) {
-                return response()->json([
-                    'codigo'  => 1,
-                    'mensaje' => 'No hay cliente asociado a este usuario',
-                    'data'    => [
-                        'pendientes' => [],
-                        'pagadas_ult4m' => [],
-                        'facturas_pendientes_all' => [],
-                        'all' => false
-                    ]
-                ]);
-            }
-
+            // ✅ ELIMINAMOS la validación de usuario autenticado
+            // Ya no filtramos por cliente específico
+            
             $verTodas = (bool) $request->boolean('all', false);
             $corte    = $verTodas ? Carbon::create(1900, 1, 1) : Carbon::now()->subMonths(4)->startOfDay();
 
@@ -90,18 +75,46 @@ class PagosController extends Controller
                 ])
                 ->groupBy('x.det_ven_id');
 
-            // ===== Ventas activas =====
+            // ===== Ventas activas (TODAS) con información del cliente =====
             $ventas = DB::table('pro_ventas as v')
                 ->join('pro_pagos as pg', 'pg.pago_venta_id', '=', 'v.ven_id')
+                ->leftJoin('pro_clientes as c', 'c.cliente_id', '=', 'v.ven_cliente')  // ⭐ JOIN con clientes
                 ->leftJoinSub($conceptoSub, 'cx', fn($j) => $j->on('cx.det_ven_id', '=', 'v.ven_id'))
-                ->where('v.ven_cliente', $cliente->cliente_id)
+                // ✅ ELIMINAMOS: ->where('v.ven_cliente', $cliente->cliente_id)
                 ->where('v.ven_situacion', 'ACTIVA')
                 ->select([
                     'v.ven_id',
+                    'v.ven_cliente',
                     'v.ven_fecha',
                     'v.ven_total_vendido',
                     'v.ven_descuento',
                     'v.ven_observaciones',
+                    
+                    // ⭐ Información del cliente
+                    DB::raw("
+                        CASE 
+                            WHEN c.cliente_tipo = 3 THEN 
+                                CONCAT(
+                                    COALESCE(c.cliente_nom_empresa, ''), 
+                                    ' | ', 
+                                    TRIM(CONCAT_WS(' ', 
+                                        COALESCE(c.cliente_nombre1, ''), 
+                                        COALESCE(c.cliente_apellido1, '')
+                                    ))
+                                )
+                            ELSE 
+                                TRIM(CONCAT_WS(' ', 
+                                    COALESCE(c.cliente_nombre1, ''),
+                                    COALESCE(c.cliente_nombre2, ''),
+                                    COALESCE(c.cliente_apellido1, ''),
+                                    COALESCE(c.cliente_apellido2, '')
+                                ))
+                        END as cliente_nombre
+                    "),
+                    DB::raw("COALESCE(c.cliente_nom_empresa, 'Sin Empresa') as cliente_empresa"),
+                    'c.cliente_nit',
+                    'c.cliente_telefono',
+                    
                     'pg.pago_id',
                     'pg.pago_tipo_pago',
                     'pg.pago_monto_total',
@@ -224,6 +237,15 @@ class PagosController extends Controller
                     'estado_pago'      => $v->pago_estado ?? ($pendiente > 0 ? 'PENDIENTE' : 'COMPLETADO'),
                     'observaciones'    => $v->ven_observaciones,
 
+                    // ⭐ INFORMACIÓN DEL CLIENTE (NUEVO)
+                    'cliente' => [
+                        'id'       => $v->ven_cliente,
+                        'nombre'   => $v->cliente_nombre ?? 'Sin Nombre',
+                        'empresa'  => $v->cliente_empresa ?? 'Sin Empresa',
+                        'nit'      => $v->cliente_nit ?? '—',
+                        'telefono' => $v->cliente_telefono ?? '—',
+                    ],
+
                     // lista explícita para el front:
                     'cuotas_en_revision'   => $enRevIds->values(),
                     'cuotas_disponibles'   => $disponibles,
@@ -254,7 +276,7 @@ class PagosController extends Controller
                 }
             }
 
-            // “facturas pendientes” = ventas con saldo (plano)
+            // "facturas pendientes" = ventas con saldo (plano)
             $facturasPendientesAll = collect($pendientes)->map(fn($r) => [
                 'venta_id'  => $r['venta_id'],
                 'fecha'     => $r['fecha'],
@@ -263,6 +285,7 @@ class PagosController extends Controller
                 'pagado'    => $r['pagado'],
                 'pendiente' => $r['pendiente'],
                 'estado'    => $r['estado_pago'],
+                'cliente'   => $r['cliente'],  // ⭐ Incluir info del cliente
             ])->values();
 
             return response()->json([
@@ -276,10 +299,16 @@ class PagosController extends Controller
                 ]
             ], 200);
         } catch (\Throwable $e) {
+            \Log::error('Error en MisFacturasPendientes', [
+                'mensaje' => $e->getMessage(),
+                'linea' => $e->getLine(),
+                'archivo' => $e->getFile()
+            ]);
+
             return response()->json([
                 'codigo'  => 0,
                 'mensaje' => 'Error al obtener datos',
-                'detalle' => $e->getMessage()
+                'detalle' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor'
             ], 500);
         }
     }
@@ -417,7 +446,6 @@ class PagosController extends Controller
             ], 200);
         }
     }
-
 
     
 }

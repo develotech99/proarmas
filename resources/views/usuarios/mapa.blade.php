@@ -168,7 +168,7 @@
 
         {{-- Formulario --}}
         <div class="min-w-0">
-            <form id="FormRegistroUbicaciones"
+            <form id="FormRegistroUbicaciones" enctype="multipart/form-data"
                 class="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-6">
                 <input id="ubi_id" name="ubi_id" type="hidden">
 
@@ -252,6 +252,29 @@
                             </button>
                         </div>
                     </div>
+                </div>
+
+
+                <div id="grupo_foto" class="mb-5">
+                    <label for="foto" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Foto de Referencia
+                    </label>
+                    <input type="file" id="foto" name="foto" accept="image/*"
+                        class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <small class="text-slate-500 dark:text-slate-400 text-xs">Formatos: JPG, PNG, GIF (máx. 2MB)</small>
+                </div>
+
+                <!-- Preview de la foto al seleccionarla -->
+                <div id="preview_foto_container" class="mb-5 hidden">
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Vista Previa:</label>
+                    <img id="preview_foto" src="" alt="Vista previa" class="rounded-xl border-2 border-slate-200 dark:border-slate-700 max-w-full h-48 object-cover">
+                </div>
+
+                <!-- Foto actual (solo aparece al editar) -->
+                <div id="foto_actual_container" class="mb-5 hidden">
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Foto Actual:</label>
+                    <img id="foto_actual" src="" alt="Foto actual" class="rounded-xl border-2 border-slate-200 dark:border-slate-700 max-w-full h-48 object-cover">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Selecciona una nueva foto para reemplazarla</p>
                 </div>
 
 
@@ -545,6 +568,14 @@
                         <tbody id="cm_hist_tb" class="divide-y"></tbody>
                     </table>
                 </div>
+            </div>
+            <!-- Foto de referencia de ubicación -->
+            <div id="cm_foto_container" class="px-6 pb-4 hidden">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Foto de Ubicación:
+                </label>
+                <img id="cm_foto" src="" alt="Foto de ubicación" 
+                    class="rounded-xl border-2 border-slate-200 dark:border-slate-700 max-w-full max-h-96 object-cover shadow-lg">
             </div>
 
             <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">

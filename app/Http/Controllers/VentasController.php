@@ -27,6 +27,9 @@ use Illuminate\Support\Facades\Log;
 class VentasController extends Controller
 {
 
+    // Constante para el monto de tenencia
+private const MONTO_TENENCIA = 60.00;
+
     public function index()
     {
         // // Datos necesarios para los selects y filtros
@@ -872,6 +875,7 @@ public function actualizarLicencias(Request $request): JsonResponse
                 'productos.*.requiere_serie' => 'required|in:0,1',
                 'productos.*.producto_requiere_stock' => 'required|in:0,1',
                 'productos.*.series_seleccionadas' => 'nullable|array',
+                'productos.*.series_con_tenencia' => 'nullable|array',
                 'productos.*.tiene_lotes' => 'required|boolean',
                 'productos.*.lotes_seleccionados' => 'nullable|array',
                 'productos.*.lotes_seleccionados.*.lote_id' => 'nullable|exists:pro_lotes,lote_id',

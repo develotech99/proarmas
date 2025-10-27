@@ -56,6 +56,13 @@ const el = {
 
   // Texto del botón principal Guardar/Modificar
   btnGuardarTexto: document.getElementById("btn_guardar_texto"),
+
+  // Foto
+  fotoInput: document.getElementById("foto"),
+  previewFotoContainer: document.getElementById("preview_foto_container"),
+  previewFoto: document.getElementById("preview_foto"),
+  fotoActualContainer: document.getElementById("foto_actual_container"),
+  fotoActual: document.getElementById("foto_actual"),
 };
 
 /* =========================
@@ -328,68 +335,89 @@ const buscarAPI = async () => {
   } finally {
     toastClose();
   }
-};
-
-const guardarRegistro = async (e) => {
+};const guardarRegistro = async (e) => {
   e.preventDefault();
-  if (!el.form || !el.visitado) return;
 
-  const excepciones = ["ubi_id", "busqueda_lugar"];
-  const s = (el.visitado.value || "").trim();
-  if (s === "1") excepciones.push("cantidad_vendida", "descripcion_venta");
-  if (s === "3") excepciones.push("cantidad_vendida", "descripcion_venta", "fecha_visita");
+  const isEdit = el.form.dataset.editing === "1";
+  const ubiId = document.getElementById("ubi_id")?.value;
 
-  if (!validarFormulario(el.form, excepciones)) {
-    Swal.fire({ title: "Campos vacíos", text: "Debe llenar todos los campos", icon: "info" });
+  // Validación manual solo de campos visibles
+  const clienteId = document.getElementById("cliente_id")?.value;
+  const lat = el.lat?.value;
+  const lng = el.lng?.value;
+  const visitado = document.getElementById("visitado")?.value;
+
+  if (!clienteId || !lat || !lng || !visitado) {
+    Swal.fire("Faltan datos", "Por favor completa todos los campos requeridos.", "warning");
     return;
   }
 
-  const fd = new FormData(el.form);
-  const formDataObj = {};
-  for (let [key, value] of fd.entries()) {
-    formDataObj[key] = value;
+  // Validación condicional según el estado
+  if (visitado === "1" || visitado === "2") {
+    const fechaVisita = el.fechaVisita?.value;
+    if (!fechaVisita) {
+      Swal.fire("Faltan datos", "La fecha de visita es requerida.", "warning");
+      return;
+    }
   }
 
-  const id = formDataObj["ubi_id"] || "";
-  let url = "/api/ubicaciones";
-  let method = "POST";
-  if (id) {
-    url = `/api/ubicaciones/${id}`;
-    method = "PUT";
+  if (visitado === "2") {
+    const cantidadVendida = document.getElementById("cantidad_vendida")?.value;
+    if (!cantidadVendida || parseFloat(cantidadVendida) <= 0) {
+      Swal.fire("Faltan datos", "La cantidad vendida debe ser mayor a 0.", "warning");
+      return;
+    }
   }
 
-  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+  // Usar FormData para soportar archivos
+  const formData = new FormData(el.form);
+
+  const url = isEdit ? `/api/ubicaciones/${ubiId}` : "/api/ubicaciones";
+  const method = "POST";
+
+  if (isEdit) {
+    formData.append("_method", "PUT");
+  }
+
+  toastLoading("Guardando…", "Por favor espere");
 
   try {
-    toastLoading(id ? "Actualizando información…" : "Guardando información…");
-    const resp = await fetch(url, {
+    const res = await fetch(url, {
       method,
       headers: {
-        "X-CSRF-TOKEN": token,
-        "Accept": "application/json",
-        "Content-Type": "application/json"
+        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
       },
-      body: JSON.stringify(formDataObj)
+      body: formData,
     });
 
-    const data = await resp.json();
-    if (data?.codigo === 1) {
-      await Swal.fire("Éxito", data?.mensaje || "Operación realizada correctamente", "success");
-      el.form.reset();
-      toggleVentaInfo(); toggleFechaVisita();
-      setEditMode(false);
-      await obtenerDatos();
-    } else {
-      await Swal.fire("Error", data?.detalle ? `${data?.mensaje || "Error"}` : (data?.mensaje || "Error al procesar la información"), "error");
-    }
-  } catch (error) {
-    console.error("Error completo:", error);
-    Swal.fire("Error", "Error de conexión", "error");
-  } finally {
+    const data = await res.json();
     toastClose();
+
+    if (data.codigo === 1) {
+      await Swal.fire("Éxito", data.mensaje, "success");
+      el.form.reset();
+      setEditMode(false);
+      toggleVentaInfo();
+      toggleFechaVisita();
+      
+      // Limpiar preview de foto
+      el.previewFotoContainer?.classList.add("hidden");
+      el.fotoActualContainer?.classList.add("hidden");
+      if (el.fotoInput) el.fotoInput.value = "";
+      
+      obtenerDatos();
+    } else {
+      const detalle = data.detalle
+        ? Object.values(data.detalle).flat().join("\n")
+        : data.mensaje;
+      Swal.fire("Error", detalle, "error");
+    }
+  } catch (err) {
+    toastClose();
+    Swal.fire("Error", "No se pudo guardar el registro.", "error");
+    console.error(err);
   }
 };
-
 
 const eliminarRegistro = async (ubiId) => {
   if (!ubiId) return;
@@ -530,6 +558,17 @@ const abrirModalCliente = async (userId) => {
         <td class="px-4 py-2">${h.hist_descripcion ?? '—'}</td>
       </tr>
     `).join('');
+
+// Mostrar foto de ubicación si existe
+const fotoContainer = document.getElementById('cm_foto_container');
+const fotoImg = document.getElementById('cm_foto');
+
+if (d.ubicacion && d.ubicacion.ubi_foto) {
+  fotoImg.src = '/' + d.ubicacion.ubi_foto;
+  fotoContainer?.classList.remove('hidden');
+} else {
+  fotoContainer?.classList.add('hidden');
+}
 
     modal.loading.classList.add('hidden');
     modal.vPane.classList.remove('hidden');
@@ -678,6 +717,7 @@ const filaHTML = (r) => `
           data-fecha="${r.visita_fecha ?? ""}"
           data-venta="${r.visita_venta ?? ""}"
           data-desc="${r.visita_descripcion ?? ""}"
+          data-foto="${r.ubi_foto || ''}">
         >Modificar</button>
 
         <button type="button"
@@ -734,29 +774,41 @@ const pintarTabla = (filas) => {
    FORM: CARGAR PARA EDITAR
 ========================= */
 const cargarEnFormulario = (d) => {
-  const f = el.form;
-  if (!f) return;
+  document.getElementById("ubi_id").value = d.ubi || "";
+  document.getElementById("cliente_id").value = d.user || "";
+  el.lat.value = d.lat || "";
+  el.lng.value = d.lng || "";
+  document.getElementById("direccion").value = d.dir || "";
 
-  f.querySelector("#ubi_id").value = d.ubi || "";
-  f.querySelector("#cliente_id").value = d.user || "";
-  f.querySelector("#direccion").value = d.dir || "";
-  f.querySelector("#visitado").value = d.estado || "";
+  const visitadoSel = document.getElementById("visitado");
+  if (visitadoSel) visitadoSel.value = d.estado || "3";
 
-  const fecha = d.fecha ? String(d.fecha).slice(0, 10) : "";
-  f.querySelector("#fecha_visita").value = fecha;
+  el.fechaVisita.value = d.fecha ? d.fecha.split(" ")[0] : "";
+  document.getElementById("cantidad_vendida").value = d.venta || "";
+  document.getElementById("descripcion_venta").value = d.desc || "";
 
-  f.querySelector("#lat").value = d.lat || "";
-  f.querySelector("#lng").value = d.lng || "";
-  f.querySelector("#cantidad_vendida").value = d.venta || "";
-  f.querySelector("#descripcion_venta").value = d.desc || "";
+  toggleVentaInfo();
+  toggleFechaVisita();
 
-  f.querySelector("#visitado").dispatchEvent(new Event("change", { bubbles: true }));
+  // Mostrar foto actual si existe
+  if (d.foto) {
+    el.fotoActual.src = "/" + d.foto;
+    el.fotoActualContainer?.classList.remove("hidden");
+  } else {
+    el.fotoActualContainer?.classList.add("hidden");
+  }
 
-  const lat = parseFloat(d.lat), lng = parseFloat(d.lng);
-  if (!isNaN(lat) && !isNaN(lng)) { setMarkerEdicion(lat, lng, "Ubicación del cliente"); flyTo(lat, lng, 17); }
+  // Limpiar preview y input de nueva foto
+  el.previewFotoContainer?.classList.add("hidden");
+  if (el.fotoInput) el.fotoInput.value = "";
+
+  if (d.lat && d.lng) {
+    setMarkerEdicion(parseFloat(d.lat), parseFloat(d.lng), "Cliente seleccionado");
+    flyTo(parseFloat(d.lat), parseFloat(d.lng), 16);
+    setStatus("Cliente cargado para edición.");
+  }
 
   setEditMode(true);
-  f.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
 /* =========================
@@ -803,6 +855,7 @@ const onClickGlobal = (e) => {
       fecha: btn.dataset.fecha,
       venta: btn.dataset.venta,
       desc: btn.dataset.desc,
+      foto: btn.dataset.foto,
     };
     cargarEnFormulario(d);
     return;
@@ -875,6 +928,20 @@ document.addEventListener("DOMContentLoaded", () => {
   el.visitado?.addEventListener("change", () => { toggleVentaInfo(); toggleFechaVisita(); });
   toggleFechaVisita();
   el.form?.addEventListener("submit", guardarRegistro);
+  // Preview de foto al seleccionar archivo
+  el.fotoInput?.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        el.previewFoto.src = e.target.result;
+        el.previewFotoContainer.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    } else {
+      el.previewFotoContainer.classList.add("hidden");
+    }
+  });
 
   // Delegado global para botones (tabla y popups de marcadores)
   document.addEventListener("click", onClickGlobal);

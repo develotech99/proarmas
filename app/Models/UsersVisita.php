@@ -20,7 +20,20 @@ class UsersVisita extends Model
         'visita_descripcion',
     ];
 
-    public function user(){
-        return $this->belongsTo(User::class, 'visita_user', 'user_id');
+    protected $casts = [
+        'visita_fecha' => 'datetime',
+        'visita_venta' => 'decimal:2',
+    ];
+
+    // Relación: Una visita pertenece a un cliente
+    public function cliente()
+    {
+        return $this->belongsTo(Clientes::class, 'visita_user', 'cliente_id');
+    }
+
+    // Relación: Una visita tiene muchos historiales
+    public function historiales()
+    {
+        return $this->hasMany(UsersHistorialVisitas::class, 'hist_visita_id', 'visita_id');
     }
 }

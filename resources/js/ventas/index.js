@@ -2448,23 +2448,38 @@ btnReservar?.addEventListener('click', async () => {
         }
     });
 })();
-
 function calcularTotales() {
     const subtotal = carritoProductos.reduce(
         (sum, p) => sum + p.precio * p.cantidad,
         0
     );
-    const descuento =
-        parseFloat(document.getElementById("descuentoModal").value) || 0;
+    
+    // ✅ MODIFICADO: Contar tenencias por serie
+    const totalTenencia = carritoProductos.reduce((sum, p) => {
+        if (p.seriesConTenencia) {
+            const numTenencias = Object.keys(p.seriesConTenencia).length;
+            return sum + (numTenencias * 60);
+        }
+        return sum;
+    }, 0);
+    
+    const descuento = parseFloat(document.getElementById("descuentoModal").value) || 0;
     const descuentoMonto = subtotal * (descuento / 100);
-    const total = subtotal - descuentoMonto;
+    const total = subtotal - descuentoMonto + totalTenencia;
 
-    document.getElementById("subtotalModal").textContent = `Q${subtotal.toFixed(
-        2
-    )}`;
+    document.getElementById("subtotalModal").textContent = `Q${subtotal.toFixed(2)}`;
+    
+    const tenenciaEl = document.getElementById("tenenciaModal");
+    if (tenenciaEl) {
+        tenenciaEl.textContent = `Q${totalTenencia.toFixed(2)}`;
+        const tenenciaRow = tenenciaEl.closest('.tenencia-row');
+        if (tenenciaRow) {
+            tenenciaRow.classList.toggle('hidden', totalTenencia === 0);
+        }
+    }
+    
     document.getElementById("totalModal").textContent = `Q${total.toFixed(2)}`;
 }
-
 function actualizarContadorCarrito() {
     const contador = carritoProductos.reduce((sum, p) => sum + p.cantidad, 0);
     const badge = document.getElementById("contadorCarrito");
@@ -2538,105 +2553,166 @@ document.addEventListener("DOMContentLoaded", function () {
     actualizarContadorCarrito();
     calcularTotales();
 });
-
 async function seleccionarSeries(producto_id) {
     const id = String(producto_id);
     const p = carritoProductos.find((x) => String(x.producto_id) === id);
     if (!p) return;
 
     if ((p.requiere_serie ?? p.producto_requiere_serie) != 1) {
-        return mostrarNotificacion?.(
-            "Este producto no requiere series.",
-            "info"
-        );
+        return mostrarNotificacion?.("Este producto no requiere series.", "info");
     }
 
     const cantidad = Number(p.cantidad || 0);
-    const disponibles = Array.isArray(p.series_disponibles)
-        ? p.series_disponibles
-        : [];
-    const yaSel = new Set(
-        Array.isArray(p.seriesSeleccionadas) ? p.seriesSeleccionadas : []
-    );
+    const disponibles = Array.isArray(p.series_disponibles) ? p.series_disponibles : [];
+    const yaSel = new Set(Array.isArray(p.seriesSeleccionadas) ? p.seriesSeleccionadas : []);
+    
+    // ✅ NUEVO: Verificar tenencias ya seleccionadas
+    const tenenciasExistentes = p.seriesConTenencia || {};
 
-    // Armar HTML de checkboxes
+    // ✅ MODIFICADO: Armar HTML con checkbox de tenencia por serie
     const opciones = disponibles
         .map((s) => {
             const serie = s.serie_numero_serie ?? s.numero ?? String(s);
             const checked = yaSel.has(serie) ? "checked" : "";
+            const tenenciaChecked = tenenciasExistentes[serie] ? "checked" : "";
+            
             return `
-          <label class="flex items-center gap-2 text-sm py-1">
-            <input type="checkbox" class="serie-opt" value="${serie}" ${checked}>
-            <span class="font-mono">${serie}</span>
-          </label>`;
+          <div class="flex items-center gap-3 py-2 px-2 hover:bg-gray-50 rounded border-b">
+            <label class="flex items-center gap-2 flex-1">
+              <input type="checkbox" class="serie-opt w-4 h-4" value="${serie}" ${checked}>
+              <span class="font-mono font-semibold">${serie}</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm text-blue-700 ${checked ? '' : 'opacity-30 pointer-events-none'}">
+              <input type="checkbox" class="tenencia-opt w-4 h-4" data-serie="${serie}" ${tenenciaChecked} ${checked ? '' : 'disabled'}>
+              <span class="whitespace-nowrap">+Q60 tenencia</span>
+            </label>
+          </div>`;
         })
         .join("");
 
-    const { value: ok } = await Swal.fire({
+    const { value: resultado } = await Swal.fire({
         title: `Selecciona ${cantidad} serie(s)`,
         html: `
-          <div class="text-left max-h-64 overflow-auto px-1">
-            ${
-                opciones ||
-                '<div class="text-sm text-gray-500">Sin series disponibles.</div>'
-            }
+          <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
+            <div class="text-sm font-semibold text-blue-900 mb-1">
+              <i class="fas fa-info-circle mr-1"></i>
+              Puedes cobrar tenencia individual por cada serie
+            </div>
+            <div class="text-lg font-bold text-blue-700" id="tenenciaInfo">
+              Total tenencia: Q0.00
+            </div>
           </div>
-          <div class="mt-3 text-xs text-gray-600">
-            Seleccionadas: <span id="selCount">${
-                yaSel.size
-            }</span> / ${cantidad}
+          
+          <div class="text-left max-h-80 overflow-auto border rounded p-2 bg-gray-50">
+            ${opciones || '<div class="text-sm text-gray-500 text-center py-4">Sin series disponibles.</div>'}
+          </div>
+          
+          <div class="mt-3 flex justify-between text-sm px-2">
+            <span class="text-gray-600">Seleccionadas:</span>
+            <span class="font-bold"><span id="selCount">${yaSel.size}</span> / ${cantidad}</span>
           </div>
         `,
+        width: '600px',
         showCancelButton: true,
         confirmButtonText: "Guardar",
         cancelButtonText: "Cancelar",
         didOpen: () => {
-            const checks =
-                Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const checks = Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const tenenciaChecks = Swal.getHtmlContainer().querySelectorAll(".tenencia-opt");
             const selCount = Swal.getHtmlContainer().querySelector("#selCount");
+            const tenenciaInfo = Swal.getHtmlContainer().querySelector("#tenenciaInfo");
 
+            // ✅ NUEVO: Función para actualizar info de tenencia
+            function actualizarTenencia() {
+                const numTenencias = Array.from(tenenciaChecks).filter(c => c.checked && !c.disabled).length;
+                const monto = numTenencias * 60;
+                tenenciaInfo.textContent = `Total tenencia: Q${monto.toFixed(2)}`;
+            }
+
+            // ✅ NUEVO: Al marcar/desmarcar una serie, habilitar/deshabilitar su checkbox de tenencia
             checks.forEach((chk) => {
                 chk.addEventListener("change", () => {
-                    const current = Array.from(checks).filter(
-                        (c) => c.checked
-                    ).length;
-                    selCount.textContent = current;
+                    const serie = chk.value;
+                    const tenenciaChk = Swal.getHtmlContainer().querySelector(`.tenencia-opt[data-serie="${serie}"]`);
+                    const row = chk.closest('div');
+                    
+                    if (chk.checked) {
+                        // Habilitar checkbox de tenencia
+                        tenenciaChk.disabled = false;
+                        row.querySelector('label:last-child').classList.remove('opacity-30', 'pointer-events-none');
+                    } else {
+                        // Deshabilitar y desmarcar checkbox de tenencia
+                        tenenciaChk.disabled = true;
+                        tenenciaChk.checked = false;
+                        row.querySelector('label:last-child').classList.add('opacity-30', 'pointer-events-none');
+                    }
 
-                    // No permitir seleccionar más que la cantidad requerida (bloqueo soft)
+                    const current = Array.from(checks).filter((c) => c.checked).length;
+                    selCount.textContent = current;
+                    actualizarTenencia();
+
+                    // No permitir seleccionar más que la cantidad requerida
                     if (current > cantidad) {
                         chk.checked = false;
-                        selCount.textContent = Array.from(checks).filter(
-                            (c) => c.checked
-                        ).length;
-                        mostrarNotificacion?.(
-                            `Solo puedes seleccionar ${cantidad} serie(s).`,
-                            "warning"
-                        );
+                        const tenenciaChk = Swal.getHtmlContainer().querySelector(`.tenencia-opt[data-serie="${serie}"]`);
+                        tenenciaChk.disabled = true;
+                        tenenciaChk.checked = false;
+                        row.querySelector('label:last-child').classList.add('opacity-30', 'pointer-events-none');
+                        
+                        selCount.textContent = Array.from(checks).filter((c) => c.checked).length;
+                        actualizarTenencia();
+                        mostrarNotificacion?.(`Solo puedes seleccionar ${cantidad} serie(s).`, "warning");
                     }
                 });
             });
+
+            // ✅ NUEVO: Al marcar/desmarcar checkbox de tenencia, actualizar total
+            tenenciaChecks.forEach((tenChk) => {
+                tenChk.addEventListener("change", actualizarTenencia);
+            });
+            
+            actualizarTenencia(); // Inicializar
         },
         preConfirm: () => {
-            const checks =
-                Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const checks = Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const tenenciaChecks = Swal.getHtmlContainer().querySelectorAll(".tenencia-opt");
+            
             const seleccionadas = Array.from(checks)
                 .filter((c) => c.checked)
                 .map((c) => c.value);
+            
+            // ✅ NUEVO: Crear objeto con tenencias por serie
+            const tenenciasPorSerie = {};
+            Array.from(tenenciaChecks).forEach((tc) => {
+                if (tc.checked && !tc.disabled) {
+                    tenenciasPorSerie[tc.dataset.serie] = true;
+                }
+            });
 
             if (seleccionadas.length !== cantidad) {
-                Swal.showValidationMessage(
-                    `Debes seleccionar exactamente ${cantidad} serie(s).`
-                );
+                Swal.showValidationMessage(`Debes seleccionar exactamente ${cantidad} serie(s).`);
                 return false;
             }
-            return seleccionadas;
+            
+            return {
+                series: seleccionadas,
+                tenencias: tenenciasPorSerie
+            };
         },
     });
 
-    if (ok) {
-        p.seriesSeleccionadas = ok; // guardamos exactamente cantidad series
+    if (resultado) {
+        p.seriesSeleccionadas = resultado.series;
+        p.seriesConTenencia = resultado.tenencias; // ✅ NUEVO: Guardar tenencias por serie
+        
+        // ✅ NUEVO: Contar cuántas tenencias se cobraron
+        const numTenencias = Object.keys(resultado.tenencias).length;
+        
         actualizarVistaCarrito();
-        mostrarNotificacion?.("Series actualizadas.", "success");
+        calcularTotales();
+        
+        const msgTenencia = numTenencias > 0 ? ` (+Q${numTenencias * 60} tenencia en ${numTenencias} serie${numTenencias > 1 ? 's' : ''})` : '';
+        mostrarNotificacion?.(`Series actualizadas${msgTenencia}`, "success");
     }
 }
 
@@ -3490,8 +3566,18 @@ async function procesarVentaFinal() {
         
         // Calcular totales
         const subtotal = carritoProductos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
+
+        // ✅ NUEVO: Calcular tenencia
+        const totalTenencia = carritoProductos.reduce((sum, p) => {
+            if (p.seriesConTenencia) {
+                const numTenencias = Object.keys(p.seriesConTenencia).length;
+                return sum + (numTenencias * 60);
+            }
+            return sum;
+        }, 0);
+
         const descuentoMonto = subtotal * (descuento / 100);
-        const total = subtotal - descuentoMonto;
+        const total = subtotal - descuentoMonto + totalTenencia; // ✅ SUMAR TENENCIA
 
         // 2. DATOS DE VENTA
         const datosVenta = {
@@ -3522,7 +3608,8 @@ async function procesarVentaFinal() {
                 
                 // Lotes si los tiene
                 tiene_lotes: (Array.isArray(producto.lotes) && producto.lotes.length > 0),
-                lotes_seleccionados: producto.lotesSeleccionados || []
+                lotes_seleccionados: producto.lotesSeleccionados || [],
+                series_con_tenencia: producto.seriesConTenencia || {}  // ✅ NUEVO
             }))
         };
 

@@ -12,14 +12,15 @@ class UsersUbicacion extends Model
     protected $table = 'users_ubicaciones';
     protected $primaryKey = 'ubi_id';
 
-    protected $fillable =[
+    protected $fillable = [
         'ubi_user',
         'ubi_latitud',
         'ubi_longitud',
         'ubi_descripcion',
+        'ubi_foto'
     ];
     
-    public function user(){
-        return $this->belongsTo(User::class, 'ubi_user', 'user_id');
+    public function cliente(){
+        return $this->belongsTo(Clientes::class, 'ubi_user', 'cliente_id');
     }
 }
