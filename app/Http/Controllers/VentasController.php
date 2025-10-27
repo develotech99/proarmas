@@ -1279,7 +1279,7 @@ public function cancelarVenta(Request $request): JsonResponse
             }
 
             // 5. CALCULAR PORCENTAJE DEL VENDEDOR
-            $porcentaje = 5.0;  // Porcentaje de comisión del vendedor
+            $porcentaje = 2.5;  // Porcentaje de comisión del vendedor
             $ganancia = $totalVenta * ($porcentaje / 100);  // Cálculo de la ganancia
 
             // Registrar la comisión en la tabla pro_porcentaje_vendedor
