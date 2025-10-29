@@ -350,7 +350,7 @@ Route::middleware('auth')->group(function () {
 
     // Rutas CRUD de Clientes
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
-    Route::post('/clientes', [ClientesController::class, 'store'])->name('clientes.store');
+    Route::post('/api/clientes/create', [VentasController::class, 'guardarCliente'])->name('ventas.api.clientes.guardar');
     Route::put('/clientes/{cliente}', [ClientesController::class, 'update'])->name('clientes.update');
     Route::delete('/clientes/{cliente}', [ClientesController::class, 'destroy'])->name('clientes.destroy');
     

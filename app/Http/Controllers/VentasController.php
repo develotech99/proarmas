@@ -264,78 +264,92 @@ private const MONTO_TENENCIA = 60.00;
     /**
      * Store a newly created resource in storage.
      */
-    public function guardarCliente(Request $request)
-    {
-        try {
-            $data = $request->validate([
-                'cliente_nombre1' => ['required', 'string', 'max:50'],
-                'cliente_nombre2' => ['nullable', 'string', 'max:50'],
-                'cliente_apellido1' => ['required', 'string', 'max:50'],
-                'cliente_apellido2' => ['nullable', 'string', 'max:50'],
-                'cliente_dpi' => ['nullable', 'string', 'max:20'],
-                'cliente_nit' => ['nullable', 'string', 'max:20'],
-                'cliente_direccion' => ['nullable', 'string', 'max:255'],
-                'cliente_telefono' => ['nullable', 'string', 'max:30'],
-                'cliente_correo' => ['nullable', 'email', 'max:150'],
-                'cliente_tipo' => ['required', 'integer', 'in:1,2,3'],
-                'cliente_user_id' => ['nullable', 'integer'],
-                'cliente_nom_empresa' => ['nullable', 'string', 'max:255'],
-                'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
-                'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
-                'cliente_ubicacion' => ['nullable', 'string', 'max:255'],
-                'cliente_pdf_licencia' => ['nullable', 'file', 'mimes:pdf', 'max:10240'], //Validar PDF
-            ]);
+  /**
+ * Store a newly created resource in storage.
+ */
+/**
+ * Store a newly created resource in storage.
+ */
+public function guardarCliente(Request $request)
+{
+    try {
+        $reglas = [
+            'cliente_nombre1' => ['required', 'string', 'max:50'],
+            'cliente_nombre2' => ['nullable', 'string', 'max:50'],
+            'cliente_apellido1' => ['required', 'string', 'max:50'],
+            'cliente_apellido2' => ['nullable', 'string', 'max:50'],
+            'cliente_dpi' => ['nullable', 'string', 'max:20', 'unique:pro_clientes,cliente_dpi'],
+            'cliente_nit' => ['nullable', 'string', 'max:20', 'unique:pro_clientes,cliente_nit'],
+            'cliente_direccion' => ['nullable', 'string', 'max:255'],
+            'cliente_telefono' => ['nullable', 'string', 'max:30'],
+            'cliente_correo' => ['nullable', 'email', 'max:150'],
+            'cliente_tipo' => ['required', 'integer', 'in:1,2,3'],
+            'cliente_user_id' => ['nullable', 'integer'],
+            'cliente_nom_empresa' => ['nullable', 'string', 'max:255'],
+            'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
+            'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
+            'cliente_ubicacion' => ['nullable', 'string', 'max:255'],
+            'cliente_pdf_licencia' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+        ];
 
-            // Asegurar que cliente_situacion tenga valor por defecto
-            if (!isset($data['cliente_situacion'])) {
-                $data['cliente_situacion'] = 1;
-            }
+        $mensajes = [
+            'cliente_nombre1.required' => 'El primer nombre es obligatorio',
+            'cliente_apellido1.required' => 'El primer apellido es obligatorio',
+            'cliente_dpi.unique' => 'Ya existe un cliente registrado con este DPI',
+            'cliente_nit.unique' => 'Ya existe un cliente registrado con este NIT',
+            'cliente_correo.email' => 'El correo electrónico no tiene un formato válido',
+            'cliente_tipo.required' => 'El tipo de cliente es obligatorio',
+            'cliente_tipo.in' => 'El tipo de cliente no es válido',
+            'cliente_pdf_licencia.mimes' => 'El archivo debe ser un PDF',
+            'cliente_pdf_licencia.max' => 'El archivo PDF no debe superar los 10MB',
+        ];
 
-            // Manejar subida de PDF si existe
-            if ($request->hasFile('cliente_pdf_licencia')) {
-                $file = $request->file('cliente_pdf_licencia');
+        $data = $request->validate($reglas, $mensajes);
 
-                // Crear nombre único para el archivo
-                $fileName = 'licencia_' . time() . '_' . uniqid() . '.pdf';
-
-                // Guardar en storage/app/public/clientes/licencias/
-                $path = $file->storeAs('clientes/licencias', $fileName, 'public');
-
-                // Agregar la ruta al array de datos
-                $data['cliente_pdf_licencia'] = $path;
-            }
-
-            $cliente = Clientes::create($data);
-
-            return response()->json([
-                'success' => true,
-                'data' => $cliente,
-                'message' => 'Cliente guardado correctamente'
-            ], 201);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Error de validación:', ['errors' => $e->errors()]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Error de validación',
-                'errors' => $e->errors()
-            ], 422);
-
-        } catch (\Exception $e) {
-            \Log::error('Error al guardar cliente:', [
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'data' => $request->except('cliente_pdf_licencia') // No loguear el archivo
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error interno del servidor',
-                'error' => $e->getMessage()
-            ], 500);
+        // Asegurar que cliente_situacion tenga valor por defecto
+        if (!isset($data['cliente_situacion'])) {
+            $data['cliente_situacion'] = 1;
         }
+
+        // Manejar subida de PDF si existe
+        if ($request->hasFile('cliente_pdf_licencia')) {
+            $file = $request->file('cliente_pdf_licencia');
+            $fileName = 'licencia_' . time() . '_' . uniqid() . '.pdf';
+            $path = $file->storeAs('clientes/licencias', $fileName, 'public');
+            $data['cliente_pdf_licencia'] = $path;
+        }
+
+        $cliente = Clientes::create($data);
+
+        return response()->json([
+            'codigo' => 1,
+            'mensaje' => 'Cliente guardado correctamente',
+            'data' => $cliente
+        ], 201);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('Error de validación:', ['errors' => $e->errors()]);
+        return response()->json([
+            'codigo' => 0,
+            'mensaje' => 'Error de validación',
+            'errores' => $e->errors()
+        ], 422);
+
+    } catch (\Exception $e) {
+        \Log::error('Error al guardar cliente:', [
+            'message' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile(),
+            'data' => $request->except('cliente_pdf_licencia')
+        ]);
+
+        return response()->json([
+            'codigo' => 0,
+            'mensaje' => 'Error al guardar el cliente',
+            'detalle' => $e->getMessage()
+        ], 500);
     }
+}
 
 
 

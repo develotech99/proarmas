@@ -472,24 +472,40 @@ class ClientesManager {
 
     async createCliente(formData) {
         try {
-            const response = await fetch('/clientes', {
+            const response = await fetch('/api/clientes/create', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': this.csrfToken
                 },
                 body: formData
             });
-
+    
             const data = await response.json();
-
-            if (data.success) {
-                this.showAlert('success', '¡Éxito!', data.message);
+    
+            // Verificar éxito usando ambos formatos
+            const isSuccess = data.success === true || data.codigo === 1;
+    
+            if (isSuccess) {
+                const mensaje = data.mensaje || data.message || 'Cliente guardado correctamente';
+                this.showAlert('success', '¡Éxito!', mensaje);
                 this.closeModal();
                 
-                // Recargar página para actualizar datos
                 setTimeout(() => window.location.reload(), 1500);
             } else {
-                this.handleErrors(data);
+                // Manejar errores
+                const errores = data.errores || data.errors;
+                
+                if (errores) {
+                    // Convertir objeto de errores a texto legible
+                    const mensajesError = Object.values(errores)
+                        .flat()
+                        .join('<br>');
+                    
+                    this.showAlert('error', 'Error de validación', mensajesError);
+                } else {
+                    const mensaje = data.mensaje || data.message || 'Ocurrió un error al crear el cliente';
+                    this.showAlert('error', 'Error', mensaje);
+                }
             }
         } catch (error) {
             console.error('Error al crear cliente:', error);
