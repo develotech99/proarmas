@@ -567,7 +567,7 @@ function mostrarProductos(productosData) {
               ${
                   producto.precio_venta_empresa
                       ? `
-                <div class="text-sm text-blue-600">Precio especial: Q${parseFloat(
+                <div class="text-sm text-blue-600">Precio empresa: Q${parseFloat(
                     producto.precio_venta_empresa
                 ).toFixed(2)}</div>
               `
@@ -998,7 +998,7 @@ function agregarProductoAlCarrito(producto) {
 
             // 🔹 PRECIOS CORREGIDOS - mantener valores originales
             precio_venta: precioVenta,                    // Precio normal
-            precio_venta_empresa: precioVentaEmpresa,     // Precio especial
+            precio_venta_empresa: precioVentaEmpresa,     // Precio 
             precio: precioInicial,                         // Precio que se está usando
             precio_activo: precioActivo,                   // 'normal' o 'empresa'
 
@@ -2131,7 +2131,7 @@ function actualizarVistaCarrito() {
                                 ${p.precio_activo === 'normal' 
                                     ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
                                     : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
-                            Venta (Q${p.precio_venta.toFixed(2)})
+                            Precio Individual (Q${p.precio_venta.toFixed(2)})
                         </button>
                         ${tienePrecioEmpresa ? `
                         <button type="button"
@@ -2142,7 +2142,7 @@ function actualizarVistaCarrito() {
                                 ${p.precio_activo === 'empresa' 
                                     ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
                                     : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
-                            Especial (Q${p.precio_venta_empresa.toFixed(2)})
+                            Precio Empresa (Q${p.precio_venta_empresa.toFixed(2)})
                         </button>
                         ` : ''}
 

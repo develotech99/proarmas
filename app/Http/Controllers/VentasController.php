@@ -1860,7 +1860,7 @@ public function procesarVenta(Request $request): JsonResponse
         }
 
         // 5. COMISIÓN
-        $porcentaje = 5.0;
+        $porcentaje = 2.5;
         $ganancia = $totalVenta * ($porcentaje / 100);
 
         DB::table('pro_porcentaje_vendedor')->insert([
