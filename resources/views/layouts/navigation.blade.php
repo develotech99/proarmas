@@ -3,7 +3,8 @@
     ventas: false,
     documentacion: false,
     configuracion: false,
-    usuarios: false
+    usuarios: false,
+    facturacion: false,
 }">
     <!-- Logo Header -->
     <div class="flex items-center justify-center h-16 bg-slate-900 border-b border-slate-700">
@@ -52,7 +53,6 @@
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform -translate-y-2" class="mt-2 space-y-1 ml-2">
-                <!-- Armas -->
                 <a href="inventario"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,8 +62,6 @@
                     </svg>
                     <span>Ingreso al Inventario</span>
                 </a>
-
-
             </div>
         </div>
 
@@ -83,7 +81,6 @@
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform -translate-y-2" class="mt-2 space-y-1 ml-2">
-                <!-- Clientes -->
                 <a href="clientes"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,7 +91,6 @@
                     <span>Clientes</span>
                 </a>
 
-                <!-- Ventas -->
                 <a href="{{ route('ventas.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,7 +101,6 @@
                     <span>Ventas</span>
                 </a>
 
-                <!-- Detalle Venta -->
                 <a href="{{ route('reportes.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,7 +111,6 @@
                     <span>Detalle de Ventas</span>
                 </a>
 
-                <!-- comision por vendedor -->
                 <a href="{{ route('comisiones.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,7 +120,6 @@
                     </svg>
                     <span>Comision vendedor</span>
                 </a>
-                
             </div>
         </div>
 
@@ -146,9 +139,6 @@
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform -translate-y-2" class="mt-2 space-y-1 ml-2">
-
-                <!-- Mis Pagos (para usuario) -->
-
                 <a href="{{ route('subir.pago') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,8 +149,6 @@
                     <span>Mis Pagos</span>
                 </a>
 
-                <!-- Opciones para el Administrador -->
-
                 <a href="{{ route('admin.pagos') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,11 +158,8 @@
                     </svg>
                     <span>Administrar Pagos</span>
                 </a>
-
             </div>
         </div>
-
-
 
         <!-- Documentación Section -->
         <div class="pt-4">
@@ -193,7 +178,6 @@
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform -translate-y-2" class="mt-2 space-y-1 ml-2">
-                <!-- Licencias -->
                 <a href="{{ route('prolicencias.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,28 +187,6 @@
                     </svg>
                     <span>Licencias</span>
                 </a>
-
-                <!-- Documentos -->
-                <!-- <a href="{{ route('prolicencias.index') }}"
-                    class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                        </path>
-                    </svg>
-                    <span>Documentación Legal</span>
-                </a> -->
-
-                <!-- DIGECAM -->
-                <!-- <a href="#"
-                    class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                        </path>
-                    </svg>
-                    <span>DIGECAM</span>
-                </a> -->
             </div>
         </div>
 
@@ -245,7 +207,6 @@
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform -translate-y-2" class="mt-2 space-y-1 ml-2">
-                <!-- Países -->
                 <a href="paises"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,7 +217,6 @@
                     <span>Países</span>
                 </a>
 
-                <!-- Métodos de Pago -->
                 <a href="metodos-pago"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,7 +227,6 @@
                     <span>Métodos de Pago</span>
                 </a>
 
-                <!-- Empresas de JM -->
                 <a href="proempresas"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,7 +237,6 @@
                     <span>Empresas JM</span>
                 </a>
 
-                <!-- Tipos de armas -->
                 <a href="categorias"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,7 +246,7 @@
                     </svg>
                     <span>Categorías y subcategorías</span>
                 </a>
-                <!-- Marcas -->
+
                 <a href="marcas"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -298,7 +256,7 @@
                     </svg>
                     <span>Marcas</span>
                 </a>
-                <!-- Modelos -->
+
                 <a href="{{ route('modelos.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -309,8 +267,6 @@
                     <span>Modelos</span>
                 </a>
 
-
-                <!-- unidades de medida -->
                 <a href="unidades-medida"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -320,7 +276,7 @@
                     </svg>
                     <span>Unidades de Medida</span>
                 </a>
-                <!-- calibres  -->
+
                 <a href="calibres"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -329,15 +285,11 @@
                         </path>
                     </svg>
                     <span>Calibres</span>
-
                 </a>
-
             </div>
         </div>
 
-        <!-- usuarios -->
-
-        <!-- Configuración Section -->
+        <!-- Usuarios Section -->
         <div class="pt-4">
             <button @click="usuarios = !usuarios"
                 class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-300 focus:outline-none transition-colors">
@@ -353,7 +305,6 @@
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform -translate-y-2" class="mt-2 space-y-1 ml-2">
-                <!-- Usuarios -->
                 <a href="{{ route('usuarios.index') }}"
                     class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -376,6 +327,33 @@
             </div>
         </div>
 
+        <!-- Facturación Section -->
+        <div class="pt-4">
+            <button @click="facturacion = !facturacion"
+                class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-300 focus:outline-none transition-colors">
+                <span>Facturación</span>
+                <svg class="w-4 h-4 transform transition-transform duration-200" :class="{ 'rotate-180': facturacion }"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+
+            <div x-show="facturacion" x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 transform -translate-y-2"
+                x-transition:enter-end="opacity-100 transform translate-y-0"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 transform translate-y-0"
+                x-transition:leave-end="opacity-0 transform -translate-y-2" class="mt-2 space-y-1 ml-2">
+                <a href="{{ url('/facturacion') }}"
+                    class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Generar Facturas</span>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- User Profile Section -->
@@ -396,10 +374,10 @@
                 </div>
             </div>
 
-            <!-- Dropdown Menu -->
+            <!-- Dropdown Menu CORREGIDO -->
             <div x-data="{ open: false }" class="relative">
                 <button @click="open = !open"
-                    class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">
+                    class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
@@ -408,16 +386,16 @@
                 </button>
 
                 <div x-show="open" @click.away="open = false" x-transition
-                    class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200">
+                    class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
                     <div class="py-1">
                         <a href="{{ route('profile.edit') }}"
-                            class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                            class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                             Mi Perfil
                         </a>
-                        <form method="POST" action="{{ route('logout') }}">
+                        <form method="POST" action="{{ route('logout') }}" class="w-full">
                             @csrf
                             <button type="submit"
-                                class="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                                class="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                                 Cerrar Sesión
                             </button>
                         </form>
