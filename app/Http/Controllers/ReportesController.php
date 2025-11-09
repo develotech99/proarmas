@@ -100,65 +100,83 @@ class ReportesController extends Controller
     /**
      * Reporte de ventas detallado
      */
-    public function getReporteVentas(Request $request): JsonResponse
-    {
-        try {
-            $query = ProVenta::with([
-                'vendedor:user_id,user_primer_nombre,user_primer_apellido',
-                'detalleVentas.producto:producto_id,producto_nombre,pro_codigo_sku',
-                'cliente:cliente_id,cliente_nombre1,cliente_apellido1,cliente_dpi',
-                'pagos.detallesPago.metodoPago:metpago_id,metpago_descripcion'
-            ]);
+public function getReporteVentas(Request $request): JsonResponse
+{
+    try {
+        $query = ProVenta::with([
+            'vendedor:user_id,user_primer_nombre,user_primer_apellido',
+            'detalleVentas.producto:producto_id,producto_nombre,pro_codigo_sku',
+            'cliente:cliente_id,cliente_nombre1,cliente_apellido1,cliente_dpi',
+            'pagos.detallesPago.metodoPago:metpago_id,metpago_descripcion'
+        ]);
 
-            // Filtro por fecha
-            if ($request->filled('fecha_inicio')) {
-                $query->whereDate('ven_fecha', '>=', $request->fecha_inicio);
+        // Filtro por fecha
+        if ($request->filled('fecha_inicio')) {
+            $query->whereDate('ven_fecha', '>=', $request->fecha_inicio);
+        }
+
+        if ($request->filled('fecha_fin')) {
+            $query->whereDate('ven_fecha', '<=', $request->fecha_fin);
+        }
+
+        // Filtro por vendedor
+        if ($request->filled('vendedor_id')) {
+            $query->where('ven_user', $request->vendedor_id);
+        }
+
+        // Filtro por cliente - CORREGIDO: búsqueda por nombre o DPI
+        if ($request->filled('cliente_buscar')) {
+            $busqueda = $request->cliente_buscar;
+            $query->whereHas('cliente', function ($q) use ($busqueda) {
+                $q->where('cliente_nombre1', 'LIKE', "%{$busqueda}%")
+                    ->orWhere('cliente_apellido1', 'LIKE', "%{$busqueda}%")
+                    ->orWhere('cliente_dpi', 'LIKE', "%{$busqueda}%");
+            });
+        }
+
+        // Filtro por estado
+        if ($request->filled('estado')) {
+            $query->where('ven_situacion', $request->estado);
+        }
+
+        // Calcular estado de pago para cada venta
+        $ventas = $query->orderBy('ven_fecha', 'desc')
+            ->paginate($request->get('per_page', 25));
+
+        // Agregar información calculada a cada venta
+        $ventas->getCollection()->transform(function ($venta) {
+            // Calcular estado de pago
+            $totalPagado = $venta->pagos->sum('pago_monto_abonado');
+            $totalVenta = $venta->ven_total_vendido;
+
+            if ($totalPagado == 0) {
+                $venta->estado_pago = 'PENDIENTE';
+            } elseif ($totalPagado >= $totalVenta) {
+                $venta->estado_pago = 'COMPLETADO';
+            } else {
+                $venta->estado_pago = 'PARCIAL';
             }
 
-            if ($request->filled('fecha_fin')) {
-                $query->whereDate('ven_fecha', '<=', $request->fecha_fin);
-            }
+            $venta->total_pagado = $totalPagado;
+            $venta->saldo_pendiente = $totalVenta - $totalPagado;
+            
+            return $venta; // ← AGREGA ESTE RETURN
+        }); // ← AGREGA ESTE CIERRE DE PARÉNTESIS Y PUNTO Y COMA
 
-            // Filtro por vendedor
-            if ($request->filled('vendedor_id')) {
-                $query->where('ven_user', $request->vendedor_id);
-            }
+        return response()->json([
+            'success' => true,
+            'data' => $ventas
+        ]); // ← AGREGA EL RETURN DE LA RESPUESTA
 
-            // Filtro por cliente - CORREGIDO: búsqueda por nombre o DPI
-            if ($request->filled('cliente_buscar')) {
-                $busqueda = $request->cliente_buscar;
-                $query->whereHas('cliente', function ($q) use ($busqueda) {
-                    $q->where('cliente_nombre1', 'LIKE', "%{$busqueda}%")
-                        ->orWhere('cliente_apellido1', 'LIKE', "%{$busqueda}%")
-                        ->orWhere('cliente_dpi', 'LIKE', "%{$busqueda}%");
-                });
-            }
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener el reporte de ventas',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+} 
 
-            // Filtro por estado
-            if ($request->filled('estado')) {
-                $query->where('ven_situacion', $request->estado);
-            }
-
-            // Calcular estado de pago para cada venta
-            $ventas = $query->orderBy('ven_fecha', 'desc')
-                ->paginate($request->get('per_page', 25));
-
-            // Agregar información calculada a cada venta
-            $ventas->getCollection()->transform(function ($venta) {
-                // Calcular estado de pago
-                $totalPagado = $venta->pagos->sum('pago_monto_abonado');
-                $totalVenta = $venta->ven_total_vendido;
-
-                if ($totalPagado == 0) {
-                    $venta->estado_pago = 'PENDIENTE';
-                } elseif ($totalPagado >= $totalVenta) {
-                    $venta->estado_pago = 'COMPLETADO';
-                } else {
-                    $venta->estado_pago = 'PARCIAL';
-                }
-
-                $venta->total_pagado = $totalPagado;
-                $venta->saldo_pendiente = $totalVenta - $totalPagado;
 
 public function buscarClientes(Request $request): JsonResponse
 {
@@ -238,6 +256,7 @@ public function buscarClientes(Request $request): JsonResponse
             'results' => []
         ], 500);
     }
+}
 
     /**
      * Reporte de productos más vendidos

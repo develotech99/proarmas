@@ -70,6 +70,7 @@ return new class extends Migration
             $table->id('marca_id');
             $table->string('marca_descripcion', 50)->nullable();
             $table->integer('marca_situacion')->default(1);
+            $table->timestamps();
             $table->index('marca_situacion');
         });
 
@@ -351,6 +352,8 @@ return new class extends Migration
             $table->timestamp('serie_fecha_ingreso')->useCurrent();
             $table->string('serie_observaciones', 255)->nullable();
             $table->integer('serie_situacion')->default(1);
+            $table->boolean('serie_tiene_tenencia')->default(false);
+            $table->decimal('serie_monto_tenencia', 8, 2)->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->unsignedBigInteger('serie_asignacion_id')->nullable();
@@ -572,7 +575,7 @@ return new class extends Migration
             $table->unsignedInteger('ven_cliente')->nullable();
             $table->decimal('ven_total_vendido', 10, 2);
             $table->decimal('ven_descuento', 10, 2)->default(0);
-            $table->enum('ven_situacion', ['ACTIVA', 'ANULADA', 'PENDIENTE'])->default('ACTIVA');
+            $table->enum('ven_situacion', ['ACTIVA', 'ANULADA', 'PENDIENTE','RESERVADA'])->default('ACTIVA');
             $table->string('ven_observaciones', 200)->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
@@ -769,25 +772,26 @@ return new class extends Migration
 
         Schema::create('users_ubicaciones', function (Blueprint $table) {
             $table->id('ubi_id');
-            $table->unsignedBigInteger('ubi_user');
+            $table->unsignedInteger('ubi_user');
             $table->decimal('ubi_latitud', 9, 6);
             $table->decimal('ubi_longitud', 9, 6);
             $table->string('ubi_descripcion', 255)->nullable();
+            $table->string('ubi_foto', 255)->nullable();
             $table->timestamps();
             
-            $table->foreign('ubi_user')->references('user_id')->on('users')->onDelete('cascade');
+            $table->foreign('ubi_user')->references('cliente_id')->on('pro_clientes')->onDelete('cascade');
         });
 
         Schema::create('users_visitas', function (Blueprint $table) {
             $table->id('visita_id');
-            $table->unsignedBigInteger('visita_user');
+            $table->unsignedInteger('visita_user');
             $table->dateTime('visita_fecha')->nullable();
             $table->integer('visita_estado');
             $table->decimal('visita_venta', 10, 2);
             $table->text('visita_descripcion')->nullable();
             $table->timestamps();
             
-            $table->foreign('visita_user')->references('user_id')->on('users');
+            $table->foreign('visita_user')->references('cliente_id')->on('pro_clientes')->onDelete('cascade');
         });
 
         Schema::create('users_historial_visitas', function (Blueprint $table) {

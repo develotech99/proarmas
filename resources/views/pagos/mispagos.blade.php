@@ -209,14 +209,14 @@
     <!-- Encabezado -->
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Control de Pagos</h2>
-        <p class="text-gray-600">Aquí puedes ver todas tus facturas, su estado y los pagos asociados.</p>
+        <p class="text-gray-600">Aquí puedes ver todos los pagos, su estado y subir la transferencia del pago si corresponde, si es por cuotas.</p>
     </div>
 
     <!-- Estadísticas de Facturas -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div class="bg-white shadow rounded-lg p-4 flex items-center justify-between">
             <div>
-                <p class="text-gray-500">Total de Facturas</p>
+                <p class="text-gray-500">Total de pagos</p>
                 <p class="text-2xl font-semibold text-gray-800" id="totalFacturas">0</p>
             </div>
             <div class="w-12 h-12 flex items-center justify-center bg-blue-100 rounded-full">
@@ -230,7 +230,7 @@
 
         <div class="bg-white shadow rounded-lg p-4 flex items-center justify-between">
             <div>
-                <p class="text-gray-500">Facturas Pendientes</p>
+                <p class="text-gray-500">Pagos Pendientes</p>
                 <p class="text-2xl font-semibold text-gray-800" id="facturasPendientes">0</p>
             </div>
             <div class="w-12 h-12 flex items-center justify-center bg-yellow-100 rounded-full">

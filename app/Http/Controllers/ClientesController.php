@@ -6,196 +6,167 @@ use App\Models\Clientes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class ClientesController extends Controller
 {
-    public function index()
-    {
-        $clientes = Clientes::where('cliente_situacion', 1)
-                           ->orderBy('cliente_id', 'desc')
-                           ->paginate(20);
-        
-        // Para uso en JavaScript
-        $clientesData = $clientes->getCollection()->map(function($cliente) {
-            return [
-                'cliente_id' => $cliente->cliente_id,
-                'cliente_nombre1' => $cliente->cliente_nombre1,
-                'cliente_nombre2' => $cliente->cliente_nombre2,
-                'cliente_apellido1' => $cliente->cliente_apellido1,
-                'cliente_apellido2' => $cliente->cliente_apellido2,
-                'cliente_dpi' => $cliente->cliente_dpi,
-                'cliente_nit' => $cliente->cliente_nit,
-                'cliente_direccion' => $cliente->cliente_direccion,
-                'cliente_telefono' => $cliente->cliente_telefono,
-                'cliente_correo' => $cliente->cliente_correo,
-                'cliente_tipo' => $cliente->cliente_tipo,
-                'cliente_situacion' => $cliente->cliente_situacion,
-                'cliente_user_id' => $cliente->cliente_user_id,
-                'cliente_nom_empresa' => $cliente->cliente_nom_empresa,
-                'cliente_nom_vendedor' => $cliente->cliente_nom_vendedor,
-                'cliente_cel_vendedor' => $cliente->cliente_cel_vendedor,
-                'cliente_ubicacion' => $cliente->cliente_ubicacion,
-                'nombre_completo' => trim($cliente->cliente_nombre1 . ' ' . 
-                                         ($cliente->cliente_nombre2 ?? '') . ' ' . 
-                                         $cliente->cliente_apellido1 . ' ' . 
-                                         ($cliente->cliente_apellido2 ?? '')),
-                'created_at' => $cliente->created_at,
-            ];
-        });
-
-        // Obtener usuarios premium para el select
-        $usuariosPremium = DB::table('users')->where('user_rol', 2)->get();
-
-        // Estadísticas para KPIs
-        $stats = [
-            'total' => Clientes::where('cliente_situacion', 1)->count(),
-            'normales' => Clientes::where('cliente_situacion', 1)->where('cliente_tipo', 1)->count(),
-            'premium' => Clientes::where('cliente_situacion', 1)->where('cliente_tipo', 2)->count(),
-            'empresas' => Clientes::where('cliente_situacion', 1)->where('cliente_tipo', 3)->count(),
-            'este_mes' => Clientes::where('cliente_situacion', 1)
-                                 ->whereMonth('created_at', now()->month)
-                                 ->whereYear('created_at', now()->year)
-                                 ->count(),
-        ];
-
-        return view('clientes.index', compact('clientes', 'clientesData', 'usuariosPremium', 'stats'));
-    }
-
     /**
-     * Store a newly created resource in storage.
+     * Display a listing of the resource.
      */
-    public function store(Request $request)
+    public function index(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'cliente_nombre1' => ['required', 'string', 'max:50'],
-                'cliente_nombre2' => ['nullable', 'string', 'max:50'],
-                'cliente_apellido1' => ['required', 'string', 'max:50'],
-                'cliente_apellido2' => ['nullable', 'string', 'max:50'],
-                'cliente_dpi' => ['nullable', 'string', 'max:20'],
-                'cliente_nit' => ['nullable', 'string', 'max:20'],
-                'cliente_direccion' => ['nullable', 'string', 'max:255'],
-                'cliente_telefono' => ['nullable', 'string', 'max:30'],
-                'cliente_correo' => ['nullable', 'email', 'max:150'],
-                'cliente_tipo' => ['required', 'integer', 'in:1,2,3'],
-                'cliente_user_id' => ['nullable', 'integer'],
-                'cliente_nom_empresa' => ['nullable', 'string', 'max:255'],
-                'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
-                'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
-                'cliente_ubicacion' => ['nullable', 'string', 'max:255'],
-            ], [
-                'cliente_nombre1.required' => 'El primer nombre es obligatorio',
-                'cliente_apellido1.required' => 'El primer apellido es obligatorio',
-                'cliente_tipo.required' => 'El tipo de cliente es obligatorio',
-                'cliente_tipo.in' => 'El tipo de cliente no es válido',
-                'cliente_correo.email' => 'El correo electrónico no es válido',
-            ]);
+            $query = Clientes::where('cliente_situacion', 1);
 
-            // Asegurar situación activa
-            $validated['cliente_situacion'] = 1;
+            // Filtros
+            if ($request->filled('buscar')) {
+                $buscar = $request->buscar;
+                $query->where(function($q) use ($buscar) {
+                    $q->where('cliente_nombre1', 'like', "%{$buscar}%")
+                      ->orWhere('cliente_apellido1', 'like', "%{$buscar}%")
+                      ->orWhere('cliente_dpi', 'like', "%{$buscar}%")
+                      ->orWhere('cliente_nit', 'like', "%{$buscar}%")
+                      ->orWhere('cliente_nom_empresa', 'like', "%{$buscar}%");
+                });
+            }
+
+            if ($request->filled('tipo')) {
+                $query->where('cliente_tipo', $request->tipo);
+            }
+
+            $clientes = $query->orderBy('cliente_id', 'desc')->paginate(10);
             
-            // Limpiar cliente_user_id si está vacío
-            if (!isset($validated['cliente_user_id']) || $validated['cliente_user_id'] === '') {
-                $validated['cliente_user_id'] = null;
+            // Para uso en JavaScript
+            $clientesData = $clientes->getCollection()->map(function($cliente) {
+                return [
+                    'cliente_id' => $cliente->cliente_id,
+                    'cliente_nombre1' => $cliente->cliente_nombre1,
+                    'cliente_nombre2' => $cliente->cliente_nombre2,
+                    'cliente_apellido1' => $cliente->cliente_apellido1,
+                    'cliente_apellido2' => $cliente->cliente_apellido2,
+                    'cliente_dpi' => $cliente->cliente_dpi,
+                    'cliente_nit' => $cliente->cliente_nit,
+                    'cliente_direccion' => $cliente->cliente_direccion,
+                    'cliente_telefono' => $cliente->cliente_telefono,
+                    'cliente_correo' => $cliente->cliente_correo,
+                    'cliente_tipo' => $cliente->cliente_tipo,
+                    'cliente_situacion' => $cliente->cliente_situacion,
+                    'cliente_user_id' => $cliente->cliente_user_id,
+                    'cliente_nom_empresa' => $cliente->cliente_nom_empresa,
+                    'cliente_nom_vendedor' => $cliente->cliente_nom_vendedor,
+                    'cliente_cel_vendedor' => $cliente->cliente_cel_vendedor,
+                    'cliente_ubicacion' => $cliente->cliente_ubicacion,
+                    'cliente_pdf_licencia' => $cliente->cliente_pdf_licencia,
+                    'nombre_completo' => trim($cliente->cliente_nombre1 . ' ' . 
+                                             ($cliente->cliente_nombre2 ?? '') . ' ' . 
+                                             $cliente->cliente_apellido1 . ' ' . 
+                                             ($cliente->cliente_apellido2 ?? '')),
+                    'created_at' => $cliente->created_at,
+                    'tiene_pdf' => !empty($cliente->cliente_pdf_licencia),
+                ];
+            });
+
+            // Obtener usuarios premium para el select
+            // CORREGIDO: Verificar primero qué columna existe para el rol
+            try {
+                // Intenta con user_rol primero
+                $usuariosPremium = DB::table('users')
+                    ->where('user_rol', 2)
+                    ->select('id', 'name', 'email')
+                    ->get();
+            } catch (\Exception $e) {
+                // Si falla, intenta con role o role_id
+                try {
+                    $usuariosPremium = DB::table('users')
+                        ->where('role', 2)
+                        ->select('id', 'name', 'email')
+                        ->get();
+                } catch (\Exception $e2) {
+                    // Si todo falla, devuelve array vacío
+                    Log::warning('No se pudo determinar la columna de rol de usuarios', [
+                        'error' => $e2->getMessage()
+                    ]);
+                    $usuariosPremium = collect([]);
+                }
             }
 
-            // Si no es tipo empresa (3), limpiar campos de empresa
-            if ($validated['cliente_tipo'] != 3) {
-                $validated['cliente_nom_empresa'] = null;
-                $validated['cliente_nom_vendedor'] = null;
-                $validated['cliente_cel_vendedor'] = null;
-                $validated['cliente_ubicacion'] = null;
-            }
+            // Estadísticas para KPIs
+            $stats = [
+                'total' => Clientes::where('cliente_situacion', 1)->count(),
+                'normales' => Clientes::where('cliente_situacion', 1)->where('cliente_tipo', 1)->count(),
+                'premium' => Clientes::where('cliente_situacion', 1)->where('cliente_tipo', 2)->count(),
+                'empresas' => Clientes::where('cliente_situacion', 1)->where('cliente_tipo', 3)->count(),
+                'este_mes' => Clientes::where('cliente_situacion', 1)
+                                     ->whereMonth('created_at', now()->month)
+                                     ->whereYear('created_at', now()->year)
+                                     ->count(),
+            ];
 
-            $cliente = Clientes::create($validated);
+            return view('clientes.index', compact('clientes', 'clientesData', 'usuariosPremium', 'stats'));
 
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'mensaje' => 'Cliente creado exitosamente',
-                    'data' => $cliente
-                ], 201);
-            }
-
-            return redirect()->route('clientes.index')
-                ->with('success', 'Cliente creado exitosamente');
-                
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Error de validación:', ['errors' => $e->errors()]);
-            
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'mensaje' => 'Error de validación',
-                    'errors' => $e->errors()
-                ], 422);
-            }
-
-            return redirect()->back()
-                ->withErrors($e->errors())
-                ->withInput();
-                
         } catch (\Exception $e) {
-            Log::error('Error al crear cliente:', [
+            Log::error('Error en ClientesController@index:', [
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'data' => $request->all()
+                'file' => $e->getFile()
             ]);
 
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'mensaje' => 'Error al crear el cliente',
-                    'error' => $e->getMessage()
-                ], 500);
+            // En desarrollo, mostrar el error
+            if (config('app.debug')) {
+                throw $e;
             }
 
-            return redirect()->back()
-                ->with('error', 'Error al crear el cliente')
-                ->withInput();
+            // En producción, mostrar página de error amigable
+            return response()->view('errors.500', [], 500);
         }
     }
+
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request)
+    public function update(Request $request, Clientes $cliente)
     {
+        $validator = Validator::make($request->all(), [
+            'cliente_nombre1' => ['required', 'string', 'max:50'],
+            'cliente_nombre2' => ['nullable', 'string', 'max:50'],
+            'cliente_apellido1' => ['required', 'string', 'max:50'],
+            'cliente_apellido2' => ['nullable', 'string', 'max:50'],
+            'cliente_dpi' => ['nullable', 'string', 'max:20'],
+            'cliente_nit' => ['nullable', 'string', 'max:20'],
+            'cliente_direccion' => ['nullable', 'string', 'max:255'],
+            'cliente_telefono' => ['nullable', 'string', 'max:30'],
+            'cliente_correo' => ['nullable', 'email', 'max:150'],
+            'cliente_tipo' => ['required', 'integer', 'in:1,2,3'],
+            'cliente_user_id' => ['nullable', 'integer'],
+            'cliente_nom_empresa' => ['nullable', 'string', 'max:255'],
+            'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
+            'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
+            'cliente_ubicacion' => ['nullable', 'string', 'max:255'],
+            'cliente_pdf_licencia' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+        ], [
+            'cliente_nombre1.required' => 'El primer nombre es obligatorio',
+            'cliente_apellido1.required' => 'El primer apellido es obligatorio',
+            'cliente_tipo.required' => 'El tipo de cliente es obligatorio',
+            'cliente_correo.email' => 'El correo electrónico no es válido',
+            'cliente_pdf_licencia.mimes' => 'El archivo debe ser un PDF',
+            'cliente_pdf_licencia.max' => 'El archivo no debe superar los 10MB',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
         try {
-            $id = (int)$request->cliente_id;
-            
-            if (!$id) {
-                throw new \Exception('ID de cliente no proporcionado');
-            }
-
-            $cliente = Clientes::findOrFail($id);
-
-            $validated = $request->validate([
-                'cliente_nombre1' => ['required', 'string', 'max:50'],
-                'cliente_nombre2' => ['nullable', 'string', 'max:50'],
-                'cliente_apellido1' => ['required', 'string', 'max:50'],
-                'cliente_apellido2' => ['nullable', 'string', 'max:50'],
-                'cliente_dpi' => ['nullable', 'string', 'max:20'],
-                'cliente_nit' => ['nullable', 'string', 'max:20'],
-                'cliente_direccion' => ['nullable', 'string', 'max:255'],
-                'cliente_telefono' => ['nullable', 'string', 'max:30'],
-                'cliente_correo' => ['nullable', 'email', 'max:150'],
-                'cliente_tipo' => ['required', 'integer', 'in:1,2,3'],
-                'cliente_user_id' => ['nullable', 'integer'],
-                'cliente_nom_empresa' => ['nullable', 'string', 'max:255'],
-                'cliente_nom_vendedor' => ['nullable', 'string', 'max:255'],
-                'cliente_cel_vendedor' => ['nullable', 'string', 'max:30'],
-                'cliente_ubicacion' => ['nullable', 'string', 'max:255'],
-            ], [
-                'cliente_nombre1.required' => 'El primer nombre es obligatorio',
-                'cliente_apellido1.required' => 'El primer apellido es obligatorio',
-                'cliente_tipo.required' => 'El tipo de cliente es obligatorio',
-                'cliente_correo.email' => 'El correo electrónico no es válido',
-            ]);
+            $validated = $validator->validated();
 
             // Limpiar cliente_user_id si está vacío
-            if (!isset($validated['cliente_user_id']) || $validated['cliente_user_id'] === '') {
+            if (!isset($validated['cliente_user_id']) || $validated['cliente_user_id'] === '' || $validated['cliente_user_id'] === 'null') {
                 $validated['cliente_user_id'] = null;
             }
 
@@ -205,81 +176,160 @@ class ClientesController extends Controller
                 $validated['cliente_nom_vendedor'] = null;
                 $validated['cliente_cel_vendedor'] = null;
                 $validated['cliente_ubicacion'] = null;
+                
+                // Si tenía PDF anterior, eliminarlo
+                if ($cliente->cliente_pdf_licencia) {
+                    Storage::disk('public')->delete($cliente->cliente_pdf_licencia);
+                    Log::info('PDF eliminado al cambiar tipo de cliente:', [
+                        'path' => $cliente->cliente_pdf_licencia
+                    ]);
+                    $validated['cliente_pdf_licencia'] = null;
+                }
+            } else {
+                // Si es empresa y se sube nuevo PDF
+                if ($request->hasFile('cliente_pdf_licencia')) {
+                    // Eliminar PDF anterior si existe
+                    if ($cliente->cliente_pdf_licencia) {
+                        Storage::disk('public')->delete($cliente->cliente_pdf_licencia);
+                        Log::info('PDF anterior eliminado:', [
+                            'path' => $cliente->cliente_pdf_licencia
+                        ]);
+                    }
+                    
+                    $file = $request->file('cliente_pdf_licencia');
+                    
+                    // IMPORTANTE: Usar la misma ruta que en VentasController
+                    $fileName = 'licencia_' . time() . '_' . uniqid() . '.pdf';
+                    $path = $file->storeAs('clientes/licencias', $fileName, 'public');
+                    
+                    $validated['cliente_pdf_licencia'] = $path;
+                    
+                    Log::info('Nuevo PDF guardado:', [
+                        'path' => $path
+                    ]);
+                } else {
+                    // Mantener el PDF actual si no se sube uno nuevo
+                    unset($validated['cliente_pdf_licencia']);
+                }
             }
 
             $cliente->update($validated);
 
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'mensaje' => 'Cliente actualizado correctamente',
-                    'data' => $cliente
-                ]);
-            }
+            Log::info('Cliente actualizado exitosamente:', [
+                'cliente_id' => $cliente->cliente_id
+            ]);
 
-            return redirect()->route('clientes.index')
-                ->with('success', 'Cliente actualizado correctamente');
-                
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'mensaje' => 'Error de validación',
-                    'errors' => $e->errors()
-                ], 422);
-            }
+            // Recargar el modelo para obtener los datos actualizados
+            $cliente->refresh();
 
-            return redirect()->back()
-                ->withErrors($e->errors())
-                ->withInput();
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente actualizado correctamente',
+                'data' => $cliente
+            ]);
                 
         } catch (\Exception $e) {
             Log::error('Error al actualizar cliente:', [
                 'message' => $e->getMessage(),
-                'cliente_id' => $request->cliente_id ?? 'N/A'
+                'cliente_id' => $cliente->cliente_id,
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
 
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'mensaje' => 'Error al actualizar: ' . $e->getMessage()
-                ], 500);
-            }
-
-            return redirect()->back()
-                ->with('error', 'Error al actualizar el cliente')
-                ->withInput();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar: ' . $e->getMessage()
+            ], 500);
         }
     }
 
     /**
      * Remove the specified resource from storage (soft delete).
      */
-    public function destroy(Request $request)
+    public function destroy(Clientes $cliente)
     {
         try {
-            $id = (int) $request->cliente_id;
-            
-            if (!$id) {
-                throw new \Exception('ID de cliente no proporcionado');
-            }
-
-            $cliente = Clientes::findOrFail($id);
-
             // Soft delete - cambiar situación a 0
             $cliente->update(['cliente_situacion' => 0]);
 
-            return redirect()->route('clientes.index')
-                ->with('success', 'Cliente eliminado correctamente');
+            Log::info('Cliente eliminado (soft delete):', [
+                'cliente_id' => $cliente->cliente_id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente eliminado correctamente'
+            ]);
                 
         } catch (\Exception $e) {
             Log::error('Error al eliminar cliente:', [
                 'message' => $e->getMessage(),
-                'cliente_id' => $request->cliente_id ?? 'N/A'
+                'cliente_id' => $cliente->cliente_id,
+                'trace' => $e->getTraceAsString()
             ]);
 
-            return redirect()->route('clientes.index')
-                ->with('error', 'Error al eliminar el cliente');
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el cliente'
+            ], 500);
         }
     }
+
+    /**
+     * Mostrar el PDF de licencia del cliente
+     */
+    public function verPdfLicencia(Clientes $cliente)
+    {
+        try {
+            if (!$cliente->cliente_pdf_licencia) {
+                Log::warning('Intento de ver PDF sin archivo:', [
+                    'cliente_id' => $cliente->cliente_id
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este cliente no tiene PDF de licencia'
+                ], 404);
+            }
+
+            $path = storage_path('app/public/' . $cliente->cliente_pdf_licencia);
+            
+            Log::info('Intentando mostrar PDF:', [
+                'cliente_id' => $cliente->cliente_id,
+                'path' => $path,
+                'exists' => file_exists($path)
+            ]);
+            
+            if (!file_exists($path)) {
+                Log::error('Archivo PDF no encontrado:', [
+                    'cliente_id' => $cliente->cliente_id,
+                    'path' => $path,
+                    'cliente_pdf_licencia' => $cliente->cliente_pdf_licencia
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El archivo PDF no se encuentra en el servidor'
+                ], 404);
+            }
+
+            return response()->file($path, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="licencia_cliente_' . $cliente->cliente_id . '.pdf"'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al mostrar PDF:', [
+                'message' => $e->getMessage(),
+                'cliente_id' => $cliente->cliente_id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar el PDF: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

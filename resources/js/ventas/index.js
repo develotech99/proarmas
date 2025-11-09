@@ -3,6 +3,7 @@ const btnBuscarCliente = document.getElementById("btnBuscarCliente");
 const tipoClienteSelect = document.getElementById("tipoCliente");
 const selectorPremium = document.getElementById("selectorPremium");
 const clientePremiumSelect = document.getElementById("clientePremium");
+let cargandoReserva = false;
 async function clientesParticulares() {
     const nit = document.getElementById("nitClientes").value.trim();
     const dpi = document.getElementById("dpiClientes").value.trim();
@@ -566,7 +567,7 @@ function mostrarProductos(productosData) {
               ${
                   producto.precio_venta_empresa
                       ? `
-                <div class="text-sm text-blue-600">Precio especial: Q${parseFloat(
+                <div class="text-sm text-blue-600">Precio empresa: Q${parseFloat(
                     producto.precio_venta_empresa
                 ).toFixed(2)}</div>
               `
@@ -855,8 +856,13 @@ document
     .addEventListener("input", calcularTotales);
 
 function abrirCarrito() {
+  
     const modal = document.getElementById("modalCarrito");
     const panel = document.getElementById("panelCarrito");
+const v = validarCliente();
+ const clienteId = v.clienteId;
+ console.log('cliente desde abrir carrito',clienteId);
+ cargarReservaCliente(clienteId);
 
     modal.classList.remove("hidden");
     setTimeout(() => {
@@ -992,7 +998,7 @@ function agregarProductoAlCarrito(producto) {
 
             // 🔹 PRECIOS CORREGIDOS - mantener valores originales
             precio_venta: precioVenta,                    // Precio normal
-            precio_venta_empresa: precioVentaEmpresa,     // Precio especial
+            precio_venta_empresa: precioVentaEmpresa,     // Precio 
             precio: precioInicial,                         // Precio que se está usando
             precio_activo: precioActivo,                   // 'normal' o 'empresa'
 
@@ -1082,9 +1088,899 @@ function eliminarProducto(producto_id) {
     actualizarContadorCarrito?.();
 }
 
+function routeReservarURL() {
+  // Si usas Ziggy: return route('reservas.procesar');
+  return '/reservas/procesar';
+}
+
+async function procesarReserva() {
+    const v = validarCliente();
+  const btn = document.getElementById('btnReservar');
+  if (!v.valido) {
+    Swal?.fire?.('Falta cliente', v.error, 'warning');
+    return; // corta aquí
+  }
+  const clienteId = v.clienteId;
+  console.log('clienteId detectado ->', clienteId);
+  
+  try {
+    btn && (btn.disabled = true);
+
+    // === 1) Lee datos base de la UI (ajusta selectores si difieren) ===
+   // const clienteId = Number(document.getElementById('cliente_id')?.value || 0);
+    const fechaReserva = document.getElementById('fecha_reserva')?.value || new Date().toISOString().slice(0,10);
+    const diasVigencia = Number(document.getElementById('dias_vigencia')?.value || 7);
+    const observaciones = (document.getElementById('observaciones')?.value || '').trim();
+
+
+    if (!Array.isArray(carritoProductos) || carritoProductos.length === 0) {
+      throw new Error('El carrito está vacío.');
+    }
+
+    // Si tienes una función que calcula totales, úsala. Si no, calculo mínimo:
+    const totales = (typeof getTotales === 'function') ? getTotales() : null;
+    const subtotal = Number(totales?.subtotal ?? carritoProductos.reduce((a,p)=> a + (Number(p.precio||0) * Number(p.cantidad||0)), 0));
+    const descuento_porcentaje = Number(totales?.descuento_porcentaje ?? 0);
+    const descuento_monto = Number(totales?.descuento_monto ?? 0);
+    const total = Number(totales?.total ?? (subtotal - descuento_monto));
+
+    // === 2) Construye productos como exige tu validador ===
+    const productos = carritoProductos.map(p => {
+      const cantidad = Number(p.cantidad || 0);
+      const precioUnitario = Number(p.precio || 0);
+
+      const requiereSerie = Number(p.producto_requiere_serie ?? 0) === 1 ? 1 : 0;
+      const seriesSeleccionadas = Array.isArray(p.seriesSeleccionadas) ? p.seriesSeleccionadas : [];
+
+      const tieneLotes = Array.isArray(p.lotes) && p.lotes.length > 0;
+      const lotesSeleccionados = Array.isArray(p.lotesSeleccionados)
+        ? p.lotesSeleccionados.map(it => ({
+            lote_id: Number(it.lote_id),
+            cantidad: Number(it.cantidad || 0),
+          }))
+        : [];
+
+      return {
+        producto_id: Number(p.producto_id),
+        cantidad: cantidad,
+        precio_unitario: precioUnitario,
+        subtotal_producto: Number((precioUnitario * cantidad).toFixed(2)),
+        requiere_serie: requiereSerie,
+        producto_requiere_stock: Number(p.producto_requiere_stock ?? 1) === 1 ? 1 : 0,
+        series_seleccionadas: requiereSerie ? seriesSeleccionadas : [],
+        tiene_lotes: !!tieneLotes,
+        lotes_seleccionados: tieneLotes ? lotesSeleccionados : []
+      };
+    });
+
+    // === 3) Payload final ===
+    const payload = {
+      cliente_id: clienteId,
+      fecha_reserva: fechaReserva,
+      subtotal,
+      descuento_porcentaje,
+      descuento_monto,
+      total,
+      productos,
+      observaciones,
+      dias_vigencia: diasVigencia
+    };
+
+    // === 4) POST a Laravel ===
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const resp = await fetch(routeReservarURL(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrf,
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      // 419/422/etc
+      const msg = data?.errors
+        ? Object.values(data.errors).flat().join('\n')
+        : (data?.message || 'No se pudo completar la reserva.');
+      throw new Error(msg);
+    }
+
+Swal.fire({
+  icon: 'success',
+  title: 'Reserva creada',
+  html: `No. <b>${data.numero_reserva}</b> (vigencia ${data.vigencia_dias} días)`,
+  confirmButtonText: 'Aceptar',
+  confirmButtonColor: '#10b981'
+}).then(() => {
+  // 🔄 recarga completa de la página
+  window.location.reload();
+});
+
+
+  } catch (e) {
+    console.error(e);
+    Swal?.fire?.('Error', String(e.message || e), 'error');
+  } finally {
+    btn && (btn.disabled = false);
+  }
+}
+
+
+// ============================================
+// VARIABLES GLOBALES PARA RESERVAS
+// ============================================
+let reservaActualCliente = null;
+
+// ============================================
+// FUNCIÓN PARA CARGAR RESERVA DEL CLIENTE
+// ============================================
+// 🔁 Cargar todas las reservas del cliente y renderizarlas
+async function cargarReservaCliente(clienteId) {
+  if (!clienteId) {
+    console.warn('No hay cliente seleccionado');
+    limpiarVistaReserva?.();
+    return;
+  }
+
+  try {
+    const resp = await fetch(`/api/reservas/cliente/${clienteId}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    });
+
+    const text = await resp.text();
+    if (!resp.ok) {
+      console.error('Respuesta no OK:', text);
+      limpiarVistaReserva?.();
+      Swal?.fire?.('Error', `No se pudo cargar reservas (HTTP ${resp.status}).`, 'error');
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(text); }
+    catch {
+      console.error('Respuesta no JSON:', text);
+      limpiarVistaReserva?.();
+      Swal?.fire?.('Error', 'La respuesta del servidor no es JSON.', 'error');
+      return;
+    }
+
+   // console.log('datos de la(s) reserva(s) por cliente', data);
+
+    // ✅ La API nueva devuelve: { success, count, reservas: [...] }
+    if (data.success && Array.isArray(data.reservas) && data.reservas.length > 0) {
+      mostrarReservasCliente(data.reservas);
+    } else {
+      limpiarVistaReserva?.();
+    }
+  } catch (error) {
+    console.error('Error al cargar reservas:', error);
+    limpiarVistaReserva?.();
+    Swal?.fire?.('Error', 'Error de red consultando reservas.', 'error');
+  }
+}
+
+
+// ============================================
+// LIMPIAR VISTA DE RESERVA (sin productos)
+// ============================================
+function limpiarVistaReserva() {
+    const containerReserva = document.getElementById('productosCarritoReseva');
+    const carritoVacioReserva = document.getElementById('carritoVacioReserva');
+    
+    if (containerReserva) {
+        containerReserva.innerHTML = '';
+    }
+    
+    if (carritoVacioReserva) {
+        carritoVacioReserva.classList.remove('hidden');
+    }
+    
+    reservaActualCliente = null;
+}
+
+// ============================================
+// MOSTRAR RESERVA EXISTENTE EN LA UI
+// ============================================
+// Renderiza una lista de reservas con su botón "Agregar al Carrito"
+function mostrarReservasCliente(reservas) {
+
+    //console.log('mostrar muchas reservas');
+  const container = document.getElementById('productosCarritoReserva');
+  const vacio = document.getElementById('carritoVacioReserva');
+  if (!container) return;
+
+  vacio?.classList.add('hidden');
+
+  // Guardamos una copia para usar por índice (evita meter JSON gigante en data-*)
+  window._reservasClienteCache = reservas;
+  //console.log('reservas muchas',html)
+
+  const html = reservas.map((res, idx) => {
+    // res.items es el arreglo de productos de ESA reserva
+    const items = Array.isArray(res.items) ? res.items : [];
+
+    const card = `
+      <!-- Banner de una reserva -->
+      <div class="bg-gradient-to-r from-amber-50 to-yellow-50 border-l-4 border-amber-500 rounded-lg p-4 mb-4 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="flex-shrink-0">
+            <i class="fas fa-exclamation-circle text-amber-600 text-2xl"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h4 class="text-sm font-bold text-amber-900 mb-2">
+              ${res.numero} — ${res.situacion ?? 'RESERVADA'}
+            </h4>
+            <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+              <div><span class="text-gray-600">Fecha:</span> <span class="ml-1 font-semibold text-gray-800">${res.fecha}</span></div>
+              <div><span class="text-gray-600">Total:</span> <span class="ml-1 font-bold text-emerald-600">Q${Number(res.total||0).toFixed(2)}</span></div>
+              <div class="col-span-2"><span class="text-gray-600">Vendedor:</span> <span class="ml-1 font-semibold text-gray-800">${res.vendedor||''}</span></div>
+            </div>
+            <div class="flex gap-2">
+              <button type="button"
+                      class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-all duration-200 flex items-center gap-1.5 btnCargarReserva"
+                      data-index="${idx}">
+                <i class="fas fa-shopping-cart"></i>
+                Agregar al Carrito
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de productos de la reserva -->
+      <div class="space-y-2 mb-6">
+        ${items.map((item) => {
+          const necesitaStock = Number(item.producto_requiere_stock ?? 1) === 1;
+          const requiereSerie  = Number(item.producto_requiere_serie ?? 0) === 1;
+          const seriesSel = Array.isArray(item.seriesSeleccionadas) ? item.seriesSeleccionadas : [];
+          const tieneSuficientesSeries = !requiereSerie || seriesSel.length === Number(item.cantidad || 0);
+
+          const badgeSerie = (necesitaStock && requiereSerie)
+            ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${tieneSuficientesSeries ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}">
+                 <i class="fas fa-barcode mr-1"></i>
+                 Serie: ${seriesSel.length}/${item.cantidad}
+               </span>`
+            : "";
+
+          const hasLotes = Array.isArray(item.lotes) && item.lotes.length > 0;
+          const asignadoLotes = Array.isArray(item.lotesSeleccionados)
+            ? item.lotesSeleccionados.reduce((acc, it) => acc + Number(it.cantidad || 0), 0)
+            : 0;
+
+          const badgeLotes = (necesitaStock && hasLotes)
+            ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${asignadoLotes === Number(item.cantidad || 0) ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}">
+                 <i class="fas fa-layer-group mr-1"></i>
+                 Lotes: ${asignadoLotes}/${item.cantidad}
+               </span>`
+            : "";
+
+          return `
+            <div class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow duration-200">
+              <div class="flex items-start gap-3">
+                <div class="relative flex-shrink-0" style="width: 64px; height: 64px;">
+                  ${
+                    item.imagen
+                      ? `<img src="${item.imagen}" alt="${item.nombre}" class="w-full h-full object-cover rounded-lg border border-gray-200" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                         <div style="display:none; width:64px; height:64px;" class="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold rounded-lg text-lg">
+                           ${String(item.nombre||'PR').substring(0,2).toUpperCase()}
+                         </div>`
+                      : `<div style="width:64px; height:64px;" class="bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold rounded-lg text-lg">
+                           ${String(item.nombre||'PR').substring(0,2).toUpperCase()}
+                         </div>`
+                  }
+                  <div class="absolute bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg border-2 border-white" style="top:-8px; right:-8px;">
+                    ${item.cantidad}x
+                  </div>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                  <h5 class="font-semibold text-sm text-gray-900 truncate mb-1">${item.nombre}</h5>
+                  ${item.marca ? `<p class="text-xs text-gray-500 flex items-center gap-1 mb-2"><i class="fas fa-industry text-[9px]"></i> ${item.marca}</p>` : ''}
+
+                  <div class="flex flex-wrap items-center gap-1.5 mb-2">
+                    ${necesitaStock ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                       <i class="fas fa-box mr-1"></i> Stock: ${item.stock_cantidad_total || 0}
+                     </span>` : ''}
+                    ${badgeSerie}
+                    ${badgeLotes}
+                  </div>
+
+                  <div class="flex items-center justify-between">
+                    <div class="text-xs text-gray-600">
+                      <span>Precio unitario:</span>
+                      <span class="ml-1 font-semibold text-gray-900">Q${Number(item.precio||0).toFixed(2)}</span>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-xs text-gray-500">Total</div>
+                      <div class="font-bold text-emerald-600">Q${(Number(item.precio||0) * Number(item.cantidad||0)).toFixed(2)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    return card;
+  }).join('');
+
+  container.innerHTML = html;
+
+  // Eventos por cada botón "Agregar al Carrito"
+  container.querySelectorAll('.btnCargarReserva').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      const idx = Number(this.dataset.index);
+      const reserva = window._reservasClienteCache?.[idx];
+      if (!reserva) return;
+
+      try {
+        await cargarReservaEnCarrito(reserva.items); // ← usa tu flujo de modal y carga parcial
+      } catch (e) {
+        console.error(e);
+        Swal?.fire?.('Error', 'No se pudo cargar la reserva.', 'error');
+      }
+    });
+  });
+}
+
+// ===== util: diferencia reserva - carrito (y series restantes) =====
+function prepararCargaDesdeReserva(itemsReserva, carrito) {
+  const cargables = [];
+
+  itemsReserva.forEach(res => {
+    const enCarrito = carrito.find(p => p.producto_id === res.producto_id);
+
+    const cantReserva  = Number(res.cantidad || 0);
+    const cantCarrito  = Number(enCarrito?.cantidad || 0);
+
+    // series de la reserva vienen en seriesSeleccionadas
+    const seriesReserva = Array.isArray(res.seriesSeleccionadas) ? res.seriesSeleccionadas : [];
+    const seriesCarrito = Array.isArray(enCarrito?.seriesSeleccionadas) ? enCarrito.seriesSeleccionadas : [];
+
+    // series faltantes = reserva - ya en carrito
+    const setCarrito = new Set(seriesCarrito);
+    const seriesFaltantes = seriesReserva.filter(s => !setCarrito.has(s));
+
+    let cantidadFaltante;
+    if (Number(res.producto_requiere_serie ?? 0) === 1) {
+      cantidadFaltante = Math.max(Math.min(seriesFaltantes.length, cantReserva - cantCarrito), 0);
+    } else {
+      cantidadFaltante = Math.max(cantReserva - cantCarrito, 0);
+    }
+
+    if (cantidadFaltante > 0) {
+      cargables.push({
+        ...res,
+        cantidad_reserva: cantReserva,
+        cantidad_en_carrito: cantCarrito,
+        cantidad_faltante: cantidadFaltante,
+        series_disponibles: seriesFaltantes
+      });
+    }
+  });
+
+  return cargables;
+}
+
+// ===== modal: elegir cantidades y series =====
+function mostrarModalSeleccionReserva(itemsCargables) {
+  const htmlItems = itemsCargables.map((item, index) => {
+    const requiereSerie = Number(item.producto_requiere_serie ?? 0) === 1;
+    const seriesDisponibles = Array.isArray(item.series_disponibles) ? item.series_disponibles : [];
+
+    return `
+      <div class="border border-gray-200 rounded-lg p-4 mb-3 bg-white" data-item-index="${index}">
+        <div class="flex items-start gap-3">
+          <div class="flex-shrink-0" style="width:48px;height:48px;">
+            ${
+              item.imagen
+                ? `<img src="${item.imagen}" alt="${item.nombre}" class="w-full h-full object-cover rounded-lg border border-gray-200">`
+                : `<div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold rounded-lg text-sm">
+                     ${String(item.nombre||'PR').substring(0,2).toUpperCase()}
+                   </div>`
+            }
+          </div>
+
+          <div class="flex-1">
+            <h5 class="font-semibold text-sm text-gray-900 mb-1">${item.nombre}</h5>
+            <p class="text-xs text-gray-600 mb-2">
+              En reserva: <b>${item.cantidad_reserva}</b> · En carrito: <b>${item.cantidad_en_carrito}</b> ·
+              Faltante: <b class="text-blue-700">${item.cantidad_faltante}</b>
+              ${item.marca ? ` | Marca: ${item.marca}` : ''}
+            </p>
+
+            <div class="flex items-center gap-2 mb-2">
+              <label class="text-xs font-medium text-gray-700">Cantidad a cargar:</label>
+              <input type="number"
+                     min="0"
+                     max="${item.cantidad_faltante}"
+                     value="${item.cantidad_faltante}"
+                     data-item-index="${index}"
+                     readonly
+                     class="cantidad-cargar w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <span class="text-[11px] text-gray-500"></span>
+            </div>
+
+            ${
+              (requiereSerie && seriesDisponibles.length > 0) ? `
+              <div class="mt-2">
+                <label class="text-xs font-medium text-gray-700 mb-1 block">Series a cargar ahora:</label>
+                <div class="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50 space-y-1">
+                  ${
+                    seriesDisponibles.map((serie, i) => `
+                      <label class="flex items-center gap-2 text-xs hover:bg-white px-2 py-1 rounded cursor-pointer">
+                        <input type="checkbox"
+                               value="${serie}"
+                               data-item-index="${index}"
+                               class="serie-checkbox rounded text-blue-600 focus:ring-blue-500"
+                               ${i < item.cantidad_faltante ? 'checked' : ''}>
+                        <span class="font-mono text-gray-700">${serie}</span>
+                      </label>
+                    `).join('')
+                  }
+                </div>
+              </div>` :
+              (requiereSerie ? `<div class="text-[11px] text-amber-700">No hay series restantes por cargar.</div>` : '')
+            }
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return Swal.fire({
+    title: 'Cargar desde reserva',
+    html: `
+      <div class="text-left">
+        <p class="text-sm text-gray-600 mb-4">
+          Elige cuánto cargar ahora y, si aplica, qué series incluir.
+        </p>
+        <div class="max-h-96 overflow-y-auto">${htmlItems}</div>
+      </div>
+    `,
+    width: '700px',
+    showCancelButton: true,
+    confirmButtonText: 'Agregar al carrito',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#10b981',
+    cancelButtonColor: '#6b7280',
+
+    didOpen: () => {
+      const popup = Swal.getPopup();
+
+      // Ajusta checks al cambiar cantidad
+      popup.querySelectorAll('.cantidad-cargar').forEach(inp => {
+        inp.addEventListener('input', function () {
+          const idx = this.dataset.itemIndex;
+          const max = parseInt(this.getAttribute('max') || '0', 10);
+          let val = parseInt(this.value || '0', 10);
+          if (Number.isNaN(val) || val < 0) val = 0;
+          if (val > max) val = max;
+          this.value = String(val);
+
+          const checks = popup.querySelectorAll(`.serie-checkbox[data-item-index="${idx}"]`);
+          checks.forEach((cb, i) => { cb.checked = i < val; });
+        });
+      });
+
+      // No permitir más series que la cantidad elegida
+      popup.querySelectorAll('.serie-checkbox').forEach(cb => {
+        cb.addEventListener('change', function () {
+          const idx = this.dataset.itemIndex;
+          const qty = parseInt(popup.querySelector(`.cantidad-cargar[data-item-index="${idx}"]`)?.value || '0', 10);
+          const checks = popup.querySelectorAll(`.serie-checkbox[data-item-index="${idx}"]`);
+          const count = Array.from(checks).filter(x => x.checked).length;
+          if (count > qty) {
+            this.checked = false;
+            Swal.showValidationMessage(`No puedes seleccionar más de ${qty} serie(s).`);
+          }
+        });
+      });
+    },
+
+preConfirm: () => {
+  const popup = Swal.getPopup();
+  const seleccion = [];
+  let errorMsg = null;
+
+  itemsCargables.forEach((item, index) => {
+    const qtyEl = popup.querySelector(`.cantidad-cargar[data-item-index="${index}"]`);
+    const cant = parseInt(qtyEl?.value || '0', 10);
+
+    if (cant > 0) {
+      const requiereSerie = Number(item.producto_requiere_serie ?? 0) === 1;
+      let seriesSel = [];
+
+      if (requiereSerie) {
+        const checks = popup.querySelectorAll(`.serie-checkbox[data-item-index="${index}"]`);
+        seriesSel = Array.from(checks).filter(x => x.checked).map(x => x.value);
+
+      
+        if (seriesSel.length === 0) {
+          errorMsg = `${item.nombre}: selecciona al menos 1 serie.`;
+          return;
+        }
+        if (seriesSel.length > cant) {
+          errorMsg = `${item.nombre}: no puedes seleccionar más de ${cant} serie(s).`;
+          return;
+        }
+      }
+
+      seleccion.push({
+        ...item,
+        
+        cantidad_a_cargar: requiereSerie ? seriesSel.length : cant,
+        series_a_cargar: seriesSel
+      });
+    }
+  });
+
+  if (errorMsg) { Swal.showValidationMessage(errorMsg); return false; }
+  if (seleccion.length === 0) { Swal.showValidationMessage('No elegiste nada para cargar.'); return false; }
+  return seleccion;
+}
+
+  });
+}
+
+async function aplicarCargaReservaSeleccion(seleccion) {
+  // Activar flag para evitar recarga de reserva
+  cargandoReserva = true;
+  
+  // Obtener IDs de productos para consultar stock actual
+  const productosIds = seleccion.map(s => s.producto_id);
+  
+  try {
+    // Consultar stock actual de los productos
+    const response = await fetch('/api/productos/stock', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      },
+      body: JSON.stringify({ productos_ids: productosIds })
+    });
+    
+    const stockData = await response.json();
+    console.log('📦 Stocks actualizados:', stockData);
+    
+    // Crear un mapa de stock actualizado
+    const stockMap = {};
+    if (stockData.success && Array.isArray(stockData.stocks)) {
+      stockData.stocks.forEach(s => {
+        stockMap[s.producto_id] = {
+          stock_total: Number(s.stock_total || 0),
+          stock_reservado: Number(s.stock_reservado || 0),
+          stock_disponible: Number(s.stock_disponible || 0)
+        };
+      });
+    }
+    
+    // Agregar productos al carrito con stock actualizado
+    seleccion.forEach(sel => {
+      const existe = carritoProductos.find(p => p.producto_id === sel.producto_id);
+      const stockInfo = stockMap[sel.producto_id];
+      
+      // ⭐ Cantidad que se está cargando ahora
+      const cantidadCargando = Number(sel.cantidad_a_cargar || 0);
+      
+      // ⭐ FÓRMULA: (stock_total - stock_reservado) + cantidad_cargando
+      let stockFinal;
+      if (stockInfo) {
+        stockFinal = (stockInfo.stock_total - stockInfo.stock_reservado) + cantidadCargando;
+      } else {
+        stockFinal = Number(sel.stock_cantidad_total ?? 0) + cantidadCargando;
+      }
+
+      if (existe) {
+        // ========================================
+        // PRODUCTO YA EXISTE EN EL CARRITO
+        // ========================================
+        
+        // Sumar cantidad
+        existe.cantidad = Number(existe.cantidad || 0) + cantidadCargando;
+
+        // ⭐ ACTUALIZAR STOCK con la fórmula
+        if (stockInfo) {
+          existe.stock_cantidad_total = (stockInfo.stock_total - stockInfo.stock_reservado) + cantidadCargando;
+        } else {
+          existe.stock_cantidad_total = Number(existe.stock_cantidad_total || 0) + cantidadCargando;
+        }
+
+        // Merge series (evitar duplicados)
+        if (Array.isArray(sel.series_a_cargar) && sel.series_a_cargar.length > 0) {
+          const prev = Array.isArray(existe.seriesSeleccionadas) ? existe.seriesSeleccionadas : [];
+          existe.seriesSeleccionadas = Array.from(new Set([...prev, ...sel.series_a_cargar]));
+        }
+
+        // Actualizar series disponibles si vienen en la selección
+        if (Array.isArray(sel.series_disponibles) && sel.series_disponibles.length > 0) {
+          const prevDisp = Array.isArray(existe.series_disponibles) ? existe.series_disponibles : [];
+          existe.series_disponibles = Array.from(new Set([...prevDisp, ...sel.series_disponibles]));
+        }
+
+        // Merge lotes seleccionados
+        if (Array.isArray(sel.lotesSeleccionados) && sel.lotesSeleccionados.length > 0) {
+          const prevLotes = Array.isArray(existe.lotesSeleccionados) ? existe.lotesSeleccionados : [];
+          
+          // Agregar o sumar cantidades de lotes
+          sel.lotesSeleccionados.forEach(nuevoLote => {
+            const loteExistente = prevLotes.find(l => l.lote_id === nuevoLote.lote_id);
+            if (loteExistente) {
+              loteExistente.cantidad = Number(loteExistente.cantidad || 0) + Number(nuevoLote.cantidad || 0);
+            } else {
+              prevLotes.push({
+                lote_id: nuevoLote.lote_id,
+                cantidad: Number(nuevoLote.cantidad || 0),
+                lote_codigo: nuevoLote.lote_codigo || '',
+                lote_fecha_vencimiento: nuevoLote.lote_fecha_vencimiento || null
+              });
+            }
+          });
+          
+          existe.lotesSeleccionados = prevLotes;
+        }
+
+        // Actualizar lotes disponibles si vienen
+        if (Array.isArray(sel.lotes) && sel.lotes.length > 0) {
+          existe.lotes = sel.lotes;
+        }
+        
+      } else {
+        // ========================================
+        // PRODUCTO NUEVO EN EL CARRITO
+        // ========================================
+        
+        // 🔧 NORMALIZAR ESTRUCTURA IGUAL QUE EN actualizarVistaCarrito
+        const nuevoProducto = {
+          // IDs y básicos
+          producto_id: sel.producto_id,
+          nombre: sel.nombre || sel.producto_nombre || 'Producto',
+          marca: sel.marca || sel.marca_descripcion || '',
+          imagen: sel.imagen || null,
+
+          // Cantidad
+          cantidad: cantidadCargando,
+
+          // Precios - estructura completa
+          precio_venta: Number(sel.precio_venta ?? sel.precio ?? 0),
+          precio_venta_empresa: Number(sel.precio_venta_empresa || 0),
+          precio_activo: sel.precio_activo || 'normal',
+          precio_personalizado: sel.precio_personalizado ?? null,
+
+          // 🎯 Calcular precio según tipo activo
+          precio: (() => {
+            if (sel.precio_activo === 'personalizado' && sel.precio_personalizado !== null) {
+              return Number(sel.precio_personalizado);
+            } else if (sel.precio_activo === 'empresa') {
+              return Number(sel.precio_venta_empresa || 0);
+            } else {
+              return Number(sel.precio_venta ?? sel.precio ?? 0);
+            }
+          })(),
+
+          // Stock
+          stock_cantidad_total: stockFinal,
+          
+          // Control de stock y series
+          producto_requiere_stock: Number(sel.producto_requiere_stock ?? 1),
+          producto_requiere_serie: Number(sel.producto_requiere_serie ?? 0),
+
+          // Series
+          seriesSeleccionadas: Array.isArray(sel.series_a_cargar) ? sel.series_a_cargar : [],
+          series_disponibles: Array.isArray(sel.series_disponibles) ? sel.series_disponibles : [],
+
+          // Lotes
+          lotes: Array.isArray(sel.lotes) ? sel.lotes : [],
+          lotesSeleccionados: Array.isArray(sel.lotesSeleccionados) 
+            ? sel.lotesSeleccionados.map(lote => ({
+                lote_id: lote.lote_id,
+                cantidad: Number(lote.cantidad || 0),
+                lote_codigo: lote.lote_codigo || '',
+                lote_fecha_vencimiento: lote.lote_fecha_vencimiento || null
+              }))
+            : []
+        };
+
+        carritoProductos.push(nuevoProducto);
+      }
+    });
+
+    // Actualizar vista del carrito
+    actualizarVistaCarrito();
+    
+    Swal.fire({
+      icon: 'success',
+      title: '¡Productos Agregados!',
+      text: `Se agregaron ${seleccion.length} producto(s) al carrito desde la reserva`,
+      timer: 2000,
+      showConfirmButton: false
+    });
+    
+  } catch (error) {
+    console.error('❌ Error al obtener stock:', error);
+    
+    // Si falla la consulta de stock, usar el stock de la reserva
+    seleccion.forEach(sel => {
+      const existe = carritoProductos.find(p => p.producto_id === sel.producto_id);
+      const cantidadCargando = Number(sel.cantidad_a_cargar || 0);
+
+      if (existe) {
+        // Actualizar producto existente
+        existe.cantidad = Number(existe.cantidad || 0) + cantidadCargando;
+        existe.stock_cantidad_total = Number(existe.stock_cantidad_total || 0) + cantidadCargando;
+        
+        if (Array.isArray(sel.series_a_cargar) && sel.series_a_cargar.length > 0) {
+          const prev = Array.isArray(existe.seriesSeleccionadas) ? existe.seriesSeleccionadas : [];
+          existe.seriesSeleccionadas = Array.from(new Set([...prev, ...sel.series_a_cargar]));
+        }
+
+        if (Array.isArray(sel.lotesSeleccionados) && sel.lotesSeleccionados.length > 0) {
+          const prevLotes = Array.isArray(existe.lotesSeleccionados) ? existe.lotesSeleccionados : [];
+          sel.lotesSeleccionados.forEach(nuevoLote => {
+            const loteExistente = prevLotes.find(l => l.lote_id === nuevoLote.lote_id);
+            if (loteExistente) {
+              loteExistente.cantidad = Number(loteExistente.cantidad || 0) + Number(nuevoLote.cantidad || 0);
+            } else {
+              prevLotes.push({
+                lote_id: nuevoLote.lote_id,
+                cantidad: Number(nuevoLote.cantidad || 0),
+                lote_codigo: nuevoLote.lote_codigo || '',
+                lote_fecha_vencimiento: nuevoLote.lote_fecha_vencimiento || null
+              });
+            }
+          });
+          existe.lotesSeleccionados = prevLotes;
+        }
+
+      } else {
+        // Crear producto nuevo (fallback sin stock actualizado)
+        carritoProductos.push({
+          producto_id: sel.producto_id,
+          nombre: sel.nombre || sel.producto_nombre || 'Producto',
+          marca: sel.marca || sel.marca_descripcion || '',
+          imagen: sel.imagen || null,
+          cantidad: cantidadCargando,
+          
+          precio_venta: Number(sel.precio_venta ?? sel.precio ?? 0),
+          precio_venta_empresa: Number(sel.precio_venta_empresa || 0),
+          precio_activo: sel.precio_activo || 'normal',
+          precio_personalizado: sel.precio_personalizado ?? null,
+          
+          precio: (() => {
+            if (sel.precio_activo === 'personalizado' && sel.precio_personalizado !== null) {
+              return Number(sel.precio_personalizado);
+            } else if (sel.precio_activo === 'empresa') {
+              return Number(sel.precio_venta_empresa || 0);
+            } else {
+              return Number(sel.precio_venta ?? sel.precio ?? 0);
+            }
+          })(),
+          
+          stock_cantidad_total: Number(sel.stock_cantidad_total ?? 0) + cantidadCargando,
+          
+          producto_requiere_stock: Number(sel.producto_requiere_stock ?? 1),
+          producto_requiere_serie: Number(sel.producto_requiere_serie ?? 0),
+          
+          seriesSeleccionadas: Array.isArray(sel.series_a_cargar) ? sel.series_a_cargar : [],
+          series_disponibles: Array.isArray(sel.series_disponibles) ? sel.series_disponibles : [],
+          
+          lotes: Array.isArray(sel.lotes) ? sel.lotes : [],
+          lotesSeleccionados: Array.isArray(sel.lotesSeleccionados) 
+            ? sel.lotesSeleccionados.map(lote => ({
+                lote_id: lote.lote_id,
+                cantidad: Number(lote.cantidad || 0),
+                lote_codigo: lote.lote_codigo || '',
+                lote_fecha_vencimiento: lote.lote_fecha_vencimiento || null
+              }))
+            : []
+        });
+      }
+    });
+    
+    actualizarVistaCarrito();
+    
+    Swal.fire({
+      icon: 'warning',
+      title: 'Productos Agregados',
+      text: 'No se pudo actualizar el stock del servidor. Verifica la disponibilidad.',
+      timer: 3000,
+      showConfirmButton: false
+    });
+  } finally {
+    // Desactivar flag
+    setTimeout(() => {
+      cargandoReserva = false;
+    }, 100);
+  }
+}
+
+// ========================================
+// FUNCIÓN DE DEPURACIÓN OPCIONAL
+// ========================================
+function verificarEstructuraCarrito() {
+  console.log('🔍 Verificando estructura del carrito:');
+  
+  carritoProductos.forEach((p, index) => {
+    const errores = [];
+    
+    // Campos requeridos
+    if (!p.producto_id) errores.push('❌ Falta producto_id');
+    if (typeof p.cantidad !== 'number') errores.push('❌ cantidad no es número');
+    if (typeof p.precio !== 'number') errores.push('❌ precio no es número');
+    if (typeof p.producto_requiere_stock !== 'number') errores.push('❌ producto_requiere_stock no es número');
+    if (typeof p.producto_requiere_serie !== 'number') errores.push('❌ producto_requiere_serie no es número');
+    
+    // Arrays
+    if (!Array.isArray(p.seriesSeleccionadas)) errores.push('❌ seriesSeleccionadas no es array');
+    if (!Array.isArray(p.lotesSeleccionados)) errores.push('❌ lotesSeleccionados no es array');
+    
+    // Validación de series
+    if (p.producto_requiere_serie === 1 && p.seriesSeleccionadas.length !== p.cantidad) {
+      errores.push(`⚠️ Requiere ${p.cantidad} serie(s), tiene ${p.seriesSeleccionadas.length}`);
+    }
+    
+    // Validación de lotes
+    if (Array.isArray(p.lotes) && p.lotes.length > 0) {
+      const totalLotes = p.lotesSeleccionados.reduce((sum, l) => sum + Number(l.cantidad || 0), 0);
+      if (totalLotes > 0 && totalLotes !== p.cantidad) {
+        errores.push(`⚠️ Cantidad en lotes (${totalLotes}) != cantidad producto (${p.cantidad})`);
+      }
+    }
+    
+    if (errores.length > 0) {
+      console.log(`\n📦 Producto ${index + 1}: ${p.nombre}`);
+      errores.forEach(e => console.log(e));
+    } else {
+      console.log(`\n✅ Producto ${index + 1}: ${p.nombre} - Estructura correcta`);
+    }
+  });
+  
+  return carritoProductos.length;
+}
+
+// ===== NUEVA versión de cargarReservaEnCarrito(items): respeta tu listener =====
+async function cargarReservaEnCarrito(items) {
+
+    console.log('intentar abrir modal')
+  if (!Array.isArray(items) || items.length === 0) {
+    Swal?.fire?.('Reserva vacía', 'No hay productos para cargar.', 'info');
+    return;
+  }
+
+  // 1) calcular lo que falta (reserva - carrito)
+  const cargables = prepararCargaDesdeReserva(items, carritoProductos);
+  if (!cargables.length) {
+    Swal?.fire?.('Sin cambios', 'Tienes que vender o reservar primero.', 'info');
+    return;
+  }
+
+  // 2) pedir al usuario cantidades/series
+  const result = await mostrarModalSeleccionReserva(cargables);
+
+  // 3) aplicar
+  if (result.isConfirmed && result.value) {
+    aplicarCargaReservaSeleccion(result.value);
+  }
+}
+
+
+
 function actualizarVistaCarrito() {
     const container = document.getElementById("productosCarrito");
     const carritoVacio = document.getElementById("carritoVacio");
+       const v = validarCliente();
+ const clienteId = v.clienteId;
+ console.log('cliente desde el actualizar',clienteId);
+ //cargarReservaCliente(clienteId);
+
     if (!container) return;
 
     if (!Array.isArray(carritoProductos)) carritoProductos = [];
@@ -1174,8 +2070,7 @@ function actualizarVistaCarrito() {
 
     carritoVacio?.classList.add("hidden");
 
-    container.innerHTML = carritoProductos
-        .map((p) => {
+  const htmlTarjetas = carritoProductos.map((p) => {
             const stock = Number(p.stock_cantidad_total ?? 0);
             const necesitaStock = Number(p.producto_requiere_stock ?? 1) === 1;
             const requiereSerie = Number(p.producto_requiere_serie ?? 0) === 1;
@@ -1236,7 +2131,7 @@ function actualizarVistaCarrito() {
                                 ${p.precio_activo === 'normal' 
                                     ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
                                     : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
-                            Venta (Q${p.precio_venta.toFixed(2)})
+                            Precio Individual (Q${p.precio_venta.toFixed(2)})
                         </button>
                         ${tienePrecioEmpresa ? `
                         <button type="button"
@@ -1247,7 +2142,7 @@ function actualizarVistaCarrito() {
                                 ${p.precio_activo === 'empresa' 
                                     ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
                                     : 'bg-gray-200 text-gray-500 border-gray-300 hover:bg-gray-300'}">
-                            Especial (Q${p.precio_venta_empresa.toFixed(2)})
+                            Precio Empresa (Q${p.precio_venta_empresa.toFixed(2)})
                         </button>
                         ` : ''}
 
@@ -1412,7 +2307,42 @@ function actualizarVistaCarrito() {
         .join("");
 
 
+const puedeReservar = carritoProductos.every(p => {
+  const necesitaStock = Number(p.producto_requiere_stock ?? 1) === 1;
+  const requiereSerie = Number(p.producto_requiere_serie ?? 0) === 1;
+  const cant = Number(p.cantidad || 0);
 
+  const seriesOK = !necesitaStock || !requiereSerie || (Array.isArray(p.seriesSeleccionadas) && p.seriesSeleccionadas.length === cant);
+
+  const hasLotes = Array.isArray(p.lotes) && p.lotes.length > 0;
+  const asignadoLotes = Array.isArray(p.lotesSeleccionados)
+      ? p.lotesSeleccionados.reduce((acc, it) => acc + Number(it.cantidad || 0), 0)
+      : 0;
+  const lotesOK = !necesitaStock || !hasLotes || asignadoLotes === cant;
+
+  // Si requiere stock, valida stock total también
+  const stockOK = !necesitaStock || Number(p.stock_cantidad_total ?? 0) >= cant;
+
+  return seriesOK && lotesOK && stockOK;
+});
+
+// 3) Botonera inferior
+const htmlAcciones = `
+  <div class="mt-4 flex flex-col sm:flex-row items-center gap-2 sm:justify-end">
+    <button type="button"
+            id="btnReservar"
+            class="px-4 py-2 rounded-lg text-sm font-semibold transition
+                   ${puedeReservar
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
+            ${puedeReservar ? '' : 'disabled'}>
+      <i class="fas fa-clipboard-check mr-1"></i> Reservar
+    </button>
+  </div>
+`;
+
+// 4) Pintar tarjetas + botón
+container.innerHTML = htmlTarjetas + htmlAcciones;
         // En la sección "Precio total", modifica esta parte:
 
 
@@ -1472,6 +2402,16 @@ container.querySelectorAll('[data-action="precio-personalizado"]').forEach(input
         });
     });
 
+// Botón Reservar
+const btnReservar = document.getElementById('btnReservar');
+btnReservar?.addEventListener('click', async () => {
+  try {
+    await procesarReserva();
+  } catch {
+    Swal?.fire?.('Error', 'No se pudo completar la reserva', 'error');
+  }
+});
+
 
 
     calcularTotales?.();
@@ -1508,23 +2448,38 @@ container.querySelectorAll('[data-action="precio-personalizado"]').forEach(input
         }
     });
 })();
-
 function calcularTotales() {
     const subtotal = carritoProductos.reduce(
         (sum, p) => sum + p.precio * p.cantidad,
         0
     );
-    const descuento =
-        parseFloat(document.getElementById("descuentoModal").value) || 0;
+    
+    // ✅ MODIFICADO: Contar tenencias por serie
+    const totalTenencia = carritoProductos.reduce((sum, p) => {
+        if (p.seriesConTenencia) {
+            const numTenencias = Object.keys(p.seriesConTenencia).length;
+            return sum + (numTenencias * 60);
+        }
+        return sum;
+    }, 0);
+    
+    const descuento = parseFloat(document.getElementById("descuentoModal").value) || 0;
     const descuentoMonto = subtotal * (descuento / 100);
-    const total = subtotal - descuentoMonto;
+    const total = subtotal - descuentoMonto + totalTenencia;
 
-    document.getElementById("subtotalModal").textContent = `Q${subtotal.toFixed(
-        2
-    )}`;
+    document.getElementById("subtotalModal").textContent = `Q${subtotal.toFixed(2)}`;
+    
+    const tenenciaEl = document.getElementById("tenenciaModal");
+    if (tenenciaEl) {
+        tenenciaEl.textContent = `Q${totalTenencia.toFixed(2)}`;
+        const tenenciaRow = tenenciaEl.closest('.tenencia-row');
+        if (tenenciaRow) {
+            tenenciaRow.classList.toggle('hidden', totalTenencia === 0);
+        }
+    }
+    
     document.getElementById("totalModal").textContent = `Q${total.toFixed(2)}`;
 }
-
 function actualizarContadorCarrito() {
     const contador = carritoProductos.reduce((sum, p) => sum + p.cantidad, 0);
     const badge = document.getElementById("contadorCarrito");
@@ -1598,105 +2553,166 @@ document.addEventListener("DOMContentLoaded", function () {
     actualizarContadorCarrito();
     calcularTotales();
 });
-
 async function seleccionarSeries(producto_id) {
     const id = String(producto_id);
     const p = carritoProductos.find((x) => String(x.producto_id) === id);
     if (!p) return;
 
     if ((p.requiere_serie ?? p.producto_requiere_serie) != 1) {
-        return mostrarNotificacion?.(
-            "Este producto no requiere series.",
-            "info"
-        );
+        return mostrarNotificacion?.("Este producto no requiere series.", "info");
     }
 
     const cantidad = Number(p.cantidad || 0);
-    const disponibles = Array.isArray(p.series_disponibles)
-        ? p.series_disponibles
-        : [];
-    const yaSel = new Set(
-        Array.isArray(p.seriesSeleccionadas) ? p.seriesSeleccionadas : []
-    );
+    const disponibles = Array.isArray(p.series_disponibles) ? p.series_disponibles : [];
+    const yaSel = new Set(Array.isArray(p.seriesSeleccionadas) ? p.seriesSeleccionadas : []);
+    
+    // ✅ NUEVO: Verificar tenencias ya seleccionadas
+    const tenenciasExistentes = p.seriesConTenencia || {};
 
-    // Armar HTML de checkboxes
+    // ✅ MODIFICADO: Armar HTML con checkbox de tenencia por serie
     const opciones = disponibles
         .map((s) => {
             const serie = s.serie_numero_serie ?? s.numero ?? String(s);
             const checked = yaSel.has(serie) ? "checked" : "";
+            const tenenciaChecked = tenenciasExistentes[serie] ? "checked" : "";
+            
             return `
-          <label class="flex items-center gap-2 text-sm py-1">
-            <input type="checkbox" class="serie-opt" value="${serie}" ${checked}>
-            <span class="font-mono">${serie}</span>
-          </label>`;
+          <div class="flex items-center gap-3 py-2 px-2 hover:bg-gray-50 rounded border-b">
+            <label class="flex items-center gap-2 flex-1">
+              <input type="checkbox" class="serie-opt w-4 h-4" value="${serie}" ${checked}>
+              <span class="font-mono font-semibold">${serie}</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm text-blue-700 ${checked ? '' : 'opacity-30 pointer-events-none'}">
+              <input type="checkbox" class="tenencia-opt w-4 h-4" data-serie="${serie}" ${tenenciaChecked} ${checked ? '' : 'disabled'}>
+              <span class="whitespace-nowrap">+Q60 tenencia</span>
+            </label>
+          </div>`;
         })
         .join("");
 
-    const { value: ok } = await Swal.fire({
+    const { value: resultado } = await Swal.fire({
         title: `Selecciona ${cantidad} serie(s)`,
         html: `
-          <div class="text-left max-h-64 overflow-auto px-1">
-            ${
-                opciones ||
-                '<div class="text-sm text-gray-500">Sin series disponibles.</div>'
-            }
+          <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
+            <div class="text-sm font-semibold text-blue-900 mb-1">
+              <i class="fas fa-info-circle mr-1"></i>
+              Puedes cobrar tenencia individual por cada serie
+            </div>
+            <div class="text-lg font-bold text-blue-700" id="tenenciaInfo">
+              Total tenencia: Q0.00
+            </div>
           </div>
-          <div class="mt-3 text-xs text-gray-600">
-            Seleccionadas: <span id="selCount">${
-                yaSel.size
-            }</span> / ${cantidad}
+          
+          <div class="text-left max-h-80 overflow-auto border rounded p-2 bg-gray-50">
+            ${opciones || '<div class="text-sm text-gray-500 text-center py-4">Sin series disponibles.</div>'}
+          </div>
+          
+          <div class="mt-3 flex justify-between text-sm px-2">
+            <span class="text-gray-600">Seleccionadas:</span>
+            <span class="font-bold"><span id="selCount">${yaSel.size}</span> / ${cantidad}</span>
           </div>
         `,
+        width: '600px',
         showCancelButton: true,
         confirmButtonText: "Guardar",
         cancelButtonText: "Cancelar",
         didOpen: () => {
-            const checks =
-                Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const checks = Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const tenenciaChecks = Swal.getHtmlContainer().querySelectorAll(".tenencia-opt");
             const selCount = Swal.getHtmlContainer().querySelector("#selCount");
+            const tenenciaInfo = Swal.getHtmlContainer().querySelector("#tenenciaInfo");
 
+            // ✅ NUEVO: Función para actualizar info de tenencia
+            function actualizarTenencia() {
+                const numTenencias = Array.from(tenenciaChecks).filter(c => c.checked && !c.disabled).length;
+                const monto = numTenencias * 60;
+                tenenciaInfo.textContent = `Total tenencia: Q${monto.toFixed(2)}`;
+            }
+
+            // ✅ NUEVO: Al marcar/desmarcar una serie, habilitar/deshabilitar su checkbox de tenencia
             checks.forEach((chk) => {
                 chk.addEventListener("change", () => {
-                    const current = Array.from(checks).filter(
-                        (c) => c.checked
-                    ).length;
-                    selCount.textContent = current;
+                    const serie = chk.value;
+                    const tenenciaChk = Swal.getHtmlContainer().querySelector(`.tenencia-opt[data-serie="${serie}"]`);
+                    const row = chk.closest('div');
+                    
+                    if (chk.checked) {
+                        // Habilitar checkbox de tenencia
+                        tenenciaChk.disabled = false;
+                        row.querySelector('label:last-child').classList.remove('opacity-30', 'pointer-events-none');
+                    } else {
+                        // Deshabilitar y desmarcar checkbox de tenencia
+                        tenenciaChk.disabled = true;
+                        tenenciaChk.checked = false;
+                        row.querySelector('label:last-child').classList.add('opacity-30', 'pointer-events-none');
+                    }
 
-                    // No permitir seleccionar más que la cantidad requerida (bloqueo soft)
+                    const current = Array.from(checks).filter((c) => c.checked).length;
+                    selCount.textContent = current;
+                    actualizarTenencia();
+
+                    // No permitir seleccionar más que la cantidad requerida
                     if (current > cantidad) {
                         chk.checked = false;
-                        selCount.textContent = Array.from(checks).filter(
-                            (c) => c.checked
-                        ).length;
-                        mostrarNotificacion?.(
-                            `Solo puedes seleccionar ${cantidad} serie(s).`,
-                            "warning"
-                        );
+                        const tenenciaChk = Swal.getHtmlContainer().querySelector(`.tenencia-opt[data-serie="${serie}"]`);
+                        tenenciaChk.disabled = true;
+                        tenenciaChk.checked = false;
+                        row.querySelector('label:last-child').classList.add('opacity-30', 'pointer-events-none');
+                        
+                        selCount.textContent = Array.from(checks).filter((c) => c.checked).length;
+                        actualizarTenencia();
+                        mostrarNotificacion?.(`Solo puedes seleccionar ${cantidad} serie(s).`, "warning");
                     }
                 });
             });
+
+            // ✅ NUEVO: Al marcar/desmarcar checkbox de tenencia, actualizar total
+            tenenciaChecks.forEach((tenChk) => {
+                tenChk.addEventListener("change", actualizarTenencia);
+            });
+            
+            actualizarTenencia(); // Inicializar
         },
         preConfirm: () => {
-            const checks =
-                Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const checks = Swal.getHtmlContainer().querySelectorAll(".serie-opt");
+            const tenenciaChecks = Swal.getHtmlContainer().querySelectorAll(".tenencia-opt");
+            
             const seleccionadas = Array.from(checks)
                 .filter((c) => c.checked)
                 .map((c) => c.value);
+            
+            // ✅ NUEVO: Crear objeto con tenencias por serie
+            const tenenciasPorSerie = {};
+            Array.from(tenenciaChecks).forEach((tc) => {
+                if (tc.checked && !tc.disabled) {
+                    tenenciasPorSerie[tc.dataset.serie] = true;
+                }
+            });
 
             if (seleccionadas.length !== cantidad) {
-                Swal.showValidationMessage(
-                    `Debes seleccionar exactamente ${cantidad} serie(s).`
-                );
+                Swal.showValidationMessage(`Debes seleccionar exactamente ${cantidad} serie(s).`);
                 return false;
             }
-            return seleccionadas;
+            
+            return {
+                series: seleccionadas,
+                tenencias: tenenciasPorSerie
+            };
         },
     });
 
-    if (ok) {
-        p.seriesSeleccionadas = ok; // guardamos exactamente cantidad series
+    if (resultado) {
+        p.seriesSeleccionadas = resultado.series;
+        p.seriesConTenencia = resultado.tenencias; // ✅ NUEVO: Guardar tenencias por serie
+        
+        // ✅ NUEVO: Contar cuántas tenencias se cobraron
+        const numTenencias = Object.keys(resultado.tenencias).length;
+        
         actualizarVistaCarrito();
-        mostrarNotificacion?.("Series actualizadas.", "success");
+        calcularTotales();
+        
+        const msgTenencia = numTenencias > 0 ? ` (+Q${numTenencias * 60} tenencia en ${numTenencias} serie${numTenencias > 1 ? 's' : ''})` : '';
+        mostrarNotificacion?.(`Series actualizadas${msgTenencia}`, "success");
     }
 }
 
@@ -2550,8 +3566,18 @@ async function procesarVentaFinal() {
         
         // Calcular totales
         const subtotal = carritoProductos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
+
+        // ✅ NUEVO: Calcular tenencia
+        const totalTenencia = carritoProductos.reduce((sum, p) => {
+            if (p.seriesConTenencia) {
+                const numTenencias = Object.keys(p.seriesConTenencia).length;
+                return sum + (numTenencias * 60);
+            }
+            return sum;
+        }, 0);
+
         const descuentoMonto = subtotal * (descuento / 100);
-        const total = subtotal - descuentoMonto;
+        const total = subtotal - descuentoMonto + totalTenencia; // ✅ SUMAR TENENCIA
 
         // 2. DATOS DE VENTA
         const datosVenta = {
@@ -2582,7 +3608,8 @@ async function procesarVentaFinal() {
                 
                 // Lotes si los tiene
                 tiene_lotes: (Array.isArray(producto.lotes) && producto.lotes.length > 0),
-                lotes_seleccionados: producto.lotesSeleccionados || []
+                lotes_seleccionados: producto.lotesSeleccionados || [],
+                series_con_tenencia: producto.seriesConTenencia || {}  // ✅ NUEVO
             }))
         };
 

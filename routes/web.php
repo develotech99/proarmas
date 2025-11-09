@@ -1,29 +1,25 @@
 <?php
+use Illuminate\Support\Facades\Route;
 
-
-
-
-
+use App\Http\Controllers\AdminPagosController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\PaisController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PaisController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PagosController;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\VentasController;
-use App\Http\Controllers\CalibreController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\TipoArmaController;
 use App\Http\Controllers\ProModeloController;
-use App\Http\Controllers\AdminPagosController;
-use App\Http\Controllers\CategoriasController;
 use App\Http\Controllers\ComisionesController;
-use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\PagoLicenciaController;
-use App\Http\Controllers\UnidadMedidaController;
 use App\Http\Controllers\UsersUbicacionController;
 use App\Http\Controllers\ProEmpresaDeImportacionController;
 use App\Http\Controllers\ProLicenciaParaImportacionController;
@@ -252,7 +248,7 @@ Route::middleware('auth')->group(function () {
             Route::put('/', [UsersUbicacionController::class, 'update'])->name('ubi.update');
             Route::put('/{id}', [UsersUbicacionController::class, 'update'])->name('ubi.update.id');
             Route::get('/', [UsersUbicacionController::class, 'getDatos'])->name('ubi.getDatos');
-            Route::get('/{user}/detalle', [UsersUbicacionController::class, 'detalle'])->name('ubi.detalle');
+            Route::get('/{user}/detalle', [UsersUbicacionController::class, 'getDetallesCliente'])->name('ubi.detalle');
             Route::delete('/{id}', [UsersUbicacionController::class, 'eliminarUbicacion'])->name('ubi.delete');
             Route::post('/visita', [UsersUbicacionController::class, 'agregarVisita']);
       });
@@ -315,6 +311,11 @@ Route::middleware('auth')->group(function () {
       Route::post('/ventas/cancelar', [VentasController::class, 'cancelarVenta']);
       Route::get('/ventas/pendientes', [VentasController::class, 'obtenerVentasPendientes']);
       Route::post('/ventas/actualizar-licencias', [VentasController::class, 'actualizarLicencias']);
+      Route::post('/reservas/procesar', [VentasController::class, 'procesarReserva'])
+    ->middleware('auth')
+    ->name('reservas.procesar');
+    Route::get('/api/reservas/cliente/{clienteId}', [VentasController::class, 'buscarReservaPorCliente']);
+    Route::post('/api/productos/stock', [InventarioController::class, 'obtenerStock']);
 
 
       // Imprimir comprobante de venta
@@ -347,13 +348,15 @@ Route::middleware('auth')->group(function () {
             Route::post('ingresos', [AdminPagosController::class, 'registrarIngreso']); 
       });
 
-        // Clientes
-            // Clientes
-Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
-Route::post('/clientes', [ClientesController::class, 'store'])->name('clientes.crear');
-Route::put('/clientes/actualizar', [ClientesController::class, 'update'])->name('clientes.update');
-Route::delete('/clientes/eliminar', [ClientesController::class, 'destroy'])->name('clientes.eliminar');
-
+    // Rutas CRUD de Clientes
+    Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
+    Route::post('/api/clientes/create', [VentasController::class, 'guardarCliente'])->name('ventas.api.clientes.guardar');
+    Route::put('/clientes/{cliente}', [ClientesController::class, 'update'])->name('clientes.update');
+    Route::delete('/clientes/{cliente}', [ClientesController::class, 'destroy'])->name('clientes.destroy');
+    
+    // Ruta para ver PDF de licencia
+    Route::get('/clientes/{cliente}/ver-pdf-licencia', [ClientesController::class, 'verPdfLicencia'])
+         ->name('clientes.ver-pdf-licencia');
 
 
 
