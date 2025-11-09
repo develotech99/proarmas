@@ -1,28 +1,28 @@
 <?php
-      use Illuminate\Support\Facades\Route;
-      use App\Http\Controllers\AdminPagosController;
-      use App\Http\Controllers\CalibreController;
-      use App\Http\Controllers\CategoriasController;
-      use App\Http\Controllers\ClientesController;
-      use App\Http\Controllers\ComisionesController;
-      use App\Http\Controllers\DashboardController;
-      use App\Http\Controllers\InventarioController;
-      use App\Http\Controllers\MarcasController;
-      use App\Http\Controllers\MetodoPagoController;
-      use App\Http\Controllers\PagosController;
-      use App\Http\Controllers\PagoLicenciaController;
-      use App\Http\Controllers\PaisController;
-      use App\Http\Controllers\ProfileController;
-      use App\Http\Controllers\ProEmpresaDeImportacionController;
-      use App\Http\Controllers\ProLicenciaParaImportacionController;
-      use App\Http\Controllers\ProModeloController;
-      use App\Http\Controllers\ReportesController;
-      use App\Http\Controllers\TipoArmaController;
-      use App\Http\Controllers\UnidadMedidaController;
-      use App\Http\Controllers\UserController;
-      use App\Http\Controllers\UsersUbicacionController;
-      use App\Http\Controllers\VentasController;
-      
+use Illuminate\Support\Facades\Route;
+
+use App\Http\Controllers\AdminPagosController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PaisController;
+use App\Http\Controllers\UnidadMedidaController;
+use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\CalibreController;
+use App\Http\Controllers\CategoriasController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\PagosController;
+use App\Http\Controllers\MarcasController;
+use App\Http\Controllers\VentasController;
+use App\Http\Controllers\ClientesController;
+use App\Http\Controllers\ReportesController;
+use App\Http\Controllers\TipoArmaController;
+use App\Http\Controllers\ProModeloController;
+use App\Http\Controllers\ComisionesController;
+use App\Http\Controllers\MetodoPagoController;
+use App\Http\Controllers\PagoLicenciaController;
+use App\Http\Controllers\UsersUbicacionController;
+use App\Http\Controllers\ProEmpresaDeImportacionController;
+use App\Http\Controllers\ProLicenciaParaImportacionController;
 
 Route::get('/', function () {
       return redirect()->route('login');
