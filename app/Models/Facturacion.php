@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Carbon\Carbon;
 
 class Facturacion extends Model
 {
@@ -69,6 +70,64 @@ class Facturacion extends Model
         'fac_enviado_email' => 'boolean',
         'fac_veces_impreso' => 'integer',
     ];
+
+    /**
+     * Convierte fechas del formato d/m/Y H:i:s a formato compatible con Carbon
+     */
+    private function parseFechaFEL($value)
+    {
+        if (is_string($value) && preg_match('/^\d{2}\/\d{2}\/\d{4}/', $value)) {
+            // Detectar si tiene hora o solo fecha
+            if (strpos($value, ':') !== false) {
+                return Carbon::createFromFormat('d/m/Y H:i:s', $value);
+            } else {
+                return Carbon::createFromFormat('d/m/Y', $value);
+            }
+        }
+        return $value;
+    }
+
+    // Mutadores para fac_fecha_emision
+    public function setFacFechaEmisionAttribute($value)
+    {
+        $this->attributes['fac_fecha_emision'] = $this->parseFechaFEL($value);
+    }
+
+    // Mutadores para fac_fecha_certificacion
+    public function setFacFechaCertificacionAttribute($value)
+    {
+        $this->attributes['fac_fecha_certificacion'] = $this->parseFechaFEL($value);
+    }
+
+    // Mutadores para fac_fecha_anulacion
+    public function setFacFechaAnulacionAttribute($value)
+    {
+        $this->attributes['fac_fecha_anulacion'] = $this->parseFechaFEL($value);
+    }
+
+    // Mutadores para fac_fecha_operacion
+    public function setFacFechaOperacionAttribute($value)
+    {
+        $this->attributes['fac_fecha_operacion'] = $this->parseFechaFEL($value);
+    }
+
+    // Mutadores para fac_fecha_primera_impresion
+    public function setFacFechaPrimeraImpresionAttribute($value)
+    {
+        $this->attributes['fac_fecha_primera_impresion'] = $this->parseFechaFEL($value);
+    }
+
+    // Mutadores para fac_fecha_ultima_impresion
+    public function setFacFechaUltimaImpresionAttribute($value)
+    {
+        $this->attributes['fac_fecha_ultima_impresion'] = $this->parseFechaFEL($value);
+    }
+
+    // Mutadores para fac_fecha_envio_email
+    public function setFacFechaEnvioEmailAttribute($value)
+    {
+        $this->attributes['fac_fecha_envio_email'] = $this->parseFechaFEL($value);
+    }
 
     public function detalle()
     {
