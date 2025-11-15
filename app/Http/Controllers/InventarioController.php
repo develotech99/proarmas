@@ -1958,31 +1958,43 @@ public function getDetalleProducto($id): JsonResponse
 /**
  * Obtener movimientos recientes de un producto
  */
+/**
+ * Obtener movimientos de un producto - SIN LÍMITE para historial completo
+ */
 public function getMovimientosProducto($id): JsonResponse
 {
     try {
-        $limit = request('limit', 10);
+        // CAMBIO: Quitar el límite por defecto o hacerlo opcional
+        $limit = request('limit', null); // null = sin límite
         
-        $movimientos = Movimiento::where('mov_producto_id', $id)
+        $query = Movimiento::where('mov_producto_id', $id)
             ->where('mov_situacion', 1)
-            ->orderBy('mov_fecha', 'desc')
-            ->limit($limit)
-            ->get()
+            ->orderBy('mov_fecha', 'desc');
+        
+        // Solo aplicar límite si se especifica
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+        
+        $movimientos = $query->get()
             ->map(function($movimiento) {
                 return [
                     'mov_id' => $movimiento->mov_id,
                     'mov_tipo' => ucfirst($movimiento->mov_tipo),
                     'mov_origen' => $movimiento->mov_origen,
+                    'mov_destino' => $movimiento->mov_destino ?? null, // AGREGAR destino
                     'mov_cantidad' => $movimiento->mov_cantidad,
                     'mov_fecha' => $movimiento->mov_fecha->format('Y-m-d H:i:s'),
                     'mov_observaciones' => $movimiento->mov_observaciones,
+                    'mov_usuario_id' => $movimiento->mov_usuario_id, // AGREGAR para agrupar
                     'usuario_nombre' => $movimiento->usuario->name ?? 'Sistema'
                 ];
             });
 
         return response()->json([
             'success' => true,
-            'data' => $movimientos
+            'data' => $movimientos,
+            'total' => $movimientos->count() // AGREGAR contador
         ]);
 
     } catch (\Exception $e) {
@@ -1992,7 +2004,6 @@ public function getMovimientosProducto($id): JsonResponse
         ], 500);
     }
 }
-
 /**
  * Obtener series de un producto
  */

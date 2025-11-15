@@ -3745,6 +3745,10 @@ async verDetalleProducto(productoId) {
         const response = await fetch(`/inventario/productos/${productoId}/detalle`);
         if (response.ok) {
             const data = await response.json();
+            
+            // AGREGAR: Guardar producto seleccionado para usar en renderMovimientosRecientes
+            this.productoSeleccionado = data.data;
+            
             this.renderDetalleProducto(data.data);
             this.showModal('detalle');
             
@@ -3905,12 +3909,24 @@ renderPreciosDetalle(precios) {
 /**
  * Cargar movimientos recientes del producto
  */
+/**
+ * Cargar movimientos recientes del producto (solo 5 para vista previa)
+ */
 async loadMovimientosRecientes(productoId) {
     try {
-        const response = await fetch(`/inventario/productos/${productoId}/movimientos?limit=5`);
+        // SIN LÍMITE - traer todos y agrupar
+        const response = await fetch(`/inventario/productos/${productoId}/movimientos`);
         if (response.ok) {
             const data = await response.json();
-            this.renderMovimientosRecientes(data.data || []);
+            
+            // Agrupar todos los movimientos
+            const movimientosAgrupados = this.agruparMovimientosPorIngreso(
+                data.data || [], 
+                this.productoSeleccionado?.producto_requiere_serie
+            );
+            
+            // Mostrar solo los primeros 5 grupos más recientes
+            this.renderMovimientosRecientes(movimientosAgrupados.slice(0, 5));
         }
     } catch (error) {
         console.error('Error cargando movimientos:', error);
@@ -3925,10 +3941,16 @@ async loadMovimientosRecientes(productoId) {
 /**
  * Renderizar movimientos recientes
  */
-renderMovimientosRecientes(movimientos) {
+/**
+ * Renderizar movimientos recientes - CON AGRUPACIÓN
+ */
+/**
+ * Renderizar movimientos recientes - VERSIÓN CORREGIDA
+ */
+renderMovimientosRecientes(movimientosAgrupados) {
     const container = document.getElementById('detalle_movimientos_container');
     
-    if (movimientos.length === 0) {
+    if (!movimientosAgrupados || movimientosAgrupados.length === 0) {
         container.innerHTML = `
             <div class="text-center text-gray-500 dark:text-gray-400 py-4 text-sm">
                 Sin movimientos registrados
@@ -3937,9 +3959,9 @@ renderMovimientosRecientes(movimientos) {
         return;
     }
     
-    container.innerHTML = movimientos.map(mov => {
-        const tipoClass = mov.mov_tipo === 'ingreso' ? 'text-green-600' : 'text-red-600';
-        const tipoIcon = mov.mov_tipo === 'ingreso' ? 'fa-arrow-up' : 'fa-arrow-down';
+    container.innerHTML = movimientosAgrupados.map(mov => {
+        const tipoClass = (mov.mov_tipo || '').toLowerCase().includes('ingreso') ? 'text-green-600' : 'text-red-600';
+        const tipoIcon = (mov.mov_tipo || '').toLowerCase().includes('ingreso') ? 'fa-arrow-up' : 'fa-arrow-down';
         
         return `
             <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-600 last:border-b-0">
@@ -3947,18 +3969,276 @@ renderMovimientosRecientes(movimientos) {
                     <i class="fas ${tipoIcon} ${tipoClass}"></i>
                     <div>
                         <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${mov.mov_tipo}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">${mov.mov_origen}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${mov.mov_origen || mov.mov_destino || 'N/A'}</p>
+                        ${mov.detalle_series ? `
+                            <p class="text-xs text-blue-600 dark:text-blue-400">
+                                <i class="fas fa-barcode mr-1"></i>${mov.detalle_series}
+                            </p>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-sm font-medium ${tipoClass}">${mov.mov_cantidad}</p>
+                    <p class="text-sm font-medium ${tipoClass}">
+                        ${mov.cantidad_total > 0 ? '+' : ''}${mov.cantidad_total}
+                    </p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">${new Date(mov.mov_fecha).toLocaleDateString()}</p>
                 </div>
             </div>
         `;
-    }).join('');
+    }).join('') + `
+        <div class="text-center pt-3">
+            <button onclick="inventarioManager.verHistorialCompleto(${this.currentProductoId})"
+                    class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium">
+                Ver historial completo →
+            </button>
+        </div>
+    `;
 }
 
+/**
+ * Ver historial completo de movimientos de un producto
+ */
+/**
+ * Ver historial completo de movimientos de un producto
+ */
+async verHistorialCompleto(productoId) {
+    try {
+        // QUITAR el límite - traer TODOS los movimientos
+        const response = await fetch(`/inventario/productos/${productoId}/movimientos`);
+        if (response.ok) {
+            const data = await response.json();
+            const movimientos = data.data || [];
+            
+            console.log(`Total de movimientos sin filtrar: ${movimientos.length}`); // DEBUG
+            
+            // Obtener información del producto
+            const productoResponse = await fetch(`/inventario/productos/${productoId}`);
+            const productoData = await productoResponse.json();
+            const producto = productoData.data;
+            
+            this.mostrarModalHistorial(producto, movimientos);
+        } else {
+            this.showAlert('error', 'Error', 'No se pudo cargar el historial');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+
+/**
+ * Mostrar modal con historial completo - VERSIÓN CORREGIDA PARA SERIES
+ */
+mostrarModalHistorial(producto, movimientos) {
+    // CORRECCIÓN: Agrupar movimientos por fecha/origen para mostrar totales
+    const movimientosAgrupados = this.agruparMovimientosPorIngreso(movimientos, producto.producto_requiere_serie);
+    
+    // Calcular estadísticas sobre movimientos agrupados
+    const ingresos = movimientosAgrupados.filter(m => m.mov_tipo.toLowerCase() === 'ingreso');
+    const egresos = movimientosAgrupados.filter(m => m.mov_tipo.toLowerCase() === 'egreso');
+    
+    const totalIngresos = ingresos.length;
+    const totalEgresos = egresos.length;
+    
+    const cantidadIngresada = ingresos.reduce((sum, m) => sum + parseInt(m.cantidad_total), 0);
+    const cantidadEgresada = egresos.reduce((sum, m) => sum + Math.abs(parseInt(m.cantidad_total)), 0);
+    
+    const contenidoHTML = `
+        <div class="text-left">
+            <!-- Header con info del producto -->
+            <div class="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
+                <h4 class="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    ${producto.producto_nombre}
+                </h4>
+                <div class="text-sm text-blue-700 dark:text-blue-300">
+                    SKU: ${producto.pro_codigo_sku}
+                    ${producto.producto_requiere_serie ? ' • <span class="text-blue-600 font-medium">Control por Serie</span>' : ''}
+                </div>
+            </div>
+            
+            <!-- Resumen de movimientos -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs text-green-700 dark:text-green-300">Ingresos</span>
+                        <i class="fas fa-arrow-up text-green-600"></i>
+                    </div>
+                    <div class="text-2xl font-bold text-green-600 dark:text-green-400">${totalIngresos}</div>
+                    <div class="text-xs text-green-700 dark:text-green-300">+${cantidadIngresada} ${producto.producto_requiere_serie ? 'series' : 'unidades'}</div>
+                </div>
+                <div class="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs text-red-700 dark:text-red-300">Egresos</span>
+                        <i class="fas fa-arrow-down text-red-600"></i>
+                    </div>
+                    <div class="text-2xl font-bold text-red-600 dark:text-red-400">${totalEgresos}</div>
+                    <div class="text-xs text-red-700 dark:text-red-300">-${cantidadEgresada} ${producto.producto_requiere_serie ? 'series' : 'unidades'}</div>
+                </div>
+            </div>
+            
+            <!-- Lista de movimientos -->
+            <div class="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
+                    <div class="grid grid-cols-12 gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <div class="col-span-2">Fecha</div>
+                        <div class="col-span-1">Tipo</div>
+                        <div class="col-span-1 text-center">Cant.</div>
+                        <div class="col-span-3">Origen/Destino</div>
+                        <div class="col-span-3">Observaciones</div>
+                        <div class="col-span-2">Usuario</div>
+                    </div>
+                </div>
+                <div class="max-h-96 overflow-y-auto">
+                    ${movimientosAgrupados.length === 0 ? `
+                        <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-inbox text-3xl mb-2"></i>
+                            <p class="text-sm">Sin movimientos registrados</p>
+                        </div>
+                    ` : movimientosAgrupados.map(mov => {
+                        const esIngreso = (mov.mov_tipo.toLowerCase() === 'ingreso');
+                        const tipoClass = esIngreso ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                        const tipoIcon = esIngreso ? 'fa-arrow-up' : 'fa-arrow-down';
+                        const tipoBg = esIngreso ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900';
+                        const fecha = new Date(mov.mov_fecha);
+                        
+                        let origenDestino = '';
+                        if (esIngreso) {
+                            origenDestino = mov.mov_origen || 'No especificado';
+                        } else {
+                            origenDestino = mov.mov_destino || 'No especificado';
+                        }
+                        
+                        return `
+                            <div class="grid grid-cols-12 gap-2 px-4 py-3 text-xs border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <!-- Fecha -->
+                                <div class="col-span-2 text-gray-900 dark:text-gray-100">
+                                    <div class="font-medium">${fecha.toLocaleDateString('es-GT')}</div>
+                                    <div class="text-gray-500 dark:text-gray-400 text-xs">${fecha.toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}</div>
+                                </div>
+                                
+                                <!-- Tipo -->
+                                <div class="col-span-1">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tipoBg} ${tipoClass}">
+                                        <i class="fas ${tipoIcon} mr-1"></i>
+                                        ${mov.mov_tipo}
+                                    </span>
+                                </div>
+                                
+                                <!-- Cantidad CORREGIDA -->
+                                <div class="col-span-1 text-center">
+                                    <div class="font-medium ${tipoClass}">
+                                        ${esIngreso ? '+' : '-'}${mov.cantidad_total}
+                                    </div>
+                                    ${mov.detalle_series ? `
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                                            ${mov.detalle_series}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
+                                <!-- Origen/Destino -->
+                                <div class="col-span-3 text-gray-700 dark:text-gray-300">
+                                    <div class="truncate font-medium" title="${origenDestino}">
+                                        ${origenDestino}
+                                    </div>
+                                </div>
+                                
+                                <!-- Observaciones -->
+                                <div class="col-span-3 text-gray-600 dark:text-gray-400">
+                                    ${mov.mov_observaciones ? `
+                                        <div class="text-xs truncate" title="${mov.mov_observaciones}">
+                                            ${mov.mov_observaciones}
+                                        </div>
+                                    ` : '<span class="text-gray-400">-</span>'}
+                                </div>
+                                
+                                <!-- Usuario -->
+                                <div class="col-span-2 text-gray-600 dark:text-gray-400 truncate" title="${mov.usuario_nombre || 'Sistema'}">
+                                    ${mov.usuario_nombre || 'Sistema'}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+            
+            <!-- Footer con total -->
+            <div class="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
+                Total: <strong>${movimientosAgrupados.length}</strong> movimientos registrados
+            </div>
+        </div>
+    `;
+    
+    Swal.fire({
+        title: `Historial de Movimientos (${movimientosAgrupados.length})`,
+        html: contenidoHTML,
+        width: '1000px',
+        showCloseButton: true,
+        showConfirmButton: true,
+        confirmButtonText: 'Cerrar',
+        confirmButtonColor: '#3b82f6',
+        footer: `
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+                Stock actual: <strong class="text-blue-600">${producto.stock_cantidad_disponible || 0}</strong> ${producto.producto_requiere_serie ? 'series' : 'unidades'} disponibles
+            </div>
+        `,
+        customClass: {
+            popup: 'dark:bg-gray-800',
+            title: 'dark:text-gray-100',
+            htmlContainer: 'dark:text-gray-300',
+            footer: 'dark:bg-gray-700 dark:border-gray-600'
+        }
+    });
+}
+/**
+ * Agrupar movimientos por ingreso/egreso - CORREGIDO CANTIDAD TOTAL
+ */
+agruparMovimientosPorIngreso(movimientos, requiereSerie) {
+    if (!requiereSerie) {
+        // Si no requiere serie, devolver movimientos tal cual
+        return movimientos.map(mov => ({
+            ...mov,
+            cantidad_total: Math.abs(parseInt(mov.mov_cantidad) || 0),
+            detalle_series: null
+        }));
+    }
+    
+    // Para productos con serie, agrupar por fecha completa + origen + usuario
+    const grupos = {};
+    
+    movimientos.forEach(mov => {
+        const obsBase = (mov.mov_observaciones || '').split(' - Serie:')[0].trim();
+        const fechaCompleta = mov.mov_fecha;
+        const origen = mov.mov_origen || mov.mov_destino || '';
+        const clave = `${fechaCompleta}_${mov.mov_tipo}_${origen}_${mov.mov_usuario_id || ''}`;
+        
+        if (!grupos[clave]) {
+            grupos[clave] = {
+                ...mov,
+                cantidad_total: 0,  // ← Iniciar en 0
+                series: [],
+                mov_observaciones: obsBase
+            };
+        }
+        
+        // ✅ CORRECCIÓN: Sumar la cantidad de cada movimiento (siempre 1 para series, pero sumarlos)
+        grupos[clave].cantidad_total += Math.abs(parseInt(mov.mov_cantidad) || 1);
+        
+        // Extraer número de serie
+        const serieMatch = (mov.mov_observaciones || '').match(/Serie:\s*([^\s,]+)/);
+        if (serieMatch) {
+            grupos[clave].series.push(serieMatch[1]);
+        }
+    });
+    
+    return Object.values(grupos)
+        .map(grupo => ({
+            ...grupo,
+            detalle_series: grupo.series.length > 0 ? `${grupo.series.length} serie(s)` : null
+        }))
+        .sort((a, b) => new Date(b.mov_fecha) - new Date(a.mov_fecha));
+}
 /**
  * Cargar series del producto (si requiere serie)
  */
@@ -4019,6 +4299,129 @@ renderSeriesProducto(series) {
             </div>
         `;
     }
+}
+
+
+
+/**
+ * Ver todas las series de un producto en un modal
+ */
+async verTodasLasSeries(productoId) {
+    try {
+        const response = await fetch(`/inventario/productos/${productoId}/series`);
+        if (response.ok) {
+            const data = await response.json();
+            const series = data.data || [];
+            
+            // Obtener información del producto
+            const productoResponse = await fetch(`/inventario/productos/${productoId}`);
+            const productoData = await productoResponse.json();
+            const producto = productoData.data;
+            
+            this.mostrarModalSeries(producto, series);
+        } else {
+            this.showAlert('error', 'Error', 'No se pudieron cargar las series');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.showAlert('error', 'Error', 'Error de conexión');
+    }
+}
+
+/**
+ * Mostrar modal con todas las series
+ */
+mostrarModalSeries(producto, series) {
+    // Contar series por estado
+    const disponibles = series.filter(s => s.serie_estado === 'disponible').length;
+    const reservadas = series.filter(s => s.serie_estado === 'reservado').length;
+    const vendidas = series.filter(s => s.serie_estado === 'vendido').length;
+    
+    const contenidoHTML = `
+        <div class="text-left">
+            <!-- Header con info del producto -->
+            <div class="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
+                <h4 class="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    ${producto.producto_nombre}
+                </h4>
+                <div class="text-sm text-blue-700 dark:text-blue-300">
+                    SKU: ${producto.pro_codigo_sku}
+                </div>
+            </div>
+            
+            <!-- Resumen de estados -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div class="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-green-600 dark:text-green-400">${disponibles}</div>
+                    <div class="text-xs text-green-700 dark:text-green-300">Disponibles</div>
+                </div>
+                <div class="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">${reservadas}</div>
+                    <div class="text-xs text-yellow-700 dark:text-yellow-300">Reservadas</div>
+                </div>
+                <div class="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-red-600 dark:text-red-400">${vendidas}</div>
+                    <div class="text-xs text-red-700 dark:text-red-300">Vendidas</div>
+                </div>
+            </div>
+            
+            <!-- Lista de series -->
+            <div class="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
+                    <div class="grid grid-cols-12 gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <div class="col-span-1">#</div>
+                        <div class="col-span-6">Número de Serie</div>
+                        <div class="col-span-2">Estado</div>
+                        <div class="col-span-3">Fecha Ingreso</div>
+                    </div>
+                </div>
+                <div class="max-h-96 overflow-y-auto">
+                    ${series.map((serie, index) => {
+                        const estadoClass = {
+                            'disponible': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                            'reservado': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                            'vendido': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        };
+                        
+                        return `
+                            <div class="grid grid-cols-12 gap-2 px-4 py-2 text-xs border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <div class="col-span-1 text-gray-500 dark:text-gray-400">${index + 1}</div>
+                                <div class="col-span-6 font-mono text-gray-900 dark:text-gray-100">${serie.serie_numero_serie}</div>
+                                <div class="col-span-2">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${estadoClass[serie.serie_estado] || 'bg-gray-100 text-gray-800'}">
+                                        ${serie.serie_estado}
+                                    </span>
+                                </div>
+                                <div class="col-span-3 text-gray-600 dark:text-gray-400">
+                                    ${new Date(serie.serie_fecha_ingreso).toLocaleDateString()}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+            
+            <!-- Footer con total -->
+            <div class="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
+                Total: <strong>${series.length}</strong> series registradas
+            </div>
+        </div>
+    `;
+    
+    Swal.fire({
+        title: `Series Registradas (${series.length})`,
+        html: contenidoHTML,
+        width: '800px',
+        showCloseButton: true,
+        showConfirmButton: true,
+        confirmButtonText: 'Cerrar',
+        confirmButtonColor: '#3b82f6',
+        customClass: {
+            popup: 'dark:bg-gray-800',
+            title: 'dark:text-gray-100',
+            htmlContainer: 'dark:text-gray-300'
+        }
+    });
 }
 
 
